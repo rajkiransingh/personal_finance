@@ -73,17 +73,17 @@ Check Backup Script
 Start Personal Finance Application
     [Documentation]    Start all the necessary components for the Personal Finance Application
     Check Docker Installation
-    Log    Docker installation checked
+    Log To Console    Docker installation checked
     Check Docker Compose File
-    Log    Docker compose file checked
+    Log To Console    Docker compose file checked
     Ensure Docker Volume
-    Log    Docker volume checked
+    Log To Console    Docker volume checked
     Start Docker Containers
-    Log    Docker container started
+    Log To Console    Docker container started
     Wait For Database
-    Log    Database started and wait is over
+    Log To Console    Database started and wait is over
     Check Backup Script
-    Log    Backup script is checked
+    Log To Console    Backup script is checked
     Check Scheduler
-    Log    Personal Finance Application environment is ready
+    Log To Console    Personal Finance Application environment is ready
 
