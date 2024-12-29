@@ -1,9 +1,10 @@
 version: '3'
 services:
-  db: 
-    image: mysql:latest
+  db:
+    image: mysql:8.0.32
     container_name: database
     command: --default-authentication-plugin=mysql_native_password
+    entrypoint: ["/bin/bash", "/cleanup-entrypoint.sh"]
     environment: 
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -13,8 +14,9 @@ services:
       - "3399:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./backup_config/db_backups:/var/lib/mysql/backups
+      - ./backup_config/db_backups:/backups
       - ./backup_config/backup.sh:/backup.sh
+      - ./backup_config/cleanup-entrypoint.sh:/cleanup-entrypoint.sh
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
       interval: 10s
@@ -26,7 +28,8 @@ services:
     container_name: scheduler
     volumes:
       - ./backup_config/config.ini:/etc/ofelia/config.ini
-      - /var/run/docker.sock:/var/run/docker.sock    
+      - /var/run/docker.sock:/var/run/docker.sock   
+      - ./backup_config/backup.sh:/backup.sh
     restart: unless-stopped
     environment:
       - OFELIA_CONFIG=/etc/ofelia/config.ini
@@ -35,4 +38,3 @@ volumes:
   mysql_data:
     external:
       name: personal_finance_data_volume
-
