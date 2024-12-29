@@ -1,0 +1,38 @@
+version: '3'
+services:
+  db: 
+    image: mysql:latest
+    container_name: database
+    command: --default-authentication-plugin=mysql_native_password
+    environment: 
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3399:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backup_config/db_backups:/var/lib/mysql/backups
+      - ./backup_config/backup.sh:/backup.sh
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: scheduler
+    volumes:
+      - ./backup_config/config.ini:/etc/ofelia/config.ini
+      - /var/run/docker.sock:/var/run/docker.sock    
+    restart: unless-stopped
+    environment:
+      - OFELIA_CONFIG=/etc/ofelia/config.ini
+
+volumes:
+  mysql_data:
+    external:
+      name: personal_finance_data_volume
+
