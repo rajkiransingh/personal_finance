@@ -1,0 +1,15 @@
+# Ignore .env files
+.env
+
+# Ignore logs and reports
+*.log
+log.html
+output.xml
+report.html
+
+# Ignore the DB Query SQL
+db_queries.sql
+
+# Ignore DB Backups
+*.sql.gz
+
