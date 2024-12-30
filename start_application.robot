@@ -10,17 +10,18 @@ ${DOCKER_COMPOSE_FILE}=    ${PROJECT_DIR}\\docker-compose.yml
 ${DB_CONTAINER}=    database
 ${SCHEDULER_CONTAINER}=    scheduler
 ${VOLUME_NAME}=    personal_finance_data_volume
+${DB_NAME}=    personal_finance_db
 
 *** Keywords ***
 Check Docker Installation
     [Documentation]    Check if Docker is installed and accessible
     ${result}=    Run Process    docker --version    shell=True
     Run Keyword If    ${result.rc} != 0    Fail    Docker is not installed or not in PATH. Please install Docker Desktop.
-    Log    Docker version: ${result.stdout}
+    Log To Console    Docker version: ${result.stdout}
 
     ${result}=    Run Process    docker-compose --version    shell=True
     Run Keyword If    ${result.rc} != 0    Fail    Docker Compose is not installed or not in PATH. Please install Docker Desktop.
-    Log    Docker Compose version: ${result.stdout}
+    Log To Console    Docker Compose version: ${result.stdout}
 
 Check Docker Compose File
     [Documentation]    Check if docker-compose.yml file exists
@@ -35,13 +36,13 @@ Ensure Docker Volume
 Create Docker Volume
     [Documentation]    Create Docker volume if it doesn't exist
     ${result}=    Run Process    docker volume create ${VOLUME_NAME}    shell=True
-    Log    Volume creation result: ${result.stdout}
+    Log To Console    Volume creation result: ${result.stdout}
     Run Keyword If    ${result.rc} != 0    Fail    Failed to create Docker volume: ${result.stderr}
 
 Start Docker Containers
     [Documentation]    Start all the necessary Docker containers
     ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" up -d    shell=True
-    Log    Docker Compose up result: ${result.stdout}
+    Log To Console    Docker Compose up result: ${result.stdout}
     Run Keyword If    ${result.rc} != 0    Fail    Failed to start Docker containers: ${result.stderr}
 
 Wait For Database
@@ -53,37 +54,49 @@ Wait For Database
     END
     Run Keyword If    ${result.rc} != 0    Fail    Database container did not become ready in time
 
+Check If Latest Database Backup Exists
+    [Documentation]    Check if the database backup is available
+    ${backups}=    Run Process    docker exec ${DB_CONTAINER} ls /backups/    shell=True
+    Log To Console    Found files: ${backups.stdout.strip()}
+    ${backup_files}=    Split String    ${backups.stdout.strip()}    \n
+    Log To Console    Stripped file names: ${backup_files}
+    Run Keyword If    ${backup_files} == []    Log To Console    No backup found. Skipping restore.
+    Run Keyword If    ${backup_files} != []    Restore Backup    ${backup_files}
+
+Restore Backup
+    [Arguments]    ${backup_files}
+    ${latest_backup}=    Evaluate    sorted(${backup_files})[-1]
+    Log To Console    Found latest backup: ${latest_backup}
+    ${restore_command}=    Set Variable    gunzip -c /backups/${latest_backup} | mysql -u root -ppassword --database=${DB_NAME}
+    ${result}=    Run Process    docker exec ${DB_CONTAINER} sh -c "${restore_command}"    shell=True
+    Run Keyword If    ${result.rc} != 0    Fail    Failed to restore database from backup: ${result.stderr}
+    Log To Console    Database restored from ${latest_backup}
+
 Check Scheduler
     [Documentation]    Check if the scheduler is running correctly
-    Sleep    10s    # Give the scheduler more time to initialize
+    Sleep    10s
     ${result}=    Run Process    docker logs ${SCHEDULER_CONTAINER}    shell=True
-    Log    Scheduler logs: ${result.stdout}
-    Log    Scheduler started successfully
+    Log To Console    Scheduler started successfully
 
 Check Backup Script
     [Documentation]    Check if the backup script is present and executable
     ${result}=    Run Process    docker exec ${DB_CONTAINER} ls -l /backup.sh    shell=True
-    Log    Backup script status: ${result.stdout}
+    Log To Console    Backup script status: ${result.stdout}
     Run Keyword If    ${result.rc} != 0    Fail    Backup script not found in the database container
     ${result}=    Run Process    docker exec ${DB_CONTAINER} test -x /backup.sh    shell=True
     Run Keyword If    ${result.rc} != 0    Fail    Backup script is not executable
-    Log    Backup script is present and executable
+    Log To Console    Backup script is present and executable
 
 *** Tasks ***
 Start Personal Finance Application
     [Documentation]    Start all the necessary components for the Personal Finance Application
     Check Docker Installation
-    Log To Console    Docker installation checked
     Check Docker Compose File
-    Log To Console    Docker compose file checked
     Ensure Docker Volume
-    Log To Console    Docker volume checked
     Start Docker Containers
-    Log To Console    Docker container started
     Wait For Database
-    Log To Console    Database started and wait is over
     Check Backup Script
-    Log To Console    Backup script is checked
     Check Scheduler
-    Log To Console    Personal Finance Application environment is ready
+    Check If Latest Database Backup Exists
+
 
