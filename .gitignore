@@ -12,4 +12,11 @@ db_queries.sql
 
 # Ignore DB Backups
 *.sql.gz
+*.sql
 
+# Ignore pycache folders
+__pycache__/
+
+# Ignore Alembic migrations
+alembic/
+alembic.ini
