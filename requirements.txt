@@ -6,4 +6,10 @@ fastapi==0.63.0
 uvicorn==0.13.4
 pydantic==1.7.3
 typing-extensions==3.10.0.0
-
+bs4==0.0.1
+pandas==1.2.3
+mftool==1.1.1
+pandas==0.7.3
+nsepython==1.0.0
+redis==5.2.1
+matplotlib==3.10.1
