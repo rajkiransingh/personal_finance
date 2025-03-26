@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from backend.models import models
 from backend.services.db_services import get_db
 from backend.schemas.investment_schemas import InvestmentCreate, InvestmentUpdate, InvestmentResponse
 from backend.services.user_services import get_user
 from backend.services.investment_services import get_all_investments, get_investment, get_investment_by_user, create_investment, update_investment, delete_investment
+
+import backend.summarizing.investment as investment
+import backend.summarizing.investment_summary as investment_summary
+
 
 router = APIRouter(prefix="/investment", tags=["Investment"])
 
@@ -27,10 +32,13 @@ def read_investment(investment_id: int, db: Session = Depends(get_db)):
     investment = get_investment(db, investment_id)
     return investment
 
-
-@router.post("/", response_model=dict)
+@router.post("/", response_model=InvestmentResponse)
 def add_investment_transaction(investment_data: InvestmentCreate, db: Session = Depends(get_db)):
-    return create_investment(investment_data, db)
+    #return create_investment(investment_data, db)
+    new_investment = investment.create(investment_data, db)
+    
+    investment_summary.update(new_investment, db)
+    return new_investment
 
 @router.put("/{investment_id}", response_model=InvestmentResponse)
 def update_investment_api(investment_id: int, investment_data: InvestmentUpdate, db: Session = Depends(get_db)):
