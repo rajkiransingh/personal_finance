@@ -173,6 +173,8 @@ class Investment(Base):
     current_value = Column(Float, nullable=False)
     return_on_investment = Column(Float, nullable=False)
     transaction_type = Column(String(10), nullable=False)
+    xirr = Column(Float, nullable=False)
+    scheme_code = Column(String(20), nullable=False)
 
 class Assets(Base):
     __tablename__ = "assets"
