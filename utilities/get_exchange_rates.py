@@ -41,8 +41,10 @@ def get_exchange_rates(from_currency, to_currency):
         return Decimal(cached_rate)
 
     # Fetch from API if not cached
+    url = os.getenv("EXCHANGE_API_URL")
     api_key = os.getenv("EXCHANGE_RATE_API_KEY")
-    url = f"https://v6.exchangerate-api.com/v6/{api_key}/pair/{from_currency}/{to_currency}"
+
+    url = f"{url}{api_key}/pair/{from_currency}/{to_currency}"
     
     try:
         print(f"Fetching exchange rate for {from_currency} to {to_currency}")

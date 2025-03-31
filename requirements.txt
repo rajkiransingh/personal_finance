@@ -13,3 +13,4 @@ pandas==0.7.3
 nsepython==1.0.0
 redis==5.2.1
 matplotlib==3.10.1
+alpha_vantage==3.0.0
