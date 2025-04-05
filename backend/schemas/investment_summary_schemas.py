@@ -23,10 +23,12 @@ class MutualFundSummaryResponse(InvestmentSummaryBase):
 
 # 2️⃣ Stock Summary Schema
 class StockSummaryResponse(InvestmentSummaryBase):
+    stock_symbol: str
     stock_name: str
 
 # 3️⃣ Crypto Summary Schema
 class CryptoSummaryResponse(InvestmentSummaryBase):
+    coin_symbol: str
     coin_name: str
 
 # 4️⃣ Bullion Summary Schema

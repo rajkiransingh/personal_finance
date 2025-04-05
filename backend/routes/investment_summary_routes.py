@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.services.user_services import get_user
-from backend.services.investment_summary_services import (
+from backend.summarizing.investment_summary_services import (
     get_all_stocks_investment_summary, 
     get_stocks_by_user, 
     get_all_mutualfunds_investment_summary, 
