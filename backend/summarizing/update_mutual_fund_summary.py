@@ -22,6 +22,7 @@ def update(db: Session, investment: CreateMutualFundInvestmentResponse):
 
     fund = db.query(models.MutualFundSummary).filter(
         models.MutualFundSummary.investor_id == investment.investor,
+        models.MutualFundSummary.scheme_code == investment.scheme_code,
         models.MutualFundSummary.fund_name == investment.fund_name,
     ).first()
 
@@ -49,6 +50,7 @@ def update(db: Session, investment: CreateMutualFundInvestmentResponse):
     else:
         new_fund = models.MutualFundSummary(
             investor_id=investment.investor,
+            scheme_code=investment.scheme_code,
             fund_name=investment.fund_name,
             total_quantity=investment.unit_quantity,
             total_cost=investment.total_invested_amount,

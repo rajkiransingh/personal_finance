@@ -37,7 +37,7 @@ def read_stocks_summary_by_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No investments found for this user")
     return stocks_summary
 
-@router.get("/mutualfunds", response_model=list[MutualFundSummaryResponse])
+@router.get("/mutual-funds", response_model=list[MutualFundSummaryResponse])
 def read_mutualfund_summary(db: Session = Depends(get_db)):
     mutualfund_summary = get_all_mutualfunds_investment_summary(db)
     return mutualfund_summary
@@ -67,7 +67,7 @@ def read_crypto_summary_by_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No investments found for this user")   
     return crypto_summary
 
-@router.get("/realestate", response_model=list[RealEstateSummaryResponse])
+@router.get("/real-estate", response_model=list[RealEstateSummaryResponse])
 def read_realestate_summary(db: Session = Depends(get_db)):
     realestate_summary = get_all_realestate_investment_summary(db)
     return realestate_summary
