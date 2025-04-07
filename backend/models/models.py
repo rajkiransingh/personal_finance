@@ -92,6 +92,7 @@ class MutualFundSummary(Base):
     __tablename__ = "mutual_fund_summary"
     id = Column(Integer, primary_key=True, autoincrement=True)
     investor_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    scheme_code = Column(String(10), nullable=False)
     fund_name = Column(String(255), nullable=False)
     total_quantity = Column(Float, nullable=False)
     total_cost = Column(Float, nullable=False)

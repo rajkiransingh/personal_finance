@@ -192,7 +192,7 @@ def create_property(property_data: CreateRealEstateInvestmentResponse, db: Sessi
         area_in_sqyds=property_data.area_in_sqyds,
         total_invested_amount=property_data.total_invested_amount,
         total_amount_after_sale = property_data.total_amount_after_sale,
-        investment_date=property_data.investment_date or date.today(),
+        investment_date=property_data.investment_date or date.today()
     )
 
     db.add(new_transaction)

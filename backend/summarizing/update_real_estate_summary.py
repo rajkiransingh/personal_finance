@@ -37,7 +37,7 @@ def update(db: Session, investment: models.RealEstateInvestment):
         db.add(income)
 
         property.average_price_per_unit = property.total_cost / property.total_quantity if property.total_quantity > 0 else 0
-        property.last_updated = datetime.datetime.utcnow()
+        property.last_updated = investment.investment_date or date.today() # type: ignore
     else:
         new_property = models.RealEstateSummary(
             investor_id=investment.investor,
@@ -46,7 +46,8 @@ def update(db: Session, investment: models.RealEstateInvestment):
             property_location=investment.property_location,
             total_quantity=investment.area_in_sqyds,
             total_cost=investment.total_invested_amount,
-            average_price_per_unit=investment.total_invested_amount / investment.area_in_sqyds
+            average_price_per_unit=investment.total_invested_amount / investment.area_in_sqyds,
+            last_updated=investment.investment_date or date.today() # type: ignore
         )
         db.add(new_property)
 
