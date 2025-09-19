@@ -1,14 +1,20 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
 from backend.routes import user_routes
 from backend.routes import income_routes
 from backend.routes import expense_routes
-from backend.routes import stock_investment_routes, mutual_fund_investment_routes, bullion_investment_routes, real_estate_investment_routes, crypto_investment_routes
+from backend.routes import stock_investment_routes, mutual_fund_investment_routes, bullion_investment_routes, real_estate_investment_routes, crypto_investment_routes, dividend_routes
 from backend.routes import investment_summary_routes
-from utilities.get_exchange_rates import get_exchange_rates
-from utilities.get_mf_rates import get_mutual_fund_rates
-from utilities.get_current_metal_rates import get_current_metal_rates
-from utilities.get_stock_prices import get_stock_prices
+from backend.services.db_services import get_db
+# from utilities.get_exchange_rates import get_exchange_rates
+# from utilities.get_current_metal_rates import get_current_metal_rates
+# from utilities.get_stock_prices import get_stock_prices_in_bulk
+# #from utilities.get_mf_rates import get_mutual_fund_rates_bulk
+# from utilities.update_investments import get_data_from_investments
+# from utilities.update_investment_summary import get_data_from_investment_summary
 import logging
+import requests
+import json
 
 
 # Initialize logging
@@ -24,27 +30,48 @@ app.include_router(bullion_investment_routes.router)
 app.include_router(real_estate_investment_routes.router)
 app.include_router(crypto_investment_routes.router)
 app.include_router(investment_summary_routes.router)
+app.include_router(dividend_routes.router)
+
+# All the Mutual Funds can be checked in here: https://www.amfiindia.com/spages/NAVAll.txt
 
 @app.get("/")
 def health_check():
     return {"message": "API is running!"}
 
-exchange_rate = get_exchange_rates("PLN","INR")
-print(exchange_rate)
+#db: Session = next(get_db())
 
-mf_rates = get_mutual_fund_rates("122639")
-print(mf_rates.get("nav"))
+# # Get all investment data and stock prices upfront
+#all_investment_data = get_data_from_investments(db)
 
-gold_rate = get_current_metal_rates("Gold")
-print(f'This is the gold rate of the day: {gold_rate}')
+# # Extracting investment specific data from the DB
+# common_stock_list = all_investment_data.get("common_stocks", {})
+# dividend_stock_list = all_investment_data.get("stocks_with_dividends", {})
+# #mutual_funds_list = all_investment_data['mutual_funds']
 
-silver_rate = get_current_metal_rates("Silver")
-print(f'This is the silver rate of the day: {silver_rate}')
+# # Get All the dividends data
+# dividends_data = get_dividends_data(db)
+# logger.info(f"Dividends Data: {dividends_data}")
 
-all_stock_data = get_stock_prices({"HDFCBANK"})
-for stock, data in all_stock_data.items():
-    print(data['currentPrice'])
+# # Get the latest prices and NAVs
+# logger.info(f"Common Stock List: {common_stock_list}")
+# logger.info(f"Dividend Stock List: {dividend_stock_list}")
+# common_stock_prices = get_stock_prices_in_bulk(common_stock_list)
+# dividend_stock_prices = get_stock_prices_in_bulk(dividend_stock_list)
+
+# #logger.info(f"Mutual Fund list: {mutual_funds_list}")
+# #All_mutual_fund_data = get_mutual_fund_rates_bulk(mutual_funds_list)
+# #mf_navs = get_mutual_fund_nav_dict(All_mutual_fund_data)
+# #logger.info(f"MF NAVs: {mf_navs}")
+
+# update_stock_prices(db, common_stock_prices, dividend_stock_prices, dividends_data)
+# print("**************************** Some New Lines ************************")
+# #update_mutual_fund_values(db, mf_navs)
 
 
-
+# # Get the latest prices and NAVs
+# logger.info(f"Common Stock Summary List: {common_stock_list}")
+# logger.info(f"Dividend Stock Summary List: {dividend_stock_list}")
+# #logger.info(f"Mutual Fund Summary List: {mutual_funds_list}")
+# logger.info(f"Common Bulk Price Summary: {common_stock_prices}")
+# logger.info(f"Dividend Bulk Price Summary: {dividend_stock_prices}")
 

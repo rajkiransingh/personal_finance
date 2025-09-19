@@ -27,8 +27,8 @@ class CreateStockInvestmentResponse(InvestmentBase):
     initial_price_per_stock: float
     stock_quantity: float
     current_price_per_stock: Optional[float] = None
+    dividend_paying: bool = False
 
- 
 class CreateMutualFundInvestmentResponse(InvestmentBase):
     scheme_code: constr(max_length=20) # type: ignore
     fund_name: constr(max_length=50) # type: ignore
@@ -77,7 +77,8 @@ class InvestmentUpdate(BaseModel):
     stock_name: Optional[constr(max_length=50)] = None # type: ignore
     initial_price_per_stock: Optional[float] = None
     stock_quantity: Optional[float] = None
-    current_price_per_stock: Optional[float] = None   
+    current_price_per_stock: Optional[float] = None
+    dividend_paying: Optional[bool] = None
     scheme_code: Optional[constr(max_length=20)] = None # type: ignore
     mutual_fund_name: Optional[constr(max_length=50)] = None # type: ignore
     initial_price_per_unit: Optional[float] = None

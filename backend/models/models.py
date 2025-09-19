@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime, Boolean
 from backend.services.db_services import Base
 
 class User(Base):
@@ -87,6 +87,7 @@ class StockSummary(Base):
     roi = Column(Float, nullable=False)
     xirr = Column(Float, nullable=False)
     last_updated = Column(DateTime, nullable=False)
+    dividend_paying = Column(Boolean, nullable=False)
 
 class MutualFundSummary(Base):
     __tablename__ = "mutual_fund_summary"
@@ -177,6 +178,7 @@ class StockInvestment(Base):
     total_amount_after_sale = Column(Float, nullable=False)
     return_on_investment = Column(Float, nullable=False)
     xirr = Column(Float, nullable=False)
+    dividend_paying = Column(Boolean, nullable=False)
 
 class MutualFundInvestment(Base):
     __tablename__ = "mutual_fund_investment"
@@ -261,6 +263,27 @@ class CryptoInvestment(Base):
     total_amount_after_sale = Column(Float, nullable=False)
     return_on_investment = Column(Float, nullable=False)
     xirr = Column(Float, nullable=False)
+
+class Dividends(Base):
+    __tablename__ = "dividends"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    investor = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    currency_id = Column(Integer, ForeignKey("currencies.currency_id"), nullable=False)
+    region_id = Column(Integer, ForeignKey("regions.region_id"), nullable=False)
+    stock_symbol = Column(String(10), nullable=False)
+    stock_name = Column(String(50), nullable=False)
+    amount = Column(Float, nullable=False)
+    received_date = Column(DateTime, nullable=False)
+
+class DividendSummary(Base):
+    __tablename__ = "dividend_summary"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    investor = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    currency_id = Column(Integer, ForeignKey("currencies.currency_id"), nullable=False)
+    region_id = Column(Integer, ForeignKey("regions.region_id"), nullable=False)
+    stock_symbol = Column(String(10), nullable=False)
+    stock_name = Column(String(50), nullable=False)
+    total_amount = Column(Float, nullable=False)
 
 class Assets(Base):
     __tablename__ = "assets"

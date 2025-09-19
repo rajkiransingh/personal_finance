@@ -32,7 +32,7 @@ def update(db: Session, investment: models.CryptoInvestment):
                 currency=currency,
                 earned_date=investment.investment_date or date.today() # type: ignore
             )
-        db.add(income)
+            db.add(income)
 
         coin.average_price_per_unit = coin.total_cost / coin.total_quantity if coin.total_quantity > 0 else 0
         coin.last_updated = datetime.datetime.utcnow()
@@ -43,7 +43,8 @@ def update(db: Session, investment: models.CryptoInvestment):
             crypto_name=investment.crypto_name,
             total_quantity=investment.coin_quantity,
             total_cost=investment.total_invested_amount,
-            average_price_per_unit=investment.total_invested_amount / investment.coin_quantity
+            average_price_per_unit=investment.total_invested_amount / investment.coin_quantity,
+            last_updated = datetime.datetime.utcnow()
         )
         db.add(new_coin)
 

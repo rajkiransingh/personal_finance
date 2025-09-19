@@ -43,7 +43,7 @@ def update(db: Session, investment: CreateMutualFundInvestmentResponse):
                 currency=currency,
                 earned_date=investment.investment_date or date.today() # type: ignore
             )
-        db.add(income)
+            db.add(income)
 
         fund.average_price_per_unit = float(fund.total_cost) / float(fund.total_quantity) if fund.total_quantity > 0 else Decimal("0")
         fund.last_updated = datetime.datetime.utcnow()

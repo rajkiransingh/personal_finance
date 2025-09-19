@@ -14,6 +14,7 @@ class InvestmentSummaryBase(BaseModel):
     roi: Optional[float] = None # type: ignore
     xirr: Optional[float] = None # type: ignore
     last_updated: datetime
+    dividend_paying: bool = False
 
     class Config:
         from_attributes = True  # Enable ORM mode

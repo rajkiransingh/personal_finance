@@ -34,7 +34,7 @@ def update(db: Session, investment: models.RealEstateInvestment):
                 currency=currency,
                 earned_date=investment.investment_date or date.today() # type: ignore
             )
-        db.add(income)
+            db.add(income)
 
         property.average_price_per_unit = property.total_cost / property.total_quantity if property.total_quantity > 0 else 0
         property.last_updated = investment.investment_date or date.today() # type: ignore
