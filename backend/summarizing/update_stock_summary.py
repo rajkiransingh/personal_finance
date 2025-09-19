@@ -31,10 +31,11 @@ def update(db: Session, investment: models.StockInvestment):
                 currency=currency,
                 earned_date=investment.investment_date or date.today() # type: ignore
             )
-        db.add(income)
+            db.add(income)
 
         stock.average_price_per_unit = stock.total_cost / stock.total_quantity if stock.total_quantity > 0 else 0
         stock.last_updated = datetime.datetime.utcnow()
+        stock.dividend_paying = investment.dividend_paying
     else:
         new_stock = models.StockSummary(
             investor_id=investment.investor,
@@ -42,7 +43,9 @@ def update(db: Session, investment: models.StockInvestment):
             stock_name=investment.stock_name,
             total_quantity=investment.stock_quantity,
             total_cost=investment.total_invested_amount,
-            average_price_per_unit=investment.total_invested_amount / investment.stock_quantity
+            average_price_per_unit=investment.total_invested_amount / investment.stock_quantity,
+            last_updated = datetime.datetime.utcnow(),
+            dividend_paying=investment.dividend_paying
         )
         db.add(new_stock)
 

@@ -31,7 +31,7 @@ def update(db: Session, investment: models.BullionInvestment):
                 currency=currency,
                 earned_date=investment.investment_date or date.today() # type: ignore
             )
-        db.add(income)
+            db.add(income)
 
         bullion.average_price_per_unit = bullion.total_cost / bullion.total_quantity if bullion.total_quantity > 0 else 0
         bullion.last_updated = datetime.datetime.utcnow()
@@ -42,7 +42,8 @@ def update(db: Session, investment: models.BullionInvestment):
             metal_name=investment.metal_name,
             total_quantity=investment.quantity_in_grams,
             total_cost=investment.total_invested_amount,
-            average_price_per_unit=investment.total_invested_amount / investment.quantity_in_grams
+            average_price_per_unit=investment.total_invested_amount / investment.quantity_in_grams,
+            last_updated = datetime.datetime.utcnow()
         )
         db.add(new_bullion)
 
