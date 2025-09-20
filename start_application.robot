@@ -6,7 +6,7 @@ Library    DateTime
 
 *** Variables ***
 ${PROJECT_DIR}=    ${CURDIR}
-${DOCKER_COMPOSE_FILE}=    ${PROJECT_DIR}\\docker-compose.yml
+${DOCKER_COMPOSE_FILE}=    ${PROJECT_DIR}/docker-compose.yml
 ${DB_CONTAINER}=    database
 ${SCHEDULER_CONTAINER}=    scheduler
 ${VOLUME_NAME}=    personal_finance_data_volume

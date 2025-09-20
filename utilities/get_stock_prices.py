@@ -1,12 +1,16 @@
-import os
 from dotenv import load_dotenv
 import redis
-import json
-import time
 import yfinance as yf
 import requests
+import json
+import time
 import logging
+import os
 import sys
+
+# Create logs directory if it doesn't exist
+log_dir = "./logs"
+os.makedirs(log_dir, exist_ok=True)
 
 # Set up logging
 logging.basicConfig(
@@ -27,20 +31,20 @@ NSE_WEBSITE = os.getenv("NSE_WEBSITE_URL")
 # Initialize Redis
 logger.info("Initializing Redis client")
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
-redis_client.delete("stock_name:NIFTYBEES")
-redis_client.delete("stock_name:NSLNISP")
-redis_client.delete("stock_name:AVTNPL")
-redis_client.delete("stock_name:EMBASSY-RR")
-redis_client.delete("stock_name:HDFCBANK")
-redis_client.delete("stock_name:HINDUNILVR")
-redis_client.delete("stock_name:REDINGTON")
-redis_client.delete("stock_name:HINDZINC")
-redis_client.delete("stock_name:MOL")
-redis_client.delete("stock_name:PETRONET")
+# redis_client.delete("stock_name:NIFTYBEES")
+# redis_client.delete("stock_name:NSLNISP")
+# redis_client.delete("stock_name:AVTNPL")
+# redis_client.delete("stock_name:EMBASSY-RR")
+# redis_client.delete("stock_name:HDFCBANK")
+# redis_client.delete("stock_name:HINDUNILVR")
+# redis_client.delete("stock_name:REDINGTON")
+# redis_client.delete("stock_name:HINDZINC")
+# redis_client.delete("stock_name:MOL")
+# redis_client.delete("stock_name:PETRONET")
 
 def get_stock_prices_in_bulk(stock_symbol_list):
     stock_data = {}
-    cache_expiry = '86400'
+    cache_expiry = 86400
     
     
     for stock_symbol in stock_symbol_list:
@@ -66,10 +70,6 @@ def get_stock_prices_in_bulk(stock_symbol_list):
                     time.sleep(1)
                 
     return stock_data
-
-import requests
-import json
-import time
 
 def get_nse_etf_price(stock_symbol, stock_data_dict, cache_expiry=86400):
     cache_key = f"stock_name:{stock_symbol}"
@@ -121,7 +121,6 @@ def get_nse_etf_price(stock_symbol, stock_data_dict, cache_expiry=86400):
             json.dumps("{\"currentPrice\": \"250.00\"}")
         )
         logger.warning(f"Added Default price for {stock_symbol}: ₹250 and also cached the same in Redis")
-
 
 def fetch_and_cache_stock_data(stock_symbol, stock_data_dict, cache_expiry):
     cache_key = f"stock_name:{stock_symbol}"
@@ -196,7 +195,6 @@ def fetch_and_cache_stock_data(stock_symbol, stock_data_dict, cache_expiry):
             'lastDividendValue': ticker_info.get('lastDividendValue', 'N/A'),
             'lastDividendDate': ticker_info.get('lastDividendDate', 'N/A'),
             'quoteType': ticker_info.get('quoteType', 'N/A'),
-            'currentPrice': ticker_info.get('currentPrice', 'N/A'),
             'recommendationKey': ticker_info.get('recommendationKey', 'N/A'),
             'totalCash': ticker_info.get('totalCash', 'N/A'),
             'totalCashPerShare': ticker_info.get('totalCashPerShare', 'N/A'),

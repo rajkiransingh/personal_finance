@@ -20,3 +20,7 @@ __pycache__/
 # Ignore Alembic migrations
 alembic/
 alembic.ini
+
+# venv folders
+.venv/
+proj/

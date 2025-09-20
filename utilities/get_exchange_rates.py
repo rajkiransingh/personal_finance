@@ -11,7 +11,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("./logs/Exchange_rate_fetcher_logs.log"),
+        logging.FileHandler("../logs/Exchange_rate_fetcher_logs.log"),
         logging.StreamHandler(sys.stdout)
     ]
 )
