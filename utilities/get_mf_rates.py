@@ -1,8 +1,16 @@
 import json
+import time
+
 from mftool import Mftool
+import yfinance as yf
 import redis
 import logging
 import sys
+import os
+
+# Create logs directory if it doesn't exist
+log_dir = "./logs"
+os.makedirs(log_dir, exist_ok=True)
 
 # Set up logging
 logging.basicConfig(
@@ -21,8 +29,31 @@ REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
-# Initialize Mftool
-mf = Mftool()
+# def initialize_mftool_with_retry(max_retries=3, delay=5):
+#     for attempt in range(max_retries):
+#         try:
+#             logger.info(f"Initializing MF-Tool (attempt {attempt + 1})")
+#             mf = Mftool()
+#             logger.info("MF-Tool initialized successfully")
+#             return mf
+#         except Exception as e:
+#             logger.error(f"Failed to initialize MF-Tool (attempt {attempt + 1}): {e}")
+#             if attempt < max_retries - 1:
+#                 logger.info(f"Retrying in {delay} seconds...")
+#                 time.sleep(delay)
+#             else:
+#                 logger.error("Max retries reached. Unable to initialize MF-Tool")
+#                 raise
+#
+# # Initialize Mftool
+# logger.info("Initializing MF-Tool")
+# try:
+#     mf = initialize_mftool_with_retry()
+# except Exception as e:
+#     logger.error(f"Could not initialize MF-Tool: {e}")
+#
+
+
 
 # def get_all_mutual_fund_rates():
 #     schemes = mf.get_scheme_codes()
@@ -51,7 +82,7 @@ def get_mutual_fund_rates_bulk(scheme_code_list: list):
 
         try:
             logger.info(f"Fetching the data from mfTool for: {scheme_code}")
-            fund_data = mf.get_scheme_quote(scheme_code)
+            fund_data = yf.Ticker(scheme_code).history(period="1d")
 
             # Store in Redis with a 24-hour expiry
             redis_client.setex(cache_key, 86400, json.dumps(fund_data))

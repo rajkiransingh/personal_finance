@@ -8,12 +8,13 @@ from backend.routes import investment_summary_routes
 from backend.services.db_services import get_db
 # from utilities.get_exchange_rates import get_exchange_rates
 # from utilities.get_current_metal_rates import get_current_metal_rates
-# from utilities.get_stock_prices import get_stock_prices_in_bulk
-# #from utilities.get_mf_rates import get_mutual_fund_rates_bulk
-# from utilities.update_investments import get_data_from_investments
+from utilities.get_stock_prices import get_stock_prices_in_bulk
+from utilities.get_mf_rates import get_mutual_fund_rates_bulk, get_mutual_fund_nav_dict
+from utilities.update_investments import get_data_from_investments
 # from utilities.update_investment_summary import get_data_from_investment_summary
+from backend.services.dividend_service import get_all_dividends
 import logging
-import requests
+# import requests
 import json
 
 
@@ -38,30 +39,33 @@ app.include_router(dividend_routes.router)
 def health_check():
     return {"message": "API is running!"}
 
-#db: Session = next(get_db())
+db: Session = next(get_db())
+# Get all investment data and stock prices upfront
+all_investment_data = get_data_from_investments(db)
 
-# # Get all investment data and stock prices upfront
-#all_investment_data = get_data_from_investments(db)
+# Extracting investment specific data from the DB
+common_stock_list = all_investment_data.get("common_stocks", {})
+dividend_stock_list = all_investment_data.get("stocks_with_dividends", {})
+mutual_funds_list = all_investment_data['mutual_funds']
 
-# # Extracting investment specific data from the DB
-# common_stock_list = all_investment_data.get("common_stocks", {})
-# dividend_stock_list = all_investment_data.get("stocks_with_dividends", {})
-# #mutual_funds_list = all_investment_data['mutual_funds']
+# Get All the dividends data
+dividends_data = get_all_dividends(db)
 
-# # Get All the dividends data
-# dividends_data = get_dividends_data(db)
-# logger.info(f"Dividends Data: {dividends_data}")
-
-# # Get the latest prices and NAVs
-# logger.info(f"Common Stock List: {common_stock_list}")
-# logger.info(f"Dividend Stock List: {dividend_stock_list}")
+# Get the latest prices and NAVs
+logger.info(f"Common Stock List: {common_stock_list}")
+logger.info(f"Dividend Stock List: {dividend_stock_list}")
 # common_stock_prices = get_stock_prices_in_bulk(common_stock_list)
-# dividend_stock_prices = get_stock_prices_in_bulk(dividend_stock_list)
+dividend_stock_prices = get_stock_prices_in_bulk(dividend_stock_list)
 
-# #logger.info(f"Mutual Fund list: {mutual_funds_list}")
-# #All_mutual_fund_data = get_mutual_fund_rates_bulk(mutual_funds_list)
-# #mf_navs = get_mutual_fund_nav_dict(All_mutual_fund_data)
-# #logger.info(f"MF NAVs: {mf_navs}")
+logger.info(f"Mutual Fund list: {mutual_funds_list}")
+
+import yfinance as yf
+fund = yf.Ticker("0P0000XVUH.BO")
+nav = fund.history(period="1d")['Close']
+logger.info(f"This is the nav: {round(nav.iloc[-1], 4)}")
+# All_mutual_fund_data = get_mutual_fund_rates_bulk(mutual_funds_list)
+# mf_navs = get_mutual_fund_nav_dict(All_mutual_fund_data)
+# logger.info(f"MF NAVs: {mf_navs}")
 
 # update_stock_prices(db, common_stock_prices, dividend_stock_prices, dividends_data)
 # print("**************************** Some New Lines ************************")

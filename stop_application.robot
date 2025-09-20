@@ -5,7 +5,7 @@ Library    String
 
 *** Variables ***
 ${PROJECT_DIR}=    ${CURDIR}
-${DOCKER_COMPOSE_FILE}=    ${PROJECT_DIR}\\docker-compose.yml
+${DOCKER_COMPOSE_FILE}=    ${PROJECT_DIR}/docker-compose.yml
 ${DB_CONTAINER}=    personal_finance_database
 
 *** Keywords ***
