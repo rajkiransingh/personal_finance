@@ -2,7 +2,10 @@ from sqlalchemy.orm import Session
 from backend.models import models
 import datetime
 
-def update(db: Session, investment: models.CryptoInvestment):
+from backend.schemas.investment_schemas import CryptoInvestmentResponse
+
+
+def update(db: Session, investment: CryptoInvestmentResponse):
     coin = db.query(models.CryptoSummary).filter(
         models.CryptoSummary.investor_id == investment.investor,
         models.CryptoSummary.coin_symbol == investment.coin_symbol,

@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from backend.schemas.investment_schemas import CreateStockInvestmentResponse, InvestmentUpdate
+from backend.schemas.investment_schemas import StockInvestmentResponse, InvestmentUpdate
 from backend.services.db_services import get_db
 from backend.services.user_services import get_user
 from backend.services.investment_services import get_all_investments, get_investment_by_user, get_investment_by_id, create_stock, update_investment, delete_investment
 from backend.summarizing import update_stock_summary
 
 router = APIRouter(prefix="/investment/stocks", tags=["Investment"])
-@router.get("/", response_model=list[CreateStockInvestmentResponse])
+@router.get("/", response_model=list[StockInvestmentResponse])
 def read_all_investments(db: Session = Depends(get_db)):
     investments = get_all_investments("stocks", db)
     return investments
 
-@router.get("/user/{user_id}", response_model=list[CreateStockInvestmentResponse])
+@router.get("/user/{user_id}", response_model=list[StockInvestmentResponse])
 def read_investments_by_user(user_id: int, db: Session = Depends(get_db)):
     user = get_user(db, user_id)
     if not user:
@@ -22,13 +22,13 @@ def read_investments_by_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No investments found for this user")
     return investment
 
-@router.get("/{investment_id}", response_model=CreateStockInvestmentResponse)
+@router.get("/{investment_id}", response_model=StockInvestmentResponse)
 def read_investment(investment_id: int, db: Session = Depends(get_db)):
     investment = get_investment_by_id(db, investment_id)
     return investment
 
-@router.post("/", response_model=CreateStockInvestmentResponse)
-def add_investment_transaction(investment_data: CreateStockInvestmentResponse, db: Session = Depends(get_db)):
+@router.post("/", response_model=StockInvestmentResponse)
+def add_investment_transaction(investment_data: StockInvestmentResponse, db: Session = Depends(get_db)):
     new_investment = create_stock(investment_data, db)
     update_stock_summary.update(db, investment_data)
     return new_investment

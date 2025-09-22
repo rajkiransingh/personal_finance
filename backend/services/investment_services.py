@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from backend.models.models import StockInvestment, MutualFundInvestment, BullionInvestment, RealEstateInvestment, CryptoInvestment
-from backend.schemas.investment_schemas import CreateStockInvestmentResponse, CreateMutualFundInvestmentResponse, CreateBullionInvestmentResponse, CreateRealEstateInvestmentResponse, CreateCryptoInvestmentResponse, InvestmentUpdate
+from backend.schemas.investment_schemas import StockInvestmentResponse, MutualFundInvestmentResponse, BullionInvestmentResponse, RealEstateInvestmentResponse, CryptoInvestmentResponse, InvestmentUpdate
 from datetime import date
 
 def get_all_investments(type: str, db: Session):
@@ -46,7 +46,7 @@ def get_investment_by_id(type :str, db: Session, id: int):
     else:
         raise HTTPException(status_code=400, detail="Invalid investment type")
 
-def create_stock(stock_data: CreateStockInvestmentResponse, db: Session):
+def create_stock(stock_data: StockInvestmentResponse, db: Session):
     if stock_data.transaction_type not in ["BUY", "SELL"]:
         raise HTTPException(status_code=400, detail="Invalid transaction type")
 
@@ -84,7 +84,7 @@ def create_stock(stock_data: CreateStockInvestmentResponse, db: Session):
 
     return new_transaction
 
-def create_mutual_fund(fund_data: CreateMutualFundInvestmentResponse, db: Session):
+def create_mutual_fund(fund_data: MutualFundInvestmentResponse, db: Session):
     if fund_data.transaction_type not in ["BUY", "SELL"]:
         raise HTTPException(status_code=400, detail="Invalid transaction type")
 
@@ -122,7 +122,7 @@ def create_mutual_fund(fund_data: CreateMutualFundInvestmentResponse, db: Sessio
 
     return new_transaction
 
-def create_bullion(bullion_data: CreateBullionInvestmentResponse, db: Session):
+def create_bullion(bullion_data: BullionInvestmentResponse, db: Session):
     if bullion_data.transaction_type not in ["BUY", "SELL"]:
         raise HTTPException(status_code=400, detail="Invalid transaction type")
 
@@ -160,7 +160,7 @@ def create_bullion(bullion_data: CreateBullionInvestmentResponse, db: Session):
 
     return new_transaction
 
-def create_property(property_data: CreateRealEstateInvestmentResponse, db: Session):
+def create_property(property_data: RealEstateInvestmentResponse, db: Session):
     if property_data.transaction_type not in ["BUY", "SELL"]:
         raise HTTPException(status_code=400, detail="Invalid transaction type")
 
@@ -201,7 +201,7 @@ def create_property(property_data: CreateRealEstateInvestmentResponse, db: Sessi
 
     return new_transaction
 
-def create_crypto(coin_data: CreateCryptoInvestmentResponse, db: Session):
+def create_crypto(coin_data: CryptoInvestmentResponse, db: Session):
     if coin_data.transaction_type not in ["BUY", "SELL"]:
         raise HTTPException(status_code=400, detail="Invalid transaction type")
 
