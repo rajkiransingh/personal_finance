@@ -1,20 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from backend.schemas.investment_schemas import CreateCryptoInvestmentResponse, InvestmentUpdate
+from backend.schemas.investment_schemas import CryptoInvestmentResponse, InvestmentUpdate
 from backend.services.db_services import get_db
 from backend.services.user_services import get_user
 from backend.services.investment_services import get_all_investments, get_investment_by_user, get_investment_by_id, create_crypto, update_investment, delete_investment
 from backend.summarizing import update_crypto_summary
 
 router = APIRouter(prefix="/investment/crypto", tags=["Investment"])
-@router.get("/", response_model=list[CreateCryptoInvestmentResponse])
+@router.get("/", response_model=list[CryptoInvestmentResponse])
 def read_all_investments(db: Session = Depends(get_db)):
     investments = get_all_investments("crypto", db)
     if not investments:
         raise HTTPException(status_code=404, detail="No investments found for any user on this platform")
     return investments
 
-@router.get("/user/{user_id}", response_model=list[CreateCryptoInvestmentResponse])
+@router.get("/user/{user_id}", response_model=list[CryptoInvestmentResponse])
 def read_investments_by_user(user_id: int, db: Session = Depends(get_db)):
     user = get_user(db, user_id)
     if not user:
@@ -24,13 +24,13 @@ def read_investments_by_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No investments found for this user")
     return investment
 
-@router.get("/{investment_id}", response_model=CreateCryptoInvestmentResponse)
+@router.get("/{investment_id}", response_model=CryptoInvestmentResponse)
 def read_investment(investment_id: int, db: Session = Depends(get_db)):
     investment = get_investment_by_id("crypto", db, investment_id)
     return investment
 
-@router.post("/", response_model=CreateCryptoInvestmentResponse)
-def add_investment_transaction(investment_data: CreateCryptoInvestmentResponse, db: Session = Depends(get_db)):
+@router.post("/", response_model=CryptoInvestmentResponse)
+def add_investment_transaction(investment_data: CryptoInvestmentResponse, db: Session = Depends(get_db)):
     new_investment = create_crypto(investment_data, db)
     update_crypto_summary.update(db, investment_data)
     return new_investment

@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 from backend.models import models
-from backend.schemas.investment_schemas import CreateMutualFundInvestmentResponse
+from backend.schemas.investment_schemas import MutualFundInvestmentResponse
 from decimal import Decimal
 import datetime
 
-def update(db: Session, investment: CreateMutualFundInvestmentResponse):
+def update(db: Session, investment: MutualFundInvestmentResponse):
 
     # investment_type_to_income_source = {
     #     2: 8,  # Stock → Stock Profit

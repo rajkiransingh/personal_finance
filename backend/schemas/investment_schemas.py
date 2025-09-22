@@ -21,7 +21,7 @@ class InvestmentBase(BaseModel):
         from_attributes = True  # Enable ORM mode
 
 # Create Investment Models are defined below
-class CreateStockInvestmentResponse(InvestmentBase):
+class StockInvestmentResponse(InvestmentBase):
     stock_symbol: constr(max_length=10) # type: ignore
     stock_name: Optional[constr(max_length=50)] = None # type: ignore
     initial_price_per_stock: float
@@ -29,20 +29,20 @@ class CreateStockInvestmentResponse(InvestmentBase):
     current_price_per_stock: Optional[float] = None
     dividend_paying: bool = False
 
-class CreateMutualFundInvestmentResponse(InvestmentBase):
+class MutualFundInvestmentResponse(InvestmentBase):
     scheme_code: constr(max_length=20) # type: ignore
     fund_name: constr(max_length=50) # type: ignore
     initial_price_per_unit: float
     unit_quantity: float
     current_price_per_unit: Optional[float] = None
 
-class CreateBullionInvestmentResponse(InvestmentBase):
+class BullionInvestmentResponse(InvestmentBase):
     metal_name: constr(max_length=10) # type: ignore
     initial_price_per_gram: float
     quantity_in_grams: float
     current_price_per_gram: Optional[float] = None
 
-class CreateRealEstateInvestmentResponse(InvestmentBase):
+class RealEstateInvestmentResponse(InvestmentBase):
     property_name: constr(max_length=50) # type: ignore
     property_type: constr(max_length=20) # type: ignore
     property_location: constr(max_length=50) # type: ignore
@@ -50,7 +50,7 @@ class CreateRealEstateInvestmentResponse(InvestmentBase):
     initial_price_per_sqyds: float
     current_price_per_sqyds: Optional[float] = None
 
-class CreateCryptoInvestmentResponse(InvestmentBase):
+class CryptoInvestmentResponse(InvestmentBase):
     coin_symbol: constr(max_length=10) # type: ignore
     crypto_name: constr(max_length=20) # type: ignore
     initial_price_per_coin: float

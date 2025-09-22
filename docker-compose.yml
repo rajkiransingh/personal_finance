@@ -30,9 +30,23 @@ services:
 
   redis:
     image: redis:latest
+    container_name: redis
     restart: unless-stopped
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes", "--save","60", "1"]
+
+  redis-cli:
+    image: redis:latest
+    container_name: redis-cli
+    restart: unless-stopped
+    depends_on:
+      - redis
+    entrypoint: ["redis-cli", "-h", "redis"]
+    stdin_open: true
+    tty: true
 
   scheduler:
     image: mcuadros/ofelia:latest
@@ -41,6 +55,10 @@ services:
       - ./backup_config/config.ini:/etc/ofelia/config.ini
       - /var/run/docker.sock:/var/run/docker.sock   
       - ./backup_config/backup.sh:/backup.sh
+      - ./scripts/fetch_stocks.py:/scripts/fetch_stocks.py
+      - ./scripts/fetch_metals.py:/scripts/fetch_metals.py
+      - ./scripts/fetch_crypto.py:/scripts/fetch_crypto.py
+      - ./scripts/fetch_mf_data_s3.py:/scripts/fetch_mf_data_s3.py
     restart: unless-stopped
     environment:
       - OFELIA_CONFIG=/etc/ofelia/config.ini
@@ -49,3 +67,5 @@ volumes:
   mysql_data:
     external:
       name: personal_finance_data_volume
+  redis_data:
+    driver: local

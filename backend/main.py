@@ -6,8 +6,9 @@ from backend.routes import expense_routes
 from backend.routes import stock_investment_routes, mutual_fund_investment_routes, bullion_investment_routes, real_estate_investment_routes, crypto_investment_routes, dividend_routes
 from backend.routes import investment_summary_routes
 from backend.services.db_services import get_db
+from utilities.get_crypto_rates import fetch_cryptocurrency_data
+from utilities.get_current_metal_rates import get_gold_rate, get_silver_rate
 # from utilities.get_exchange_rates import get_exchange_rates
-# from utilities.get_current_metal_rates import get_current_metal_rates
 from utilities.get_stock_prices import get_stock_prices_in_bulk
 from utilities.get_mf_rates import get_mutual_fund_rates_bulk, get_mutual_fund_nav_dict
 from utilities.update_investments import get_data_from_investments
@@ -47,6 +48,7 @@ all_investment_data = get_data_from_investments(db)
 common_stock_list = all_investment_data.get("common_stocks", {})
 dividend_stock_list = all_investment_data.get("stocks_with_dividends", {})
 mutual_funds_list = all_investment_data['mutual_funds']
+crypto_coin_list = all_investment_data['crypto']
 
 # Get All the dividends data
 dividends_data = get_all_dividends(db)
@@ -59,11 +61,10 @@ dividend_stock_prices = get_stock_prices_in_bulk(dividend_stock_list)
 
 logger.info(f"Mutual Fund list: {mutual_funds_list}")
 
-import yfinance as yf
-fund = yf.Ticker("0P0000XVUH.BO")
-nav = fund.history(period="1d")['Close']
-logger.info(f"This is the nav: {round(nav.iloc[-1], 4)}")
-# All_mutual_fund_data = get_mutual_fund_rates_bulk(mutual_funds_list)
+fetch_cryptocurrency_data(crypto_coin_list)
+get_gold_rate()
+get_silver_rate()
+#All_mutual_fund_data = get_mutual_fund_rates_bulk(mutual_funds_list)
 # mf_navs = get_mutual_fund_nav_dict(All_mutual_fund_data)
 # logger.info(f"MF NAVs: {mf_navs}")
 
