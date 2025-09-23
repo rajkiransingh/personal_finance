@@ -1,3 +1,6 @@
+# Idea files
+.idea
+
 # Ignore .env files
 .env
 
@@ -24,3 +27,4 @@ alembic.ini
 # venv folders
 .venv/
 proj/
+finance_env/
