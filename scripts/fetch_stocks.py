@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from sqlalchemy.orm import Session
 
@@ -6,6 +7,9 @@ from backend.services.db_services import get_db
 from backend.services.dividend_service import get_all_dividends
 from utilities.get_stock_prices import get_stock_prices_in_bulk
 from utilities.update_investments import get_data_from_investments
+
+# Add the app root directory to Python path
+sys.path.insert(0, '/app')
 
 # Initialize logging
 logger = logging.getLogger(__name__)

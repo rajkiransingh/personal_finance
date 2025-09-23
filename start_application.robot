@@ -41,7 +41,7 @@ Create Docker Volume
 
 Start Docker Containers
     [Documentation]    Start all the necessary Docker containers
-    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" up -d    shell=True
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" up -d --build    shell=True
     Log To Console    Docker Compose up result: ${result.stdout}
     Run Keyword If    ${result.rc} != 0    Fail    Failed to start Docker containers: ${result.stderr}
 
