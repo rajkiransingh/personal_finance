@@ -55,9 +55,11 @@ def get_stock_prices_in_bulk(stock_symbol_list):
                 # Get and parse the JSON data from Redis
                 cached_data = redis_client.get(cache_key)
                 stock_data[stock_symbol] = json.loads(cached_data)
-                logger.info(f"Using cached data for Stocks: {stock_symbol}")
+                price = int(stock_data[stock_symbol]["previousClose"])
+                logger.info(f"Cache hit: Using cached price for {stock_symbol}: {price}")
             except json.JSONDecodeError:
                 # If JSON is invalid, fetch fresh data
+                logger.info(f"Cache miss: No cached price for {stock_symbol}. Trying to fetch the data from API...")
                 fetch_and_cache_stock_data(stock_symbol, stock_data, cache_expiry)
         else:
             if stock_symbol == "NIFTYBEES":
