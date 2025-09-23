@@ -30,7 +30,7 @@ NSE_WEBSITE = os.getenv("NSE_WEBSITE_URL")
 
 # Initialize Redis
 logger.info("Initializing Redis client")
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+redis_client = redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
 # redis_client.delete("stock_name:NIFTYBEES")
 # redis_client.delete("stock_name:NSLNISP")
 # redis_client.delete("stock_name:AVTNPL")
