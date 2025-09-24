@@ -3,6 +3,7 @@
 
 # Ignore .env files
 .env
+.last_build
 
 # Ignore logs and reports
 *.log
