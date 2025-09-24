@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
-from backend.models.models import Dividends
-from backend.schemas.dividend_schemas import DividendCreate, DividendUpdate
+
+from backend.models.investments.stock import Dividends
+from backend.schemas.investments.dividend_schema import DividendCreate, DividendUpdate
 
 def get_all_dividends(db: Session):
     return db.query(Dividends).all()
@@ -8,8 +9,8 @@ def get_all_dividends(db: Session):
 def get_dividend_by_user(db: Session, user_id: int):
     return db.query(Dividends).filter(Dividends.investor == user_id).all()
 
-def get_dividend(db: Session, id: int):
-    return db.query(Dividends).filter(Dividends.id == id).first()
+def get_dividend(db: Session, dividend_id: int):
+    return db.query(Dividends).filter(Dividends.id == dividend_id).first()
 
 def create_dividend(db: Session, dividend_data: DividendCreate):
     new_dividend = Dividends(**dividend_data.dict())
@@ -18,8 +19,8 @@ def create_dividend(db: Session, dividend_data: DividendCreate):
     db.refresh(new_dividend)
     return new_dividend
 
-def update_dividend(db: Session, id: int, dividend_data: DividendUpdate):
-    dividend = db.query(Dividends).filter(Dividends.id == id).first()
+def update_dividend(db: Session, dividend_id: int, dividend_data: DividendUpdate):
+    dividend = db.query(Dividends).filter(Dividends.id == dividend_id).first()
     if dividend:
         for key, value in dividend_data.dict(exclude_unset=True).items():
             setattr(dividend, key, value)
@@ -27,8 +28,8 @@ def update_dividend(db: Session, id: int, dividend_data: DividendUpdate):
         db.refresh(dividend)
     return dividend
 
-def delete_dividend(db: Session, id: int):
-    dividend = db.query(Dividends).filter(Dividends.id == id).first()
+def delete_dividend(db: Session, dividend_id: int):
+    dividend = db.query(Dividends).filter(Dividends.id == dividend_id).first()
     if dividend:
         db.delete(dividend)
         db.commit()

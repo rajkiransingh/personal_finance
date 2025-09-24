@@ -4,8 +4,8 @@ import sys
 from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db
-from backend.services.dividend_service import get_all_dividends
-from utilities.get_stock_prices import get_stock_prices_in_bulk
+from backend.services.investments.dividend import get_all_dividends
+from utilities.stock_price_fetcher import get_stock_prices_in_bulk
 from utilities.update_investments import get_data_from_investments
 
 # Add the app root directory to Python path

@@ -20,43 +20,6 @@ class InvestmentBase(BaseModel):
     class Config:
         from_attributes = True  # Enable ORM mode
 
-# Create Investment Models are defined below
-class StockInvestmentResponse(InvestmentBase):
-    stock_symbol: constr(max_length=10) # type: ignore
-    stock_name: Optional[constr(max_length=50)] = None # type: ignore
-    initial_price_per_stock: float
-    stock_quantity: float
-    current_price_per_stock: Optional[float] = None
-    dividend_paying: bool = False
-
-class MutualFundInvestmentResponse(InvestmentBase):
-    scheme_code: constr(max_length=20) # type: ignore
-    fund_name: constr(max_length=50) # type: ignore
-    initial_price_per_unit: float
-    unit_quantity: float
-    current_price_per_unit: Optional[float] = None
-
-class BullionInvestmentResponse(InvestmentBase):
-    metal_name: constr(max_length=10) # type: ignore
-    initial_price_per_gram: float
-    quantity_in_grams: float
-    current_price_per_gram: Optional[float] = None
-
-class RealEstateInvestmentResponse(InvestmentBase):
-    property_name: constr(max_length=50) # type: ignore
-    property_type: constr(max_length=20) # type: ignore
-    property_location: constr(max_length=50) # type: ignore
-    area_in_sqyds: float
-    initial_price_per_sqyds: float
-    current_price_per_sqyds: Optional[float] = None
-
-class CryptoInvestmentResponse(InvestmentBase):
-    coin_symbol: constr(max_length=10) # type: ignore
-    crypto_name: constr(max_length=20) # type: ignore
-    initial_price_per_coin: float
-    coin_quantity: float
-    current_price_per_coin: Optional[float] = None
-
 ## Update Investment Models are defined below
 class InvestmentUpdate(BaseModel):
     id: Optional[int] = None
@@ -72,7 +35,7 @@ class InvestmentUpdate(BaseModel):
     current_total_value: Optional[float] = None
     total_amount_after_sale: Optional[float] = None
     return_on_investment: Optional[float] = None
-    xirr: Optional[float] = None    
+    xirr: Optional[float] = None
     stock_symbol: Optional[constr(max_length=10)] = None # type: ignore
     stock_name: Optional[constr(max_length=50)] = None # type: ignore
     initial_price_per_stock: Optional[float] = None
@@ -102,3 +65,4 @@ class InvestmentUpdate(BaseModel):
 
     class Config:
         orm_mode = True
+        

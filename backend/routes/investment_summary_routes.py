@@ -15,7 +15,7 @@ from backend.summarizing.investment_summary_services import (
     )
 
 from backend.services.db_services import get_db
-from backend.schemas.investment_summary_schemas import (
+from backend.schemas.summaries.investment_summary_schema import (
     StockSummaryResponse, MutualFundSummaryResponse, CryptoSummaryResponse, 
     RealEstateSummaryResponse, BullionSummaryResponse
 )
