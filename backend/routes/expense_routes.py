@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.services.user_services import get_user
 from backend.services.expense_services import get_all_expenses, get_expenses_by_user, get_expense, create_expense, update_expense, delete_expense
 from backend.services.db_services import get_db
-from backend.schemas.expense_schemas import ExpenseCreate, ExpenseUpdate, ExpenseResponse
+from backend.schemas.expense_schema import ExpenseCreate, ExpenseUpdate, ExpenseResponse
 from typing import List
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])

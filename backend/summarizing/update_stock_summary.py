@@ -1,11 +1,15 @@
 from sqlalchemy.orm import Session
-from backend.models import models
 import datetime
 
-def update(db: Session, investment: models.StockInvestment):
-    stock = db.query(models.StockSummary).filter(
-        models.StockSummary.investor_id == investment.investor,
-        models.StockSummary.stock_symbol == investment.stock_symbol
+from backend.models.earnings.income import Income
+from backend.models.investments.stock import StockSummary
+from backend.schemas.investments.stock_schema import StockInvestmentCreate
+
+
+def update(db: Session, investment: StockInvestmentCreate):
+    stock = db.query(StockSummary).filter(
+        StockSummary.investor_id == investment.investor,
+        StockSummary.stock_symbol == investment.stock_symbol
     ).first()
 
     currency_map = {
@@ -23,8 +27,8 @@ def update(db: Session, investment: models.StockInvestment):
             stock.total_cost -= (stock.average_price_per_unit * investment.stock_quantity)
             
             currency = currency_map.get(investment.currency_id, "INR")
-            # Record income from sale
-            income = models.Income(
+            # Record earnings from sale
+            income = Income(
                 user_id=investment.investor,
                 source_id=8,
                 amount=investment.total_amount_after_sale,
@@ -37,7 +41,7 @@ def update(db: Session, investment: models.StockInvestment):
         stock.last_updated = datetime.datetime.utcnow()
         stock.dividend_paying = investment.dividend_paying
     else:
-        new_stock = models.StockSummary(
+        new_stock = StockSummary(
             investor_id=investment.investor,
             stock_symbol=investment.stock_symbol,
             stock_name=investment.stock_name,

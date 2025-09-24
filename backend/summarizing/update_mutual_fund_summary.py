@@ -1,10 +1,13 @@
 from sqlalchemy.orm import Session
-from backend.models import models
-from backend.schemas.investment_schemas import MutualFundInvestmentResponse
 from decimal import Decimal
 import datetime
 
-def update(db: Session, investment: MutualFundInvestmentResponse):
+from backend.models.earnings.income import Income
+from backend.models.investments.mutual_fund import MutualFundSummary
+from backend.schemas.investments.mutual_fund_schema import MutualFundInvestmentCreate
+
+
+def update(db: Session, investment: MutualFundInvestmentCreate):
 
     # investment_type_to_income_source = {
     #     2: 8,  # Stock → Stock Profit
@@ -20,10 +23,10 @@ def update(db: Session, investment: MutualFundInvestmentResponse):
         3: "USD"
     }
 
-    fund = db.query(models.MutualFundSummary).filter(
-        models.MutualFundSummary.investor_id == investment.investor,
-        models.MutualFundSummary.scheme_code == investment.scheme_code,
-        models.MutualFundSummary.fund_name == investment.fund_name,
+    fund = db.query(MutualFundSummary).filter(
+        MutualFundSummary.investor_id == investment.investor,
+        MutualFundSummary.scheme_code == investment.scheme_code,
+        MutualFundSummary.fund_name == investment.fund_name,
     ).first()
 
     if fund:
@@ -35,8 +38,8 @@ def update(db: Session, investment: MutualFundInvestmentResponse):
             fund.total_cost = Decimal(str(fund.total_cost)) - (Decimal(str(investment.unit_quantity)) * Decimal(str(fund.average_price_per_unit)))
             
             currency = currency_map.get(investment.currency_id, "INR")
-            # Record income from sale
-            income = models.Income(
+            # Record earnings from sale
+            income = Income(
                 user_id=investment.investor,
                 source_id=5,
                 amount=investment.total_amount_after_sale,
@@ -48,7 +51,7 @@ def update(db: Session, investment: MutualFundInvestmentResponse):
         fund.average_price_per_unit = float(fund.total_cost) / float(fund.total_quantity) if fund.total_quantity > 0 else Decimal("0")
         fund.last_updated = datetime.datetime.utcnow()
     else:
-        new_fund = models.MutualFundSummary(
+        new_fund = MutualFundSummary(
             investor_id=investment.investor,
             scheme_code=investment.scheme_code,
             fund_name=investment.fund_name,

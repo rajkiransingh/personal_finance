@@ -1,10 +1,14 @@
 from sqlalchemy.orm import Session
-from backend.models import models
 
-def update(db: Session, investment: models.Dividends):
-    dividend = db.query(models.DividentSummary).filter(
-        models.DividentSummary.investor == investment.investor,
-        models.DividentSummary.stock_symbol == investment.stock_symbol
+from backend.models.earnings.income import Income
+from backend.models.investments.stock import DividendSummary
+from backend.schemas.investments.dividend_schema import DividendCreate
+
+
+def update(db: Session, investment: DividendCreate):
+    dividend = db.query(DividendSummary).filter(
+        DividendSummary.investor == investment.investor,
+        DividendSummary.stock_symbol == investment.stock_symbol
     ).first()
 
     currency_map = {
@@ -15,18 +19,18 @@ def update(db: Session, investment: models.Dividends):
 
     if dividend:
         dividend.total_amount += investment.amount
-          
-        income = models.Income(
+
+        income = Income(
             user_id=investment.investor,
             source_id=4,
             amount=investment.amount,
             currency=currency_map[investment.currency_id],
-            earned_date=investment.received_date or date.today() # type: ignore
+            earned_date=investment.received_date or date.today()  # type: ignore
         )
         db.add(income)
 
     else:
-        new_stock = models.DividentSummary(
+        new_stock = DividendSummary(
             investor=investment.investor,
             currency_id=investment.currency_id,
             region_id=investment.region_id,

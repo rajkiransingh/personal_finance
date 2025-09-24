@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
-from backend.models.models import User
+
+from backend.models.user import User
 from backend.schemas.user_schema import UserCreate, UserUpdate
+
 
 # Create a new user
 def create_user(db: Session, user_data: UserCreate):
@@ -10,13 +12,16 @@ def create_user(db: Session, user_data: UserCreate):
     db.refresh(new_user)
     return new_user
 
+
 # Get user by ID
 def get_user(db: Session, user_id: int):
     return db.query(User).filter(User.user_id == user_id).first()
 
-#Get user_id by name
+
+# Get user_id by name
 def get_user_id_by_name(db: Session, name: str):
     return db.query(User).filter(User.name == name).first()
+
 
 # Update user details
 def update_user(db: Session, user_id: int, user_data: UserUpdate):
@@ -28,6 +33,7 @@ def update_user(db: Session, user_id: int, user_data: UserUpdate):
     db.commit()
     db.refresh(user)
     return user
+
 
 # Delete user
 def delete_user(db: Session, user_id: int):

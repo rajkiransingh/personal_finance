@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from backend.services.db_services import get_db
 from backend.services.user_services import get_user
 from backend.services.income_services import get_all_incomes, get_income, get_income_by_user, create_income, update_income, delete_income
-from backend.schemas.income_schemas import IncomeCreate, IncomeUpdate, IncomeResponse
+from backend.schemas.income_schema import IncomeCreate, IncomeUpdate, IncomeResponse
 from typing import List
 
-router = APIRouter(prefix="/income", tags=["Income"])
+router = APIRouter(prefix="/earnings", tags=["Income"])
 
 @router.get("/", response_model=List[IncomeResponse])
 def read_all_incomes(db: Session = Depends(get_db)):
