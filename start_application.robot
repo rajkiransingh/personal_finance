@@ -11,6 +11,7 @@ ${DB_CONTAINER}=    database
 ${SCHEDULER_CONTAINER}=    scheduler
 ${VOLUME_NAME}=    personal_finance_data_volume
 ${DB_NAME}=    personal_finance_db
+${IMAGE_NAME}             personal_finance_backend
 
 *** Keywords ***
 Check Docker Installation
@@ -39,9 +40,72 @@ Create Docker Volume
     Log To Console    Volume creation result: ${result.stdout}
     Run Keyword If    ${result.rc} != 0    Fail    Failed to create Docker volume: ${result.stderr}
 
+Build Docker Image If Needed
+    [Documentation]    Build Docker image only if changes detected
+    [Arguments]    ${force_build}=False
+
+    Run Keyword If    ${force_build}    Force Build Docker Image
+    ...    ELSE    Build Docker Image Smart
+
+Force Build Docker Image
+    [Documentation]    Force rebuild of Docker image
+    Log To Console    Force building Docker image...
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" build --no-cache    shell=True    cwd=${CURDIR}
+    Log To Console    Build stdout: ${result.stdout}
+    Log To Console    Build stderr: ${result.stderr}
+    Run Keyword If    ${result.rc} != 0    Fail    Docker build failed. Check build logs above.
+    Log To Console    Docker image built successfully!
+
+Build Docker Image Smart
+    [Documentation]    Build Docker image only if needed (checks for changes)
+    Log To Console    Checking if Docker image needs to be rebuilt...
+
+    # Check if image exists
+    ${image_exists}=    Check If Docker Image Exists
+
+    # Check if source files changed
+    ${files_changed}=    Check If Source Files Changed
+
+    # Build only if image doesn't exist OR files changed
+    ${should_build}=    Evaluate    not ${image_exists} or ${files_changed}
+
+    Run Keyword If    ${should_build}    Build Docker Image
+    ...    ELSE    Log To Console    Using existing Docker image (no changes detected)
+
+Check If Docker Image Exists
+    [Documentation]    Check if Docker image already exists
+    ${result}=    Run Process    docker images -q ${IMAGE_NAME}    shell=True
+    ${image_exists}=    Set Variable If    '${result.stdout}' != ''    True    False
+    Log To Console    Image exists: ${image_exists}
+    RETURN    ${image_exists}
+
+Check If Source Files Changed
+    [Documentation]    Check if source files changed since last build
+    ${result}=    Run Process    find . -name "*.py" -newer .last_build 2>/dev/null | head -1    shell=True    cwd=${CURDIR}
+    ${files_changed}=    Set Variable If    '${result.stdout}' != ''    True    False
+
+    # If .last_build doesn't exist, assume files changed
+    ${last_build_exists}=    Run Keyword And Return Status    OperatingSystem.File Should Exist    .last_build
+    ${files_changed}=    Set Variable If    not ${last_build_exists}    True    ${files_changed}
+
+    Log To Console    Files changed since last build: ${files_changed}
+    RETURN    ${files_changed}
+
+Build Docker Image
+    [Documentation]    Build Docker image and update timestamp
+    Log To Console    Building Docker image...
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" build    shell=True    cwd=${CURDIR}
+    Log To Console    Build stdout: ${result.stdout}
+    Log To Console    Build stderr: ${result.stderr}
+    Run Keyword If    ${result.rc} != 0    Fail    Docker build failed. Check build logs above.
+
+    # Create timestamp file to track last build
+    Create File    .last_build    ${EMPTY}
+    Log To Console    Docker image built successfully!
+
 Start Docker Containers
     [Documentation]    Start all the necessary Docker containers
-    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" up -d --build    shell=True
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" up -d    shell=True
     Log To Console    Docker Compose up result: ${result.stdout}
     Run Keyword If    ${result.rc} != 0    Fail    Failed to start Docker containers: ${result.stderr}
 
@@ -93,10 +157,9 @@ Start Personal Finance Application
     Check Docker Installation
     Check Docker Compose File
     Ensure Docker Volume
+    Build Docker Image If Needed
     Start Docker Containers
     Wait For Database
     Check Backup Script
     Check Scheduler
     Check If Latest Database Backup Exists
-
-
