@@ -1,11 +1,14 @@
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
+from typing import Dict
 
 import requests
+from sqlalchemy.orm import Session
 
-from backend.common.config import AppConfig, get_redis_client, config
+from backend.common.setup import AppConfig, config
+from backend.models.investments.crypto import CryptoInvestment
 
 
 class CryptoCurrencyRateFetcher:
@@ -18,34 +21,16 @@ class CryptoCurrencyRateFetcher:
 
         # Get Redis client
         self.logger.info("Initializing Redis Client")
-        self.redis_client = get_redis_client()
+        self.redis_client = AppConfig.redis_client(config)
 
         self.logger.info("Crypto currency price fetcher initialized successfully")
 
         # Load config data from environment
         self.cache_expiry_in_seconds = 86400
         self.cache_key_prefix = "cryptocurrency:"
-
-    # # Create logs directory if it doesn't exist
-    # log_dir = "./logs"
-    # os.makedirs(log_dir, exist_ok=True)
-    #
-    # # Set up logging
-    # logging.basicConfig(
-    #     level=logging.INFO,
-    #     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    #     handlers=[
-    #         logging.FileHandler("./logs/Crypto_fetcher_logs.log"),
-    #         logging.StreamHandler(sys.stdout)
-    #     ]
-    # )
-    # self.logger = logging.getLogger("get_crypto_rates")
-    #
-    # # Redis Config
-    # self.logger.info("Initialize Redis Client")
-    # REDIS_HOST = "redis"
-    # REDIS_PORT = 6379
-    # redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+        self.redis_forex_key_usd_inr = self.redis_client.get("forex::USD:INR")
+        self.redis_forex_key_usd_pln = self.redis_client.get("forex::USD:PLN")
+        self.redis_forex_key_pln_inr = self.redis_client.get("forex::PLN:INR")
 
     def get_cache_key(self, coin_symbol_list: list) -> str:
         """Generate a consistent cache key based on coin symbols
@@ -61,7 +46,7 @@ class CryptoCurrencyRateFetcher:
         hash_obj = hashlib.md5(symbols_str.encode())
         return f"{self.cache_key_prefix}:{hash_obj.hexdigest()}"
 
-    def fetch_cryptocurrency_data(self, coin_symbol_list: list, use_cache: bool = True):
+    def fetch_cryptocurrency_data_in_usd(self, coin_symbol_list: list, use_cache: bool = True):
         """
         Fetch cryptocurrency data using CoinMarketCap API with Redis caching
     
@@ -163,6 +148,109 @@ class CryptoCurrencyRateFetcher:
             self.logger.error(f"Unexpected error fetching cryptocurrency data: {e}")
             return {"error": f"Unexpected error: {str(e)}"}
 
+    def update_crypto_investments(self, db: Session, crypto_data: Dict) -> Dict:
+        """
+        Update CryptoInvestment table with current prices
+
+        Args:
+            db: Database session
+            crypto_data: Dictionary with current crypto prices
+
+        Returns:
+            Dictionary with update results
+        """
+        today = datetime.now(UTC)
+
+        currency_map = {
+            1: "INR",
+            2: "PLN",
+            3: "USD"
+        }
+
+        try:
+            updated_count = 0
+            errors = []
+            self.logger.info(f"Received updates for cryptocurrency data: {crypto_data}")
+
+            # Get all crypto investments that need updating
+            crypto_investments = db.query(CryptoInvestment).filter(
+                CryptoInvestment.coin_symbol.in_(list(crypto_data['data'].keys()))
+            ).all()
+
+            for investment in crypto_investments:
+                try:
+                    symbol = investment.coin_symbol.upper()
+                    self.logger.info(f"Updating cryptocurrency data for {symbol}")
+                    if symbol in crypto_data['data']:
+                        current_price = crypto_data['data'][symbol]['price']
+                        self.logger.info(f"Current price for {symbol}: {current_price}")
+
+                        invested_currency = currency_map.get(investment.currency_id, "INR")
+                        inr_conversion_rate = 1.0
+                        pln_conversion_rate = 1.0
+                        usd_conversion_rate = 1.0
+
+                        if invested_currency == "INR":
+                            inr_conversion_rate = 1.0
+                            pln_conversion_rate = round(float(1 / self.redis_forex_key_pln_inr), 2)
+                            usd_conversion_rate = round(float(1 / self.redis_forex_key_usd_inr), 2)
+                        elif invested_currency == "PLN":
+                            inr_conversion_rate = 1.0
+                            pln_conversion_rate = 1
+                            usd_conversion_rate = round(float(self.redis_forex_key_usd_pln), 2)
+                        elif invested_currency == "USD":
+                            inr_conversion_rate = round(float(self.redis_forex_key_usd_inr), 2)
+                        else:
+                            raise Exception(f"Unsupported currency type: {invested_currency}")
+                        current_value = (current_price * investment.coin_quantity) * round(
+                            float(self.redis_forex_key_usd_inr), 2)
+
+                        initial_investment = investment.total_invested_amount * inr_conversion_rate
+
+                        # Update current price and calculated fields
+                        investment.current_price_per_coin = current_price * usd_conversion_rate
+                        investment.current_total_value = current_value
+
+                        roi_value = ((investment.current_total_value - initial_investment) /
+                                     investment.total_invested_amount * 100)
+                        # Calculate return on investment
+                        investment.return_on_investment = roi_value
+
+                        # Calculate XIRR (simplified version)
+                        days_invested = (today.date() - investment.investment_date).days
+                        years = days_invested / 365.0
+
+                        investment.xirr = (((current_value / initial_investment) ** (
+                                1 / years)) - 1) * 100 if years > 0 else 0.0
+
+                        updated_count += 1
+                        self.logger.info(f"Updated {symbol} investment: ${current_price}")
+
+                except Exception as e:
+                    error_msg = f"Error updating investment {investment.id}: {e}"
+                    self.logger.error(error_msg)
+                    errors.append(error_msg)
+
+            # Commit all changes
+            db.commit()
+            self.logger.info(f"Updated {updated_count} crypto investments")
+
+            return {
+                "success": True,
+                "updated_count": updated_count,
+                "errors": errors
+            }
+
+        except Exception as e:
+            db.rollback()
+            error_msg = f"Failed to update crypto investments: {e}"
+            self.logger.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "updated_count": 0
+            }
+
     def clear_crypto_cache(self, coin_symbol_list: list = None, cache_key_prefix=None):
         """
         Clear cryptocurrency cache for specific coins or all crypto cache
@@ -210,3 +298,7 @@ class CryptoCurrencyRateFetcher:
         except Exception as e:
             self.logger.error(f"Failed to get cache info: {e}")
             return None
+
+
+# Global configuration instance
+CryptoFetcher = CryptoCurrencyRateFetcher()

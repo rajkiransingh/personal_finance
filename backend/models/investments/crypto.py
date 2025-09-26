@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime
 
 from backend.services.db_services import Base
 
+
 class CryptoInvestment(Base):
     __tablename__ = "crypto_investment"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -22,6 +23,7 @@ class CryptoInvestment(Base):
     total_amount_after_sale = Column(Float, nullable=False)
     return_on_investment = Column(Float, nullable=False)
     xirr = Column(Float, nullable=False)
+
 
 class CryptoSummary(Base):
     __tablename__ = "crypto_summary"

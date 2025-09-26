@@ -5,7 +5,7 @@ import time
 import requests
 import yfinance as yf
 
-from backend.common.config import AppConfig, config, get_redis_client
+from backend.common.setup import AppConfig, config
 
 
 class StockPriceFetcher:
@@ -18,7 +18,7 @@ class StockPriceFetcher:
 
         # Get Redis client
         self.logger.info("Initializing Redis Client")
-        self.redis_client = get_redis_client()
+        self.redis_client = AppConfig.redis_client(config)
 
         self.logger.info("Stock price fetcher initialized successfully")
 
@@ -283,3 +283,7 @@ class StockPriceFetcher:
         except Exception as e:
             self.logger.error(f"Error fetching data for {stock_symbol}: {e}")
             stock_data_dict[stock_symbol] = {"error": str(e)}
+
+
+# Global configuration instance
+stockFetcher = StockPriceFetcher()

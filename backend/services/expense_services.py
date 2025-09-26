@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from backend.models.expenses.expense import Expense
+from backend.models.spendings.expense import Expense
 from backend.schemas.expense_schema import ExpenseCreate, ExpenseUpdate
 
 

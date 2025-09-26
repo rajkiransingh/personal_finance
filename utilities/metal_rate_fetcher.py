@@ -1,10 +1,14 @@
+import collections
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
+from typing import Dict
 
 import requests
+from sqlalchemy.orm import Session
 
-from backend.common.config import AppConfig, config, get_redis_client
+from backend.common.setup import AppConfig, config
+from backend.models.investments.bullion import BullionInvestment
 
 
 class MetalRateFetcher:
@@ -17,7 +21,7 @@ class MetalRateFetcher:
 
         # Get Redis client
         self.logger.info("Initializing Redis Client")
-        self.redis_client = get_redis_client()
+        self.redis_client = AppConfig.redis_client(config)
 
         self.logger.info("Bullion price fetcher initialized successfully")
 
@@ -27,7 +31,7 @@ class MetalRateFetcher:
         self.gold_url = os.getenv("GOLD_API")
         self.silver_url = os.getenv("SILVER_API")
         self.rapidapi_key = os.getenv("RAPID_API_KEY")
-        self.cache_expiry_in_seconds = 86400 * 9  # 9 Days
+        self.cache_expiry_in_seconds = 86400 * 15  # 9 Days
         self.cache_key_prefix = "bullion:"
 
     # # Set up logging
@@ -54,10 +58,11 @@ class MetalRateFetcher:
         return self.get_current_metal_rates('gold', city, purity)
 
     def get_silver_rate(self, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY):
+        # self.redis_client.delete(f"{self.cache_key_prefix}:{purity}:{city.lower()}")
         return self.get_current_metal_rates('silver', city, purity)
 
     def get_current_metal_rates(self, metal: str, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY):
-        cache_key = f"{self.cache_key_prefix}:{purity}:{city.lower()}"
+        cache_key = f"{self.cache_key_prefix}:{metal}:{city.lower()}"
 
         # Check Redis cache first
         cached_data = self.redis_client.get(cache_key)
@@ -155,3 +160,75 @@ class MetalRateFetcher:
         except Exception as e:
             self.logger.error(f"Error extracting metal rate from response: {e}")
             return None
+
+    def update_bullion_investments(self, db: Session, metal: str, current_price: str) -> Dict:
+        """
+        Update Bullion Investment table with current prices
+
+        Args:
+            current_price:
+            metal:
+            db: Database session
+
+        Returns:
+            Dictionary with update results
+        """
+        today = datetime.now(UTC)
+        try:
+            updated_count = 0
+            errors = []
+            # Get all bullion investments that need updating
+            bullion_investments: collections.Iterable = (db.query(BullionInvestment)
+                                                         .filter(BullionInvestment.metal_name == metal.lower()
+                                                                 ).all())
+
+            for investment in bullion_investments:
+                try:
+                    current_value = current_price * investment.quantity_in_grams
+                    initial_investment = investment.total_invested_amount
+
+                    # Update current price and calculated fields
+                    investment.current_price_per_gram = current_price
+                    investment.current_total_value = current_value
+
+                    roi_value = ((investment.current_total_value - initial_investment) /
+                                 initial_investment * 100)
+                    # Calculate return on investment
+                    investment.return_on_investment = roi_value
+
+                    # Calculate XIRR (simplified version)
+                    days_invested = (today.date() - investment.investment_date).days
+                    years = days_invested / 365.0
+
+                    investment.xirr = (((current_value / initial_investment) ** (
+                            1 / years)) - 1) * 100 if years > 0 else 0.0
+
+                    updated_count += 1
+                    self.logger.debug(f"Updated {metal} investment: ${current_price}")
+
+                except Exception as e:
+                    self.logger.error(f"Failed to update {metal} investment: {e}")
+
+            # Commit all changes
+            db.commit()
+            self.logger.info(f"Updated {updated_count} bullion investments")
+
+            return {
+                "success": True,
+                "updated_count": updated_count,
+                "errors": errors
+            }
+
+        except Exception as e:
+            db.rollback()
+            error_msg = f"Failed to update bullion investments: {e}"
+            self.logger.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "updated_count": 0
+            }
+
+
+# Global configuration instance
+bullionFetcher = MetalRateFetcher()
