@@ -1,5 +1,7 @@
 from sqlalchemy import Column, Integer, String
+
 from backend.services.db_services import Base
+
 
 class Unit(Base):
     __tablename__ = "units"

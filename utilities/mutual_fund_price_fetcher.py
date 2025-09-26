@@ -4,7 +4,7 @@ import os
 import yfinance as yf
 from mftool import Mftool
 
-from backend.common.config import AppConfig, config, get_redis_client
+from backend.common.setup import AppConfig, config
 
 
 class MutualFundPriceFetcher:
@@ -17,7 +17,7 @@ class MutualFundPriceFetcher:
 
         # Get Redis client
         self.logger.info("Initializing Redis Client")
-        self.redis_client = get_redis_client()
+        self.redis_client = AppConfig.redis_client(config)
 
         # Initialize Mftool
         self.logger.info("Initializing MF-Tool")
@@ -34,43 +34,6 @@ class MutualFundPriceFetcher:
         self.nse_url = os.getenv("NSE_WEBSITE_URL")
         self.max_retries = 3
         self.delay = 5
-
-    # # Create logs directory if it doesn't exist
-    # log_dir = "./logs"
-    # os.makedirs(log_dir, exist_ok=True)
-    #
-    # # Set up logging
-    # logging.basicConfig(
-    #     level=logging.INFO,
-    #     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    #     handlers=[
-    #         logging.FileHandler("./logs/Mutual_fund_rate_fetcher_logs.log"),
-    #         logging.StreamHandler(sys.stdout)
-    #     ]
-    # )
-    # logger = logging.getLogger("get_mf_rates")
-    #
-    # # Redis Config
-    # logger.info("Initialize Redis Client")
-    # REDIS_HOST = "redis"
-    # REDIS_PORT = 6379
-    # redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-
-    # def initialize_mftool_with_retry(self):
-    #     for attempt in range(self.max_retries):
-    #         try:
-    #             self.logger.info(f"Initializing MF-Tool (attempt {attempt + 1})")
-    #             mf = Mftool()
-    #             self.logger.info("MF-Tool initialized successfully")
-    #             return mf
-    #         except Exception as e:
-    #             self.logger.error(f"Failed to initialize MF-Tool (attempt {attempt + 1}): {e}")
-    #             if attempt < self.max_retries - 1:
-    #                 self.logger.info(f"Retrying in {self.delay} seconds...")
-    #                 time.sleep(self.delay)
-    #             else:
-    #                 self.logger.error("Max retries reached. Unable to initialize MF-Tool")
-    #                 raise
 
     def get_all_mutual_fund_rates(self):
         schemes = self.mf.get_scheme_codes()

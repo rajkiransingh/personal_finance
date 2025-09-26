@@ -20,8 +20,8 @@ services:
     image: mysql:8.0.32
     container_name: database
     command: --default-authentication-plugin=mysql_native_password
-    entrypoint: ["/bin/bash", "/cleanup-entrypoint.sh"]
-    environment: 
+    entrypoint: [ "/bin/bash", "/cleanup-entrypoint.sh" ]
+    environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
@@ -34,7 +34,7 @@ services:
       - ./backup_config/backup.sh:/backup.sh
       - ./backup_config/cleanup-entrypoint.sh:/cleanup-entrypoint.sh
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,7 +43,7 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 1G 
+          memory: 1G
 
   redis:
     image: redis:latest
@@ -53,7 +53,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: ["redis-server", "--appendonly", "yes", "--save","60", "1"]
+    command: [ "redis-server", "--appendonly", "yes", "--save","60", "1" ]
 
   redis-cli:
     image: redis:latest
@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
-    entrypoint: ["redis-cli", "-h", "redis"]
+    entrypoint: [ "redis-cli", "-h", "redis" ]
     stdin_open: true
     tty: true
 
@@ -70,7 +70,7 @@ services:
     container_name: scheduler
     volumes:
       - ./backup_config/config.ini:/etc/ofelia/config.ini
-      - /var/run/docker.sock:/var/run/docker.sock   
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./backup_config/backup.sh:/backup.sh
       - ./scripts/fetch_stocks.py:/scripts/fetch_stocks.py
       - ./scripts/fetch_metals.py:/scripts/fetch_metals.py

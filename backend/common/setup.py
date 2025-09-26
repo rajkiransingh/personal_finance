@@ -29,7 +29,6 @@ class AppConfig:
         # Initialize Redis client (lazy loading)
         self._redis_client: Optional[redis.Redis] = None
 
-    @property
     def redis_client(self) -> redis.Redis:
         """Get Redis client with lazy initialization"""
         if self._redis_client is None:
@@ -63,9 +62,12 @@ class AppConfig:
         """
         logger = logging.getLogger(name)
 
-        # Avoid adding handlers multiple times
-        if logger.handlers:
-            return logger
+        # Clear any existing handlers to avoid duplicates
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+
+        # Prevent propagation to root logger (this prevents duplicate messages)
+        logger.propagate = False
 
         logger.setLevel(getattr(logging, self.LOG_LEVEL.upper()))
 
@@ -92,18 +94,17 @@ class AppConfig:
 # Global configuration instance
 config = AppConfig()
 
-
-# Convenience functions for backward compatibility and ease of use
-def get_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
-    """Get a configured logger"""
-    return config.setup_logger(name, log_file)
-
-
-def get_redis_client() -> redis.Redis:
-    """Get Redis client"""
-    return config.redis_client
-
-
-def get_database_url() -> str:
-    """Get database URL"""
-    return config.DATABASE_URL
+# # Convenience functions for backward compatibility and ease of use
+# def get_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
+#     """Get a configured logger"""
+#     return config.setup_logger(name, log_file)
+#
+#
+# def get_redis_client() -> redis.Redis:
+#     """Get Redis client"""
+#     return config.redis_client
+#
+#
+# def get_database_url() -> str:
+#     """Get database URL"""
+#     return config.DATABASE_URL
