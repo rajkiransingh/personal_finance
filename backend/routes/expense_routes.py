@@ -9,7 +9,7 @@ from backend.services.expense_services import get_all_expenses, get_expenses_by_
     update_expense, delete_expense
 from backend.services.user_services import get_user
 
-router = APIRouter(prefix="/spendings", tags=["Expenses"])
+router = APIRouter(prefix="/expenses", tags=["Expenses"])
 
 
 @router.get("/", response_model=List[ExpenseResponse])

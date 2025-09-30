@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db
 from backend.services.investments.dividend import get_all_dividends
-from utilities.stock_price_fetcher import get_stock_prices_in_bulk
+from utilities.stock_price_fetcher import StockPriceFetcher as sPF, stockFetcher
 from utilities.update_investments import get_data_from_investments
 
 # Add the app root directory to Python path
@@ -29,4 +29,4 @@ logger.info(f"Common Stock List: {common_stock_list}")
 logger.info(f"Dividend Stock List: {dividend_stock_list}")
 
 # common_stock_prices = get_stock_prices_in_bulk(common_stock_list)
-dividend_stock_prices = get_stock_prices_in_bulk(dividend_stock_list)
+dividend_stock_prices = sPF.get_stock_prices_in_bulk(stockFetcher, dividend_stock_list)

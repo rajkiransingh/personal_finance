@@ -75,7 +75,7 @@ services:
       - ./scripts/fetch_stocks.py:/scripts/fetch_stocks.py
       - ./scripts/fetch_metals.py:/scripts/fetch_metals.py
       - ./scripts/fetch_crypto.py:/scripts/fetch_crypto.py
-      - ./scripts/fetch_mf_data_s3.py:/scripts/fetch_mf_data_s3.py
+      - ./scripts/fetch_mutual_funds.py:/scripts/fetch_mutual_funds.py
     restart: unless-stopped
     environment:
       - OFELIA_CONFIG=/etc/ofelia/config.ini

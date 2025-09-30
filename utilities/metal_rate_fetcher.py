@@ -30,26 +30,9 @@ class MetalRateFetcher:
         self.base_url = os.getenv("RAPID_API_BASE_URL")
         self.gold_url = os.getenv("GOLD_API")
         self.silver_url = os.getenv("SILVER_API")
-        self.rapidapi_key = os.getenv("RAPID_API_KEY")
+        self.rapid_api_key = os.getenv("RAPID_API_KEY")
         self.cache_expiry_in_seconds = 86400 * 15  # 9 Days
         self.cache_key_prefix = "bullion:"
-
-    # # Set up logging
-    # logging.basicConfig(
-    #     level=logging.INFO,
-    #     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    #     handlers=[
-    #         logging.FileHandler("./logs/Bullion_rate_fetcher_logs.log"),
-    #         logging.StreamHandler(sys.stdout)
-    #     ]
-    # )
-    # logger = logging.getLogger("get_current_metal_rates")
-    #
-    # # Redis Config
-    # logger.info("Setup Redis Client...")
-    # REDIS_HOST = "redis"
-    # REDIS_PORT = 6379
-    # redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
     DEFAULT_CITY = os.getenv("CITY")
     DEFAULT_PURITY = "24k"
@@ -78,7 +61,7 @@ class MetalRateFetcher:
             self.logger.info(f"Cache miss: No cached {metal} rate for {city}")
 
         # Get API credentials
-        if not self.rapidapi_key:
+        if not self.rapid_api_key:
             self.logger.error("RAPID_API_KEY not found in environment variables")
             raise ValueError("RAPID_API_KEY not configured")
 
@@ -91,7 +74,7 @@ class MetalRateFetcher:
         headers = {
             'city': city,
             'x-rapidapi-host': self.rapid_api_host,
-            'x-rapidapi-key': self.rapidapi_key
+            'x-rapidapi-key': self.rapid_api_key
         }
 
         try:

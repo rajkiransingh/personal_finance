@@ -3,6 +3,7 @@
 
 # Ignore .env files
 .env
+.env_backup
 .last_build
 
 # Ignore logs and reports
@@ -29,3 +30,6 @@ alembic.ini
 .venv/
 proj/
 finance_env/
+
+# aws script
+/scripts/aws/

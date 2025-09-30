@@ -1,8 +1,6 @@
 import json
-import os
 import time
 
-import requests
 import yfinance as yf
 
 from backend.common.setup import AppConfig, config
@@ -25,41 +23,6 @@ class StockPriceFetcher:
         # Load config data from environment
         self.cache_expiry_in_seconds = 86400
         self.cache_key_prefix = "stock:"
-        self.nse_url = os.getenv("NSE_WEBSITE_URL")
-
-    # # Create logs directory if it doesn't exist
-    # log_dir = "./logs"
-    # os.makedirs(log_dir, exist_ok=True)
-    #
-    # # Set up logging
-    # logging.basicConfig(
-    #     level=logging.INFO,
-    #     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    #     handlers=[
-    #         logging.FileHandler("./logs/Stock_price_fetcher_logs.log"),
-    #         logging.StreamHandler(sys.stdout)
-    #     ]
-    # )
-    # logger = logging.getLogger("get_stock_prices")
-    #
-    # # Load .env variables
-    # load_dotenv()
-    # logger.info("Loading the environment variables")
-    # NSE_WEBSITE = os.getenv("NSE_WEBSITE_URL")
-    #
-    # # Initialize Redis
-    # logger.info("Initializing Redis client")
-    # redis_client = redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
-    # # redis_client.delete("stock_name:NIFTYBEES")
-    # # redis_client.delete("stock_name:NSLNISP")
-    # # redis_client.delete("stock_name:AVTNPL")
-    # # redis_client.delete("stock_name:EMBASSY-RR")
-    # # redis_client.delete("stock_name:HDFCBANK")
-    # # redis_client.delete("stock_name:HINDUNILVR")
-    # # redis_client.delete("stock_name:REDINGTON")
-    # # redis_client.delete("stock_name:HINDZINC")
-    # # redis_client.delete("stock_name:MOL")
-    # # redis_client.delete("stock_name:PETRONET")
 
     def get_stock_prices_in_bulk(self, stock_symbol_list):
         stock_data = {}
@@ -80,67 +43,13 @@ class StockPriceFetcher:
                         f"Cache miss: No cached price for {stock_symbol}. Trying to fetch the data from API...")
                     self.fetch_and_cache_stock_data(stock_symbol, stock_data)
             else:
-                if stock_symbol == "NIFTYBEES":
-                    self.get_nse_etf_price("NIFTYBEES", stock_data)
-                else:
-                    self.fetch_and_cache_stock_data(stock_symbol, stock_data)
+                self.fetch_and_cache_stock_data(stock_symbol, stock_data)
 
-                    # Add a small delay between API calls to avoid rate limiting
-                    if len(stock_symbol_list) > 5:
-                        time.sleep(1)
+                # Add a small delay between API calls to avoid rate limiting
+                if len(stock_symbol_list) > 5:
+                    time.sleep(1)
 
         return stock_data
-
-    def get_nse_etf_price(self, stock_symbol, stock_data_dict):
-        cache_key = f"stock_name:{stock_symbol}"
-        url = f"{self.nse_url}/api/quote-equity?symbol={stock_symbol}"
-
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Referer": f"{self.nse_url}/get-quotes/equity?symbol={stock_symbol}"
-        }
-
-        session = requests.Session()
-
-        # Step 1: Initialize session and cookies
-        try:
-            session.get(self.nse_url, headers=headers, timeout=5)
-            time.sleep(10)  # Prevent rate limiting
-        except Exception as e:
-            self.logger.error(f"Failed to connect to NSE homepage: {e}")
-            return
-
-        # Step 2: Make the API call
-        try:
-            response = session.get(url, headers=headers, timeout=5)
-            data = response.json()
-
-            last_price = data['priceInfo']['currentPrice']
-
-            # Store price in dict
-            stock_data_dict[stock_symbol] = float(last_price)
-
-            # Store full response in Redis
-            self.redis_client.setex(
-                cache_key,
-                int(self.cache_expiry_in_seconds),
-                json.dumps(data)
-            )
-
-            self.logger.info(f"Fetched {stock_symbol}: ₹{last_price} (cached in Redis)")
-
-        except Exception as e:
-            self.logger.error(f"Error fetching/parsing data for {stock_symbol}: {e}")
-            self.logger.error(f"Raw response: {response.text if 'response' in locals() else 'No response'}")
-
-            # Store default data in Redis
-            self.redis_client.setex(
-                cache_key,
-                int(self.cache_expiry_in_seconds),
-                json.dumps("{\"currentPrice\": \"250.00\"}")
-            )
-            self.logger.warning(f"Added Default price for {stock_symbol}: ₹250 and also cached the same in Redis")
 
     def fetch_and_cache_stock_data(self, stock_symbol, stock_data_dict):
         cache_key = f"{self.cache_key_prefix}:{stock_symbol}"
