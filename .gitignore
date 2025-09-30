@@ -30,3 +30,6 @@ alembic.ini
 .venv/
 proj/
 finance_env/
+
+# aws script
+/scripts/aws/
