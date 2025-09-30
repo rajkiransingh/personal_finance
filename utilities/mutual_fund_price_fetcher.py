@@ -76,45 +76,6 @@ class MutualFundPriceFetcher:
 
         return result
 
-    # def get_mutual_fund_nav_dict(self, mf_data: dict):
-    #     """
-    #     Returns a dictionary with mutual fund scheme codes as keys and their NAVs as values
-    #     """
-    #     result = {}
-    #     for scheme_code, mf_info in mf_data.items():
-    #         try:
-    #             if isinstance(mf_info, str):
-    #                 mf_info = json.loads(mf_info)
-    #             nav = mf_info.get("nav", "N/A")
-    #             result[scheme_code] = nav
-    #             self.logger.info(f"Fetch success: Data for scheme code: {scheme_code} has NAV: {nav}")
-    #         except Exception as e:
-    #             self.logger.error(f"Fetch error: Error fetching Mutual Fund data for {scheme_code}: {e}")
-    #             result[scheme_code] = "Error: " + str(e)
-    #
-    #     return result
-
-    # def get_mutual_fund_rates(self, scheme_code: str):
-    #     """Fetch Mutual Fund NAV with caching"""
-    #     cache_key = f"{self.cache_key_prefix}:{scheme_code}"
-    #
-    #     cached_data = self.redis_client.get(cache_key)
-    #     if cached_data:
-    #         print(f"Using cached data for Mutual Fund ID: {scheme_code}")
-    #         return json.loads(cached_data)
-    #
-    #     try:
-    #         print(f"Fetching the data from mfTool for: {scheme_code}")
-    #         fund_data = self.mf.get_scheme_quote(scheme_code)
-    #
-    #         # Store in Redis with a 24-hour expiry
-    #         self.redis_client.setex(cache_key, self.cache_expiry_in_seconds, json.dumps(fund_data))
-    #
-    #         return fund_data
-    #     except Exception as e:
-    #         print(f"Error fetching Mutual Fund data: {e}")
-    #         return None
-
 
 # Global configuration instance
 mutualFundFetcher = MutualFundPriceFetcher()
