@@ -1,20 +1,20 @@
 services:
-  backend:
-    build: .
-    container_name: mera_paisa
-    restart: unless-stopped
-    depends_on:
-      - db
-      - redis
-      - redis-cli
-    environment:
-      - DATABASE_URL=mysql+pymysql://user:password@db:3306/personal_finance_db
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
+  #  backend:
+  #    build: .
+  #    container_name: mera_paisa
+  #    restart: unless-stopped
+  #    depends_on:
+  #      - db
+  #      - redis
+  #      - redis-cli
+  #    environment:
+  #      - DATABASE_URL=mysql+pymysql://user:password@db:3306/personal_finance_db
+  #      - REDIS_URL=redis://redis:6379/0
+  #      - PYTHONPATH=/app
+  #    ports:
+  #      - "8000:8000"
+  #    volumes:
+  #      - .:/app
 
   db:
     image: mysql:8.0.32
@@ -75,7 +75,7 @@ services:
       - ./scripts/fetch_stocks.py:/scripts/fetch_stocks.py
       - ./scripts/fetch_metals.py:/scripts/fetch_metals.py
       - ./scripts/fetch_crypto.py:/scripts/fetch_crypto.py
-      - ./scripts/fetch_mf_data_s3.py:/scripts/fetch_mf_data_s3.py
+      - ./scripts/fetch_mutual_funds.py:/scripts/fetch_mutual_funds.py
     restart: unless-stopped
     environment:
       - OFELIA_CONFIG=/etc/ofelia/config.ini

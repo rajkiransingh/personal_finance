@@ -12,6 +12,7 @@ from backend.services.dividend_summary import get_all_dividends
 from utilities.cryptocurrency_rate_fetcher import CryptoCurrencyRateFetcher as crF, CryptoFetcher
 from utilities.forex_exchange_rate_fetcher import ForexExchangeRateFetcher as fEx, forexFetcher
 from utilities.metal_rate_fetcher import MetalRateFetcher as mRF, bullionFetcher
+from utilities.mutual_fund_price_fetcher import MutualFundPriceFetcher as mfF, mutualFundFetcher
 from utilities.stock_price_fetcher import StockPriceFetcher as sPF, stockFetcher
 from utilities.update_investments import get_data_from_investments
 
@@ -57,33 +58,19 @@ fEx.get_exchange_rates(forexFetcher, "USD", "PLN")
 # Get the latest prices and NAVs
 logger.info(f"Common Stock List: {common_stock_list}")
 logger.info(f"Dividend Stock List: {dividend_stock_list}")
-# common_stock_prices = get_stock_prices_in_bulk(common_stock_list)
+common_stock_prices = sPF.get_stock_prices_in_bulk(stockFetcher, common_stock_list)
 dividend_stock_prices = sPF.get_stock_prices_in_bulk(stockFetcher, dividend_stock_list)
 
 logger.info(f"Mutual Fund list: {mutual_funds_list}")
 
+mfF.get_mutual_fund_rates_bulk(mutualFundFetcher, mutual_funds_list)
+
 cryData = crF.fetch_cryptocurrency_data_in_usd(CryptoFetcher, crypto_coin_list)
 crF.update_crypto_investments(CryptoFetcher, db, cryData)
+crF.update_crypto_summary(CryptoFetcher, db, cryData)
 
 grate = mRF.get_gold_rate(bullionFetcher)
 srate = mRF.get_silver_rate(bullionFetcher)
 
 mRF.update_bullion_investments(bullionFetcher, db, "Gold", grate)
 mRF.update_bullion_investments(bullionFetcher, db, "Silver", srate)
-
-logger.info("Final log:: logging logger loggests")
-# All_mutual_fund_data = get_mutual_fund_rates_bulk(mutual_funds_list)
-# mf_navs = get_mutual_fund_nav_dict(All_mutual_fund_data)
-# logger.info(f"MF NAVs: {mf_navs}")
-
-# update_stock_prices(db, common_stock_prices, dividend_stock_prices, dividends_data)
-# print("**************************** Some New Lines ************************")
-# #update_mutual_fund_values(db, mf_navs)
-
-
-# # Get the latest prices and NAVs
-# logger.info(f"Common Stock Summary List: {common_stock_list}")
-# logger.info(f"Dividend Stock Summary List: {dividend_stock_list}")
-# #logger.info(f"Mutual Fund Summary List: {mutual_funds_list}")
-# logger.info(f"Common Bulk Price Summary: {common_stock_prices}")
-# logger.info(f"Dividend Bulk Price Summary: {dividend_stock_prices}")
