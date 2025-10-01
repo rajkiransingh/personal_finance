@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime
 
 from backend.services.db_services import Base
 
+
 class RealEstateInvestment(Base):
     __tablename__ = "real_estate_investment"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -23,6 +24,7 @@ class RealEstateInvestment(Base):
     total_amount_after_sale = Column(Float, nullable=False)
     return_on_investment = Column(Float, nullable=False)
     xirr = Column(Float, nullable=False)
+
 
 class RealEstateSummary(Base):
     __tablename__ = "real_estate_summary"
