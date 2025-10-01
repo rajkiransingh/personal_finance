@@ -47,7 +47,7 @@ class MutualFundPriceFetcher:
         for scheme_code in scheme_code_list:
             cache_key = f"{self.cache_key_prefix}:{scheme_code}"
             cached_data = self.redis_client.get(cache_key)
-            cached_info = json.loads(cached_data)
+            cached_info = json.loads(cached_data) if cached_data else None
 
             if cached_info:
                 self.logger.info(
@@ -159,7 +159,6 @@ class MutualFundPriceFetcher:
 
         try:
             for scheme_code, data in mf_data.items():
-                self.logger.info(f"Received updates for mutual fund data: {mf_data}")
 
                 # Get all mutual fund investments that need updating
                 mf_summaries = db.query(MutualFundSummary).filter(MutualFundSummary.scheme_code == scheme_code).all()

@@ -214,7 +214,6 @@ class MetalRateFetcher:
 
         try:
             for metal, current_price in bullion_data.items():
-                self.logger.info(f"Received updates for bullion data: {bullion_data}")
 
                 # Get all crypto investments that need updating
                 bullion_summaries = db.query(BullionSummary).filter(BullionSummary.metal_name == metal).all()
