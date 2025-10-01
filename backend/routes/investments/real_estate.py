@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.schemas.investments.common import InvestmentUpdate
-from backend.schemas.investments.real_estate_schema import RealEstateInvestmentResponse, RealEstateInvestmentCreate
+from backend.schemas.investments.real_estate_schema import RealEstateInvestmentResponse, RealEstateInvestmentCreate, \
+    RealEstateUpdateResponse
 from backend.services.db_services import get_db
 from backend.services.investments.common import get_all_investments, get_investment_by_user, get_investment_by_id, \
     update_investment, delete_investment
 from backend.services.investments.real_estate import create_property
 from backend.services.user_services import get_user
 from backend.summarizing import update_real_estate_summary
+from utilities.real_estate_price_updater import update_real_estate_investment, update_real_estate_summary
 
 router = APIRouter(prefix="/investment/real-estate", tags=["Investment"])
 
@@ -52,6 +54,11 @@ def update_investment_api(investment_id: int, investment_data: InvestmentUpdate,
         raise HTTPException(status_code=404, detail="Investment not found")
     update_real_estate_summary.update(db, updated_investment)
     return updated_investment
+
+
+@router.put("/{investment_id}/price", response_model=RealEstateUpdateResponse)
+def update_property_price(investment_id: int, investment_data: InvestmentUpdate, db: Session = Depends(get_db)):
+    return update_real_estate_investment(db, investment_id, investment_data)
 
 
 @router.delete("/{investment_id}", response_model=dict)
