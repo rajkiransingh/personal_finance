@@ -49,7 +49,6 @@ def update_real_estate_summary(db: Session, investment_id: int, investment_data:
     current_value = current_price_per_sqyds * real_estate_investment.area_in_sqyds
     days_invested = (today.date() - real_estate_investment.investment_date).days
     years = days_invested / 365.0
-    print(f"years: {years}")
     initial_investment = real_estate_investment.total_invested_amount
 
     # Update current value
