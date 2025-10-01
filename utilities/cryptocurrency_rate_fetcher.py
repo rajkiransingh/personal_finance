@@ -307,7 +307,7 @@ class CryptoCurrencyRateFetcher:
                                 for investment in relevant_investments
                             )
                             self.logger.info(
-                                f"Total weighted xirr calculated is: {currency_symbol}{total_weighted_xirr}")
+                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%")
                         else:
                             total_weighted_xirr = 0.0
 

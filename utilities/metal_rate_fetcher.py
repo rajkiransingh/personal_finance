@@ -33,12 +33,6 @@ class MetalRateFetcher:
         self.cache_expiry_in_seconds = 86400 * 15  # 9 Days
         self.cache_key_prefix = "bullion:"
 
-        self.currency = {
-            1: "₹",  # INR
-            2: "zł",  # PLN
-            3: "$",  # USD
-        }
-
     DEFAULT_CITY = os.getenv("CITY")
     DEFAULT_PURITY = "24k"
 
@@ -163,7 +157,7 @@ class MetalRateFetcher:
                     .all()
                 )
 
-                currency_symbol = self.currency.get(1)
+                currency_symbol = "₹"
                 for investment in bullion_investments:
                     try:
                         self.logger.info(f"Updating Bullion investment data for {metal}")
@@ -226,7 +220,7 @@ class MetalRateFetcher:
                 bullion_summaries = db.query(BullionSummary).filter(BullionSummary.metal_name == metal).all()
                 investments = db.query(BullionInvestment).filter(BullionInvestment.metal_name == metal).all()
 
-                currency_symbol = self.currency.get(1)
+                currency_symbol = "₹"
                 for summary in bullion_summaries:
                     try:
                         self.logger.info(f"Updating Bullion Summary data for {metal}")
@@ -249,7 +243,7 @@ class MetalRateFetcher:
                                 for investment in relevant_investments
                             )
                             self.logger.info(
-                                f"Total weighted xirr calculated is: {currency_symbol}{total_weighted_xirr}")
+                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%")
                         else:
                             total_weighted_xirr = 0.0
 
