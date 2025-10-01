@@ -17,3 +17,4 @@ crypto_coin_list = all_investment_data['crypto']
 
 cryData = crF.fetch_cryptocurrency_data_in_usd(CryptoFetcher, crypto_coin_list)
 crF.update_crypto_investments(CryptoFetcher, db, cryData)
+crF.update_crypto_summary(CryptoFetcher, db, cryData)

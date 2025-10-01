@@ -10,8 +10,6 @@ sys.path.insert(0, '/app')
 
 db: Session = next(get_db())
 
-grate = mRF.get_gold_rate(bullionFetcher)
-srate = mRF.get_silver_rate(bullionFetcher)
-
-mRF.update_bullion_investments(bullionFetcher, db, "Gold", grate)
-mRF.update_bullion_investments(bullionFetcher, db, "Silver", srate)
+bullion_data = {"Gold": mRF.get_gold_rate(bullionFetcher), "Silver": mRF.get_silver_rate(bullionFetcher)}
+mRF.update_bullion_investments(bullionFetcher, db, bullion_data)
+mRF.update_bullion_summary(bullionFetcher, db, bullion_data)
