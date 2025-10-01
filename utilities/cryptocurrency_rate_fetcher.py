@@ -54,6 +54,7 @@ class CryptoCurrencyRateFetcher:
         # Sort the list to ensure consistent cache keys regardless of input order
         sorted_symbols = sorted([s.upper() for s in coin_symbol_list])
         symbols_str = ",".join(sorted_symbols)
+
         # Create a hash to keep cache keys manageable
         hash_obj = hashlib.md5(symbols_str.encode())
         return f"{self.cache_key_prefix}:{hash_obj.hexdigest()}"
@@ -88,77 +89,77 @@ class CryptoCurrencyRateFetcher:
             self.logger.error("CoinMarketCap API key not found in environment variables")
             return {"error": "API key not configured"}
 
-        try:
-            # CoinMarketCap API call
-            url = os.getenv('COIN_MARKET_URL')
-            headers = {
-                'X-CMC_PRO_API_KEY': cmc_api_key,
-                'Accept': 'application/json',
-                'Accept-Encoding': 'deflate, gzip'
-            }
-            params = {
-                'limit': 100,  # Get top 100 coins
-                'convert': 'USD'
-            }
+        for coin in coin_symbol_list:
+            try:
+                # CoinMarketCap API call
+                url = os.getenv('COIN_MARKET_URL')
+                headers = {
+                    'X-CMC_PRO_API_KEY': cmc_api_key,
+                    'Accept': 'application/json',
+                    'Accept-Encoding': 'deflate, gzip'
+                }
+                params = {
+                    'symbol': coin,
+                    'convert': 'USD'
+                }
 
-            self.logger.info("Fetching cryptocurrency data from CoinMarketCap API")
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
+                self.logger.info("Fetching cryptocurrency data from CoinMarketCap API")
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response.raise_for_status()
 
-            all_crypto_data = response.json()
+                all_crypto_data = response.json()
 
-            if 'data' not in all_crypto_data:
-                self.logger.error("Invalid response from CoinMarketCap API")
-                return {"error": "Invalid API response"}
+                if 'data' not in all_crypto_data:
+                    self.logger.error("Invalid response from CoinMarketCap API")
+                    return {"error": "Invalid API response"}
 
-            # Filter for your portfolio coins
-            for coin in all_crypto_data['data']:
-                symbol = coin.get('symbol', '').upper()
+                # Fetch data for portfolio coin
+                coin_data = all_crypto_data['data'][coin]
+                symbol = coin_data.get('symbol', '').upper()
 
-                if symbol in [s.upper() for s in coin_symbol_list]:
-                    quote_data = coin.get('quote', {}).get('USD', {})
+                quote_data = coin_data.get('quote', {}).get('USD', {})
 
-                    crypto_data[symbol] = {
-                        'name': coin.get('name'),
-                        'symbol': symbol,
-                        'price': round(float(quote_data.get('price', 0)), 8),
-                        'last_updated': datetime.now(timezone.utc).isoformat()
-                    }
-                    self.logger.info(f"Added crypto {symbol}: {currency_symbol}{crypto_data[symbol]['price']}")
+                crypto_data[symbol] = {
+                    'name': coin_data.get('name'),
+                    'symbol': symbol,
+                    'price': round(float(quote_data.get('price', 0)), 8),
+                    'last_updated': datetime.now(timezone.utc).isoformat()
+                }
+                self.logger.info(f"Added crypto {symbol}: {currency_symbol}{crypto_data[symbol]['price']}")
 
-            # Cache the data in Redis
-            if crypto_data and use_cache:
-                try:
-                    # Add metadata to cached data
-                    cached_payload = {
-                        'data': crypto_data,
-                        'cached_at': datetime.now(timezone.utc).isoformat(),
-                        'cache_expiry_seconds': self.cache_expiry_in_seconds
-                    }
+                # Cache the data in Redis
+                if crypto_data and use_cache:
+                    try:
+                        # Add metadata to cached data
+                        cached_payload = {
+                            'data': crypto_data,
+                            'cached_at': datetime.now(timezone.utc).isoformat(),
+                            'cache_expiry_seconds': self.cache_expiry_in_seconds
+                        }
 
-                    self.redis_client.setex(
-                        cache_key,
-                        self.cache_expiry_in_seconds,
-                        json.dumps(cached_payload)
-                    )
-                    self.logger.info(
-                        f"Cached cryptocurrency data in Redis with key: {cache_key}, expiry: {self.cache_expiry_in_seconds}s")
-                except Exception as e:
-                    self.logger.warning(f"Failed to cache data in Redis: {e}")
-                    # Continue without caching if Redis fails
+                        self.redis_client.setex(
+                            cache_key,
+                            self.cache_expiry_in_seconds,
+                            json.dumps(cached_payload)
+                        )
+                        self.logger.info(
+                            f"Cached cryptocurrency data in Redis with key: {cache_key}, expiry: {self.cache_expiry_in_seconds}s")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to cache data in Redis: {e}")
+                        # Continue without caching if Redis fails
 
-            self.logger.info(f"Successfully fetched {len(crypto_data)} cryptocurrencies")
-            return crypto_data
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"Failed to fetch cryptocurrency data: {e}")
+                return {"error": f"API request failed: {str(e)}"}
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Failed to parse cryptocurrency API response: {e}")
+                return {"error": f"JSON parsing failed: {str(e)}"}
+            except Exception as e:
+                self.logger.error(f"Unexpected error fetching cryptocurrency data: {e}")
+                return {"error": f"Unexpected error: {str(e)}"}
 
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Failed to fetch cryptocurrency data: {e}")
-            return {"error": f"API request failed: {str(e)}"}
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse cryptocurrency API response: {e}")
-            return {"error": f"JSON parsing failed: {str(e)}"}
-        except Exception as e:
-            self.logger.error(f"Unexpected error fetching cryptocurrency data: {e}")
-            return {"error": f"Unexpected error: {str(e)}"}
+        self.logger.info(f"Successfully fetched {len(crypto_data)} cryptocurrencies")
+        return crypto_data
 
     def update_crypto_investments(self, db: Session, crypto_data: Dict) -> Dict:
         """
@@ -282,7 +283,7 @@ class CryptoCurrencyRateFetcher:
             for summary in crypto_summaries:
                 try:
                     symbol = summary.coin_symbol.upper()
-                    self.logger.info(f"Updating cryptocurrency data for {symbol}")
+                    self.logger.info(f"Updating cryptocurrency summary data for {symbol}")
                     conversion_rate = round(float(self.redis_forex_key_usd_inr), 2)
 
                     if symbol in crypto_data['data']:
@@ -319,16 +320,16 @@ class CryptoCurrencyRateFetcher:
 
                         updated_count += 1
                         self.logger.info(
-                            f"Updated {symbol} investment with price: {currency_symbol}{current_price_inr}")
+                            f"Updated {symbol} investment summary with price: {currency_symbol}{current_price_inr}")
 
                 except Exception as e:
-                    error_msg = f"Error updating investment {summary.id}: {e}"
+                    error_msg = f"Error updating investment summary {summary.id}: {e}"
                     self.logger.error(error_msg)
                     errors.append(error_msg)
 
             # Commit all changes
             db.commit()
-            self.logger.info(f"Updated {updated_count} crypto investments")
+            self.logger.info(f"Updated {updated_count} crypto investment summary")
 
             return {
                 "success": True,
@@ -338,7 +339,7 @@ class CryptoCurrencyRateFetcher:
 
         except Exception as e:
             db.rollback()
-            error_msg = f"Failed to update crypto investments: {e}"
+            error_msg = f"Failed to update crypto investment summary: {e}"
             self.logger.error(error_msg)
             return {
                 "success": False,
