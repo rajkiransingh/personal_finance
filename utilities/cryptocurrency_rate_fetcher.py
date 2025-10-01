@@ -273,7 +273,6 @@ class CryptoCurrencyRateFetcher:
         try:
             updated_count = 0
             errors = []
-            self.logger.info(f"Received updates for cryptocurrency data: {crypto_data}")
 
             # Get all crypto investments that need updating
             crypto_summaries = db.query(CryptoSummary).all()

@@ -50,6 +50,7 @@ def update_investment_api(investment_id: int, investment_data: InvestmentUpdate,
     updated_investment = update_investment("real estate", investment_id, investment_data, db)
     if not updated_investment:
         raise HTTPException(status_code=404, detail="Investment not found")
+    update_real_estate_summary.update(db, updated_investment)
     return updated_investment
 
 

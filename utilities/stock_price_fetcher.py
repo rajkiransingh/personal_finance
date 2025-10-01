@@ -278,7 +278,6 @@ class StockPriceFetcher:
 
         try:
             for symbol, data in stock_data.items():
-                self.logger.info(f"Received updates for stock data: {stock_data}")
 
                 # Get all stock investments that need updating
                 mf_summaries = db.query(StockSummary).filter(StockSummary.stock_symbol == symbol).all()
