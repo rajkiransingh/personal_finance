@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db
+from utilities.fetch_overall_investment_data import get_data_from_investments
 from utilities.mutual_fund_price_fetcher import MutualFundPriceFetcher as mfF, mutualFundFetcher
-from utilities.update_investments import get_data_from_investments
 
 db: Session = next(get_db())
 # Get all investment data and stock prices upfront

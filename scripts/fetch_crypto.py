@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db
 from utilities.cryptocurrency_rate_fetcher import CryptoCurrencyRateFetcher as crF, CryptoFetcher
-from utilities.update_investments import get_data_from_investments
+from utilities.fetch_overall_investment_data import get_data_from_investments
 
 # Add the app root directory to Python path
 sys.path.insert(0, '/app')

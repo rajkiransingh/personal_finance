@@ -1,7 +1,3 @@
-import logging
-import os
-import sys
-
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -9,21 +5,6 @@ from backend.models.investments.bullion import BullionSummary
 from backend.models.investments.crypto import CryptoSummary
 from backend.models.investments.mutual_fund import MutualFundSummary
 from backend.models.investments.stock import StockSummary, DividendSummary
-
-# Create logs directory if it doesn't exist
-log_dir = "./logs"
-os.makedirs(log_dir, exist_ok=True)
-
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("./logs/Investment_updater_logs.log"),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger("investment_updater")
 
 
 def get_data_from_investments(db: Session):
