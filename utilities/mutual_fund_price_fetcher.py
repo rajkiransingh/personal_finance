@@ -97,7 +97,8 @@ class MutualFundPriceFetcher:
                 # Get all bullion investments that need updating
                 mutual_fund_investments = (
                     db.query(MutualFundInvestment)
-                    .filter(MutualFundInvestment.scheme_code == scheme_code)
+                    .filter(MutualFundInvestment.scheme_code == scheme_code,
+                            MutualFundInvestment.transaction_type == 'BUY')
                     .all()
                 )
                 nav = Decimal(data['NAV'])
@@ -160,7 +161,7 @@ class MutualFundPriceFetcher:
             for scheme_code, data in mf_data.items():
                 self.logger.info(f"Received updates for mutual fund data: {mf_data}")
 
-                # Get all crypto investments that need updating
+                # Get all mutual fund investments that need updating
                 mf_summaries = db.query(MutualFundSummary).filter(MutualFundSummary.scheme_code == scheme_code).all()
                 investments = db.query(MutualFundInvestment).filter(
                     MutualFundInvestment.scheme_code == scheme_code).all()

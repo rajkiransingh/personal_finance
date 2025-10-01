@@ -1,9 +1,14 @@
 import json
 import time
+from datetime import datetime, UTC
+from decimal import Decimal
+from typing import Dict
 
 import yfinance as yf
+from sqlalchemy.orm import Session
 
 from backend.common.setup import AppConfig, config
+from backend.models.investments.stock import StockInvestment, StockSummary
 
 
 class StockPriceFetcher:
@@ -192,6 +197,163 @@ class StockPriceFetcher:
         except Exception as e:
             self.logger.error(f"Error fetching data for {stock_symbol}: {e}")
             stock_data_dict[stock_symbol] = {"error": str(e)}
+
+    def update_stock_investments(self, db: Session, stock_data: Dict, dividend_data=None) -> Dict:
+        if dividend_data is None:
+            dividend_data = {}
+
+        today = datetime.now(UTC)
+        updated_count = 0
+        errors = []
+        try:
+            for symbol, data in stock_data.items():
+                # Get all bullion investments that need updating
+                stock_investments = (
+                    db.query(StockInvestment)
+                    .filter(StockInvestment.stock_symbol == symbol, StockInvestment.transaction_type == 'BUY')
+                    .all()
+                )
+                price = Decimal(
+                    data["previousClose"] if data.get("currentPrice") == "N/A" else data["currentPrice"]
+                )
+                dividend_amount = dividend_data.get(symbol, 0)
+                currency_symbol = "₹"
+                for investment in stock_investments:
+                    try:
+                        self.logger.info(
+                            f"Updating Stock investment data for {data['shortName']}")
+                        self.logger.info(
+                            f"Current price for stock: {symbol} in INR is: {currency_symbol}{price}")
+
+                        current_value = float(price * investment.stock_quantity) + dividend_amount
+                        self.logger.info(
+                            f"We got the current value {current_value} for stock: {symbol} by adding: {float(price * investment.stock_quantity)} and dividend: {dividend_amount}")
+                        initial_investment = investment.total_invested_amount
+                        roi_value = ((current_value - initial_investment) /
+                                     initial_investment * 100)
+
+                        # Calculate XIRR (simplified version)
+                        days_invested = (today.date() - investment.investment_date).days
+                        years = days_invested / 365.0
+
+                        # Updating the investment table
+                        investment.current_price_per_stock = price
+                        investment.current_total_value = current_value
+                        investment.return_on_investment = roi_value
+                        investment.xirr = (((current_value / initial_investment) ** (
+                                1 / years)) - 1) * 100 if years > 0 else 0.0
+
+                        updated_count += 1
+                        self.logger.debug(
+                            f"Updated {data['shortName']} with price: {currency_symbol}{price}")
+
+                    except Exception as e:
+                        self.logger.error(f"Failed to update {data['shortName']} investment: {e}")
+
+            # Commit all changes
+            db.commit()
+            self.logger.info(f"Updated {updated_count} stock investments")
+
+            return {
+                "success": True,
+                "updated_count": updated_count,
+                "errors": errors
+            }
+
+        except Exception as e:
+            db.rollback()
+            error_msg = f"Failed to update stock investments: {e}"
+            self.logger.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "updated_count": 0
+            }
+
+    def update_stock_summary(self, db: Session, stock_data: Dict, dividend_data=None) -> Dict:
+        if dividend_data is None:
+            dividend_data = {}
+        updated_count = 0
+        errors = []
+
+        try:
+            for symbol, data in stock_data.items():
+                self.logger.info(f"Received updates for stock data: {stock_data}")
+
+                # Get all stock investments that need updating
+                mf_summaries = db.query(StockSummary).filter(StockSummary.stock_symbol == symbol).all()
+                investments = db.query(StockInvestment).filter(
+                    StockInvestment.stock_symbol == symbol).all()
+
+                price = float(
+                    data["previousClose"] if data.get("currentPrice") == "N/A" else data["currentPrice"]
+                )
+                dividend_amount = dividend_data.get(symbol, 0)
+                currency_symbol = "₹"
+                for summary in mf_summaries:
+                    try:
+                        self.logger.info(f"Updating Stock Summary data for {data['shortName']}")
+                        self.logger.info(
+                            f"Current price for stock: {symbol} in INR is: {currency_symbol}{price}")
+
+                        current_value = round((price * summary.total_quantity), 2) + dividend_amount
+                        self.logger.info(
+                            f"We got the current value {current_value} for stock: {symbol} by adding: {float(price * summary.total_quantity)} and dividend: {dividend_amount}")
+
+                        initial_investment = summary.total_cost
+                        roi_value = ((current_value - initial_investment) /
+                                     initial_investment * 100)
+
+                        # Weighted average XIRR calculation from Bullion Investment
+                        relevant_investments = [
+                            inv for inv in investments if inv.stock_symbol == symbol
+                        ]
+
+                        if relevant_investments:
+                            total_weighted_xirr = sum(
+                                (investment.total_invested_amount / initial_investment) * investment.xirr
+                                for investment in relevant_investments
+                            )
+                            self.logger.info(
+                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%")
+                        else:
+                            total_weighted_xirr = 0.0
+
+                        # Update Summary table
+                        summary.current_price_per_unit = price
+                        summary.current_value = current_value
+                        summary.roi = roi_value
+                        summary.xirr = total_weighted_xirr
+                        summary.last_updated = datetime.now(UTC)
+
+                        updated_count += 1
+                        self.logger.info(
+                            f"Updated {data['shortName']} investment summary with price: {currency_symbol}{price}")
+
+                    except Exception as e:
+                        error_msg = f"Error updating investment summary {summary.id}: {e}"
+                        self.logger.error(error_msg)
+                        errors.append(error_msg)
+
+            # Commit all changes
+            db.commit()
+            self.logger.info(f"Updated {updated_count} stock investment summary")
+
+            return {
+                "success": True,
+                "updated_count": updated_count,
+                "errors": errors
+            }
+
+        except Exception as e:
+            db.rollback()
+            error_msg = f"Failed to update stock investment summary: {e}"
+            self.logger.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "updated_count": 0
+            }
 
 
 # Global configuration instance
