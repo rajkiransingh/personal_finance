@@ -13,7 +13,7 @@ class StockInvestmentCreate(InvestmentBase):
     stock_quantity: float
     # Optional fields that might be calculated
     current_price_per_stock: Optional[float] = None
-    dividend_paying: bool = False
+    dividend_paying: Optional[bool] = None
 
 
 # RESPONSE SCHEMA - for returning stock investment data
@@ -24,4 +24,4 @@ class StockInvestmentResponse(InvestmentBase):
     initial_price_per_stock: float
     stock_quantity: float
     current_price_per_stock: Optional[float] = None
-    dividend_paying: bool = False
+    dividend_paying: Optional[int] = 0

@@ -30,7 +30,7 @@ class MetalRateFetcher:
         self.gold_url = os.getenv("GOLD_API")
         self.silver_url = os.getenv("SILVER_API")
         self.rapid_api_key = os.getenv("RAPID_API_KEY")
-        self.cache_expiry_in_seconds = 86400 * 15  # 9 Days
+        self.cache_expiry_in_seconds = 86400 * 9  # 9 Days
         self.cache_key_prefix = "bullion:"
 
     DEFAULT_CITY = os.getenv("CITY")
