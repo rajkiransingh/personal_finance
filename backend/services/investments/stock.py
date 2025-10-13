@@ -37,6 +37,7 @@ def create_stock(db: Session, stock_data: StockInvestmentCreate):
         total_invested_amount=stock_data.total_invested_amount,
         total_amount_after_sale=stock_data.total_amount_after_sale,
         investment_date=stock_data.investment_date or date.today(),
+        dividend_paying=int(stock_data.dividend_paying)
     )
 
     db.add(new_transaction)

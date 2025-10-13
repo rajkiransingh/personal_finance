@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "tailwindcss";
+
+:root {
+  --color-bg: #4C514C;
+  --color-bg-lighter: #484C48;
+  --color-sidebar: #323432;
+  --color-card: #3C403C;
+  --color-accent: #EED4B7;
+  --color-accent-hover: #EEE6DC;
+  --color-text-primary: #C9C3C0;
+  --color-text-secondary: #EED4B7;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+.card {
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+@font-face {
+  font-family: "PlaywriteDeutschlandSchulausgangschri";
+  src: url("../styles/fonts/PlaywriteFont.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+.font-playwrite {
+  font-family: "PlaywriteDeutschlandSchulausgangschri", cursive;
+}
