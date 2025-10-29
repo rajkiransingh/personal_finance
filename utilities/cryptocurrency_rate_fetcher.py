@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 from datetime import datetime, timezone, UTC
@@ -7,159 +6,130 @@ from typing import Dict
 import requests
 from sqlalchemy.orm import Session
 
-from backend.common.setup import AppConfig, config
+from backend.common.base_fetcher import BaseFetcher
 from backend.models.investments.crypto import CryptoInvestment, CryptoSummary
 
 
-class CryptoCurrencyRateFetcher:
+class CryptoCurrencyRateFetcher(BaseFetcher):
     """Utility class to fetch cryptocurrency rates"""
 
     def __init__(self):
-        # Set up logging using the common config
-        self.logger = AppConfig.setup_logger(config, "Crypto_currency_price_fetcher",
-                                             "Crypto_currency_price_fetcher_logs.log")
-
-        # Get Redis client
-        self.logger.info("Initializing Redis Client")
-        self.redis_client = AppConfig.redis_client(config)
+        self.cache_key_prefix = "cryptocurrency"
+        super().__init__("Crypto_currency_price_fetcher", self.cache_key_prefix, cache_expiry_seconds=86400)
 
         self.logger.info("Crypto currency price fetcher initialized successfully")
 
-        # Load config data from environment
-        self.cache_expiry_in_seconds = 86400
-        self.cache_key_prefix = "cryptocurrency:"
-        self.redis_forex_key_usd_inr = self.redis_client.get("forex::USD:INR")
-        self.redis_forex_key_usd_pln = self.redis_client.get("forex::USD:PLN")
-        self.redis_forex_key_pln_inr = self.redis_client.get("forex::PLN:INR")
+    def fetch_coin_data(self, symbols: list):
+        cached_map = self.get_from_cache(self.cache_key_prefix, symbols)
+        missing_symbols = [sym for sym, val in cached_map.items() if val is None]
+        fetched = {}
+        errors = {}
 
-        self.currency = {
-            1: "₹",  # INR
-            2: "zł",  # PLN
-            3: "$",  # USD
-        }
+        if not missing_symbols:
+            self.logger.info("Cache hit for all symbols — using cached data only")
+            return {"data": cached_map, "errors": {}}
 
-        self.currency_map = {
-            1: "INR",
-            2: "PLN",
-            3: "USD"
-        }
+        url = os.getenv('COIN_MARKET_URL')
+        api_key = os.getenv('COIN_MARKET_CAP_API_KEY')
+        headers = {'X-CMC_PRO_API_KEY': api_key, 'Accept': 'application/json'}
 
-    def get_cache_key(self, coin_symbol_list: list) -> str:
-        """Generate a consistent cache key based on coin symbols
+        try:
+            for symbol in missing_symbols:
+                try:
+                    self.logger.info(f"Fetching {symbol} from CoinMarketCap API")
+                    resp = requests.get(url, headers=headers, params={'symbol': symbol, 'convert': 'USD'}, timeout=15)
+                    resp.raise_for_status()
+                    data = resp.json()
 
-        Args:
-            coin_symbol_list:
-        """
+                    if 'data' not in data or symbol not in data['data']:
+                        msg = "no_data_in_api_response"
+                        self.logger.warning(f"API returned no data for {symbol}")
+                        errors[symbol] = msg
+                        fetched[symbol] = None
+                        continue
 
-        # Sort the list to ensure consistent cache keys regardless of input order
-        sorted_symbols = sorted([s.upper() for s in coin_symbol_list])
-        symbols_str = ",".join(sorted_symbols)
+                    fetched[symbol] = data['data'][symbol]
 
-        # Create a hash to keep cache keys manageable
-        hash_obj = hashlib.md5(symbols_str.encode())
-        return f"{self.cache_key_prefix}:{hash_obj.hexdigest()}"
+                except requests.exceptions.Timeout:
+                    self.logger.error(f"Timeout when fetching {symbol}")
+                    errors[symbol] = "timeout"
+                    fetched[symbol] = None
+                except requests.exceptions.RequestException as e:
+                    self.logger.error(f"Request error for {symbol}: {e}")
+                    errors[symbol] = f"request_error: {str(e)}"
+                    fetched[symbol] = None
+                except (ValueError, json.JSONDecodeError) as e:
+                    self.logger.error(f"Parsing error for {symbol}: {e}")
+                    errors[symbol] = f"parsing_error: {str(e)}"
+                    fetched[symbol] = None
+                except Exception as e:
+                    self.logger.error(f"Unexpected error for {symbol}: {e}")
+                    errors[symbol] = f"unexpected_error: {str(e)}"
+                    fetched[symbol] = None
+
+            # Cache only successful fetches (non-None)
+            to_cache = {s: v for s, v in fetched.items() if v is not None}
+            if to_cache:
+                try:
+                    self.logger.info(f"Caching {len(to_cache)} new items: {list(to_cache.keys())}")
+                    self.set_cache(self.cache_key_prefix, to_cache)
+                except Exception as e:
+                    self.logger.warning(f"Failed to write fetched items to cache: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Unexpected outer error while fetching missing symbols: {e}")
+            for sym in missing_symbols:
+                errors.setdefault(sym, f"unexpected_error: {str(e)}")
+                fetched.setdefault(sym, None)
+
+        final_map = {}
+        for sym in symbols:
+            cached_val = cached_map.get(sym)
+            final_map[sym] = cached_val if cached_val is not None else fetched.get(sym)
+
+        return {"data": final_map, "errors": errors}
 
     def fetch_cryptocurrency_data_in_usd(self, coin_symbol_list: list, use_cache: bool = True):
         """
         Fetch cryptocurrency data using CoinMarketCap API with Redis caching
-    
+
         Args:
             coin_symbol_list: List of cryptocurrency symbols to fetch
             use_cache: Whether to use Redis cache (default: True)
         """
-        cache_key = self.get_cache_key(coin_symbol_list)
         currency_symbol = self.currency.get(3)
-        # Try to get data from cache first
-        if use_cache:
-            try:
-                cached_data = self.redis_client.get(cache_key)
-                if cached_data:
-                    self.logger.info(f"Retrieved cryptocurrency data from cache for key: {cache_key}")
-                    return json.loads(cached_data)
-            except Exception as e:
-                self.logger.warning(f"Failed to retrieve data from Redis cache: {e}")
-                # Continue with API call if cache fails
+        response = self.fetch_coin_data(coin_symbol_list)
+
+        if "error" in response and response["error"]:
+            self.logger.error(f"Failed to fetch cryptocurrency data: {response['error']}")
+            return {"error": response["error"]}
+
+        all_crypto_data = response
+        if "data" not in all_crypto_data:
+            self.logger.error("Invalid response from CoinMarketCap API")
+            return {"error": "Invalid API response"}
 
         crypto_data = {}
-
-        # Get API key from environment variables
-        cmc_api_key = os.environ.get('COIN_MARKET_CAP_API_KEY')
-
-        if not cmc_api_key:
-            self.logger.error("CoinMarketCap API key not found in environment variables")
-            return {"error": "API key not configured"}
-
         for coin in coin_symbol_list:
-            try:
-                # CoinMarketCap API call
-                url = os.getenv('COIN_MARKET_URL')
-                headers = {
-                    'X-CMC_PRO_API_KEY': cmc_api_key,
-                    'Accept': 'application/json',
-                    'Accept-Encoding': 'deflate, gzip'
-                }
-                params = {
-                    'symbol': coin,
-                    'convert': 'USD'
-                }
+            coin_data = all_crypto_data["data"].get(coin)
+            if not coin_data:
+                self.logger.warning(f"No data found for {coin}, skipping...")
+                continue
 
-                self.logger.info("Fetching cryptocurrency data from CoinMarketCap API")
-                response = requests.get(url, headers=headers, params=params, timeout=30)
-                response.raise_for_status()
+            symbol = coin_data.get("symbol", "").upper()
+            quote_data = coin_data.get("quote", {}).get("USD", {})
 
-                all_crypto_data = response.json()
+            crypto_data[symbol] = {
+                "name": coin_data.get("name"),
+                "symbol": symbol,
+                "price": round(float(quote_data.get("price", 0)), 8),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+            }
 
-                if 'data' not in all_crypto_data:
-                    self.logger.error("Invalid response from CoinMarketCap API")
-                    return {"error": "Invalid API response"}
-
-                # Fetch data for portfolio coin
-                coin_data = all_crypto_data['data'][coin]
-                symbol = coin_data.get('symbol', '').upper()
-
-                quote_data = coin_data.get('quote', {}).get('USD', {})
-
-                crypto_data[symbol] = {
-                    'name': coin_data.get('name'),
-                    'symbol': symbol,
-                    'price': round(float(quote_data.get('price', 0)), 8),
-                    'last_updated': datetime.now(timezone.utc).isoformat()
-                }
-                self.logger.info(f"Added crypto {symbol}: {currency_symbol}{crypto_data[symbol]['price']}")
-
-                # Cache the data in Redis
-                if crypto_data and use_cache:
-                    try:
-                        # Add metadata to cached data
-                        cached_payload = {
-                            'data': crypto_data,
-                            'cached_at': datetime.now(timezone.utc).isoformat(),
-                            'cache_expiry_seconds': self.cache_expiry_in_seconds
-                        }
-
-                        self.redis_client.setex(
-                            cache_key,
-                            self.cache_expiry_in_seconds,
-                            json.dumps(cached_payload)
-                        )
-                        self.logger.info(
-                            f"Cached cryptocurrency data in Redis with key: {cache_key}, expiry: {self.cache_expiry_in_seconds}s")
-                    except Exception as e:
-                        self.logger.warning(f"Failed to cache data in Redis: {e}")
-                        # Continue without caching if Redis fails
-
-            except requests.exceptions.RequestException as e:
-                self.logger.error(f"Failed to fetch cryptocurrency data: {e}")
-                return {"error": f"API request failed: {str(e)}"}
-            except json.JSONDecodeError as e:
-                self.logger.error(f"Failed to parse cryptocurrency API response: {e}")
-                return {"error": f"JSON parsing failed: {str(e)}"}
-            except Exception as e:
-                self.logger.error(f"Unexpected error fetching cryptocurrency data: {e}")
-                return {"error": f"Unexpected error: {str(e)}"}
+            self.logger.info(f"Fetched {symbol}: {currency_symbol}{crypto_data[symbol]['price']}")
 
         self.logger.info(f"Successfully fetched {len(crypto_data)} cryptocurrencies")
-        return crypto_data
+        return {"data": crypto_data}
 
     def update_crypto_investments(self, db: Session, crypto_data: Dict) -> Dict:
         """
@@ -173,12 +143,6 @@ class CryptoCurrencyRateFetcher:
             Dictionary with update results
         """
         today = datetime.now(UTC)
-
-        currency_map = {
-            1: "INR",
-            2: "PLN",
-            3: "USD"
-        }
 
         try:
             updated_count = 0
@@ -199,22 +163,11 @@ class CryptoCurrencyRateFetcher:
                         current_price = crypto_data['data'][symbol]['price']
                         self.logger.info(f"Current price for {symbol}: {currency_symbol}{current_price}")
 
-                        invested_currency = currency_map.get(investment.currency_id, "INR")
-                        # conversion_rate = 1.0
-
-                        if invested_currency == "INR":
-                            conversion_rate = round(float(self.redis_forex_key_usd_inr), 2)
-                        elif invested_currency == "PLN":
-                            conversion_rate = round(float(self.redis_forex_key_usd_pln), 2)
-                        elif invested_currency == "USD":
-                            conversion_rate = 1.0
-                        else:
-                            raise Exception(f"Unsupported currency type: {invested_currency}")
+                        invested_currency = self.currency_map.get(investment.currency_id, "INR")
+                        conversion_rate = self.get_conversion_rate(invested_currency)
 
                         current_value = (current_price * investment.coin_quantity) * conversion_rate
-
                         initial_investment = investment.total_invested_amount
-
                         roi_value = ((current_value - initial_investment) /
                                      investment.total_invested_amount * 100)
 
@@ -226,8 +179,11 @@ class CryptoCurrencyRateFetcher:
                         investment.current_price_per_coin = current_price * conversion_rate
                         investment.current_total_value = current_value
                         investment.return_on_investment = roi_value
-                        investment.xirr = (((current_value / initial_investment) ** (
-                                1 / years)) - 1) * 100 if years > 0 else 0.0
+
+                        if years >= 1:
+                            investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
+                        else:
+                            investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
 
                         updated_count += 1
                         self.logger.info(f"Updated {symbol} investment: {currency_symbol}{current_price}")
@@ -283,7 +239,7 @@ class CryptoCurrencyRateFetcher:
                 try:
                     symbol = summary.coin_symbol.upper()
                     self.logger.info(f"Updating cryptocurrency summary data for {symbol}")
-                    conversion_rate = round(float(self.redis_forex_key_usd_inr), 2)
+                    conversion_rate = round(float(json.loads(self.redis_forex_key_usd_inr)['rate']), 2)
 
                     if symbol in crypto_data['data']:
                         current_price_inr = crypto_data['data'][symbol]['price'] * conversion_rate
@@ -345,54 +301,6 @@ class CryptoCurrencyRateFetcher:
                 "error": error_msg,
                 "updated_count": 0
             }
-
-    def clear_crypto_cache(self, coin_symbol_list: list = None, cache_key_prefix=None):
-        """
-        Clear cryptocurrency cache for specific coins or all crypto cache
-
-        Args:
-            cache_key_prefix:
-            coin_symbol_list: Specific coins to clear cache for, or None for all
-        """
-        try:
-            if coin_symbol_list:
-                cache_key = self.get_cache_key(coin_symbol_list)
-                self.redis_client.delete(cache_key)
-                self.logger.info(f"Cleared cache for key: {cache_key}")
-            else:
-                # Clear all crypto cache keys
-                keys = self.redis_client.keys(f"{cache_key_prefix}:*")
-                if keys:
-                    self.redis_client.delete(*keys)
-                    self.logger.info(f"Cleared {len(keys)} cryptocurrency cache keys")
-                else:
-                    self.logger.info("No cryptocurrency cache keys found to clear")
-        except Exception as e:
-            self.logger.error(f"Failed to clear cache: {e}")
-
-    def get_cache_info(self, coin_symbol_list: list):
-        """
-        Get information about cached data
-
-        Args:
-            coin_symbol_list: List of cryptocurrency symbols to check cache for
-
-        Returns:
-            Dict with cache information or None if not cached
-        """
-        try:
-            cache_key = self.get_cache_key(coin_symbol_list)
-            ttl = self.redis_client.ttl(cache_key)
-
-            if ttl == -2:  # Key doesn't exist
-                return None
-            elif ttl == -1:  # Key exists but no expiry set
-                return {"status": "cached", "ttl": "no_expiry", "cache_key": cache_key}
-            else:
-                return {"status": "cached", "ttl_seconds": ttl, "cache_key": cache_key}
-        except Exception as e:
-            self.logger.error(f"Failed to get cache info: {e}")
-            return None
 
 
 # Global configuration instance

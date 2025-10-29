@@ -10,7 +10,7 @@ from backend.schemas.investments.common import InvestmentUpdate
 
 
 def get_all_investments(investment_type: str, db: Session):
-    if investment_type == "stock":
+    if investment_type == "stocks":
         return db.query(StockInvestment).all()
     elif investment_type == "mutual fund":
         return db.query(MutualFundInvestment).all()

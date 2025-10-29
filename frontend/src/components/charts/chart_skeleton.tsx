@@ -5,4 +5,3 @@ export default function Skeleton({ height = 200 }: { height?: number }) {
       style={{ height }}
     ></div>
   );
-}

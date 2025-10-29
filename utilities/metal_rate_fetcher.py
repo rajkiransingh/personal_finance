@@ -6,32 +6,21 @@ from typing import Dict
 import requests
 from sqlalchemy.orm import Session
 
-from backend.common.setup import AppConfig, config
+from backend.common.base_fetcher import BaseFetcher
 from backend.models.investments.bullion import BullionInvestment, BullionSummary
 
 
-class MetalRateFetcher:
+class MetalRateFetcher(BaseFetcher):
     """Utility class to fetch bullion rates"""
 
     def __init__(self):
-        # Set up logging using the common config
-        self.logger = AppConfig.setup_logger(config, "Bullion_price_fetcher",
-                                             "Bullion_price_fetcher_logs.log")
-
-        # Get Redis client
-        self.logger.info("Initializing Redis Client")
-        self.redis_client = AppConfig.redis_client(config)
-
-        self.logger.info("Bullion price fetcher initialized successfully")
-
         # Load config data from environment
-        self.rapid_api_host = os.getenv("RAPID_API_HOST")
-        self.base_url = os.getenv("RAPID_API_BASE_URL")
-        self.gold_url = os.getenv("GOLD_API")
-        self.silver_url = os.getenv("SILVER_API")
-        self.rapid_api_key = os.getenv("RAPID_API_KEY")
+
         self.cache_expiry_in_seconds = 86400 * 9  # 9 Days
         self.cache_key_prefix = "bullion:"
+
+        super().__init__("Bullion_price_fetcher", self.cache_key_prefix, self.cache_expiry_in_seconds)
+        self.logger.info("Bullion price fetcher initialized successfully")
 
     DEFAULT_CITY = os.getenv("CITY")
     DEFAULT_PURITY = "24k"
@@ -44,35 +33,31 @@ class MetalRateFetcher:
         return self.get_current_metal_rates('silver', city, purity)
 
     def get_current_metal_rates(self, metal: str, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY):
-        cache_key = f"{self.cache_key_prefix}:{metal}:{city.lower()}"
+        cache_key = f"{self.cache_key_prefix}:{city.lower()}"
+        metal = metal.lower()
 
         # Check Redis cache first
-        cached_data = self.redis_client.get(cache_key)
-        if cached_data:
-            try:
-                cached_info = json.loads(cached_data)
-                rate = float(cached_info['rate'])  # Convert to float first
-                self.logger.info(f"Cache hit: Using cached {metal} rate for {city}: {rate}")
-                return int(rate)
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
-                self.logger.warning(f"Invalid cached data for {metal} in {city}, will refetch: {e}")
-        else:
-            self.logger.info(f"Cache miss: No cached {metal} rate for {city}")
+        cached_results = self.get_from_cache(cache_key, [metal])
+        cached_info = cached_results.get(metal)
 
-        # Get API credentials
+        if cached_info:
+            try:
+                rate = float(cached_info["rate"])
+                self.logger.info(f"Cache hit: Using cached {metal} rate for {city}: {rate}")
+                return rate
+            except (KeyError, ValueError, TypeError) as e:
+                self.logger.warning(f"Invalid cached data for {metal} {city}, refetching: {e}")
+
+        # --- Cache Miss: Fetch Fresh ---
         if not self.rapid_api_key:
             self.logger.error("RAPID_API_KEY not found in environment variables")
             raise ValueError("RAPID_API_KEY not configured")
 
-        # Configure API endpoint based on metal type
-        if metal.lower() == 'gold':
-            endpoint = f"{self.base_url}{self.gold_url}"
-        else:
-            endpoint = f"{self.base_url}{self.silver_url}"
+        endpoint = f"{self.bullion_base_url}{self.gold_url if metal.lower() == 'gold' else self.silver_url}"
 
         headers = {
             'city': city,
-            'x-rapidapi-host': self.rapid_api_host,
+            'x-rapidapi-host': self.rapid_api_bullion_host,
             'x-rapidapi-key': self.rapid_api_key
         }
 
@@ -85,7 +70,6 @@ class MetalRateFetcher:
             self.logger.info(f"Fetched {metal} data: {data}")
 
             rate = self.extract_rate_from_response(data, metal, city)
-
             if rate is None:
                 self.logger.error(f"Could not extract {metal} rate for purity {purity}")
                 return None
@@ -101,7 +85,7 @@ class MetalRateFetcher:
             }
 
             try:
-                self.redis_client.setex(cache_key, self.cache_expiry_in_seconds, json.dumps(cache_data))
+                self.set_cache(cache_key, {metal: cache_data}, expiry=self.cache_expiry_in_seconds)
                 self.logger.info(f"Cached {metal} rate in Redis for {city}: {rate}")
             except Exception as e:
                 self.logger.warning(f"Failed to cache {metal} rate: {e}")
@@ -126,21 +110,17 @@ class MetalRateFetcher:
                 return None
 
             # Look for the city-specific rate key: "CityName_1g"
-            if metal.lower() == 'gold':
-                city_key = f"{city}_{purity}"
-            else:
-                city_key = f"{city}_1g"
+            city_key = f"{city}_{purity}" if metal.lower() == "gold" else f"{city}_1g"
 
-            if city_key in data:
-                rate = data[city_key]
-                return float(rate)  # Convert to float before returning
+            rate = data.get(city_key)
+            if rate is None:
+                self.logger.debug(f"No rate found for key: {city_key}")
+                return None
 
-            # Log the full response for debugging
-            self.logger.debug(f"Full API response: {data}")
-            return None
+            return float(rate)
 
         except Exception as e:
-            self.logger.error(f"Error extracting metal rate from response: {e}")
+            self.logger.error(f"Error extracting {metal} rate from response: {e}")
             return None
 
     def update_bullion_investments(self, db: Session, bullion_data: Dict) -> Dict:
@@ -179,8 +159,10 @@ class MetalRateFetcher:
                         days_invested = (today.date() - investment.investment_date).days
                         years = days_invested / 365.0
 
-                        investment.xirr = (((current_value / initial_investment) ** (
-                                1 / years)) - 1) * 100 if years > 0 else 0.0
+                        if years >= 1:
+                            investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
+                        else:
+                            investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
 
                         updated_count += 1
                         self.logger.debug(f"Updated {metal} investment: ${current_price}")

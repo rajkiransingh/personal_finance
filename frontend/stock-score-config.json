@@ -1,0 +1,48 @@
+{
+  "strategy": {
+    "core": {
+      "metrics": {
+        "ROCE": 0.25,
+        "OPM_5Y": 0.2,
+        "NPM": 0.15,
+        "CFO_to_NetIncome": 0.15,
+        "PEG": -0.15,
+        "PE": -0.1,
+        "PB": -0.1,
+        "DebtToEquity": -0.1,
+        "InterestCoverage": 0.15,
+        "SalesGrowth_5Y": 0.2
+      },
+      "description": "Core stocks - stable, high-quality leaders.Focus on profitability and cash stability."
+    },
+    "accelerators": {
+      "metrics": {
+        "ProfitGrowth_5Y": 0.3,
+        "CFO_to_NetIncome": 0.1,
+        "PEG": -0.15,
+        "ROCE": 0.2,
+        "OPM_5Y": 0.15,
+        "DebtToEquity": -0.1,
+        "CurrentRatio": 0.1,
+        "PromoterHolding": 0.2,
+        "SalesGrowth_5Y": 0.25
+      },
+      "description": "Accelerators - fast-growing, consistent performers.Focus on sustainable high–growth."
+    },
+    "gem": {
+      "metrics": {
+        "MarketCap": -0.2,
+        "PE": -0.1,
+        "PB": -0.1,
+        "PEG": -0.15,
+        "SalesGrowth_5Y": 0.15,
+        "CurrentRatio": 0.1,
+        "CFO_to_NetIncome": 0.1,
+        "ProfitGrowth": 0.25,
+        "DebtToEquity": -0.1,
+        "PromoterHolding": 0.15
+      },
+      "description": "Gems - high-potential small/mid-caps. High risk/reward, requiring strict liquidity and valuation control."
+    }
+  }
+}

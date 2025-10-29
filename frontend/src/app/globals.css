@@ -13,6 +13,7 @@
   --color-accent-hover: #EEE6DC;
   --color-text-primary: #C9C3C0;
   --color-text-secondary: #EED4B7;
+  --color-text-pie: #474437;
 }
 
 body {
@@ -52,4 +53,22 @@ body {
 
 .font-playwrite {
   font-family: "PlaywriteDeutschlandSchulausgangschri", cursive;
+}
+
+.react-datepicker {
+  font-family: inherit;
+  border-radius: 12px !important;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-accent);
+  color: var(--color-text-primary);
+}
+
+.react-datepicker__header {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.react-datepicker__day--selected {
+  background-color: var(--color-accent);
+  color: white;
 }

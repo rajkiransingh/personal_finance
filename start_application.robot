@@ -157,7 +157,7 @@ Start Personal Finance Application
     Check Docker Installation
     Check Docker Compose File
     Ensure Docker Volume
-    Build Docker Image If Needed
+    #Build Docker Image If Needed
     Start Docker Containers
     Wait For Database
     Check Backup Script
