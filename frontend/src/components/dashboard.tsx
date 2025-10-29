@@ -7,16 +7,10 @@ import MonthDropdown from "./helpers/month_helper"
 import StatCard from "./cards/stat_cards"
 import Skeleton from "./charts/chart_skeleton";
 import CustomTooltip from "./charts/chart_tooltip"
+import InvestmentPieChart from "./charts/assets_doughnut_chart"
 import Corpus from "./cards/corpus_fund"
 import TransactionTable from "./cards/transactions"
-
-const mockSpendingData = [
-  { month: "Jan", spending: 400 },
-  { month: "Feb", spending: 300 },
-  { month: "Mar", spending: 500 },
-  { month: "Apr", spending: 200 },
-  { month: "May", spending: 600 },
-];
+import { DashboardData } from './types/dashboard';
 
 const mockCategoryData = [
   { category: "Food", amount: 450 },
@@ -38,169 +32,213 @@ const mockTransactions = [
   { "date": "2025-09-25", "category": "Fuel", "amount": 210.30, "paymentMode": "Credit Card", "merchant": "BP", "status": "Completed" },
 ]
 
+const formatCurrency = (value: number): string => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '₹0.00';
+
+  const absValue = Math.abs(value);
+
+  if (absValue >= 10000000) {
+    return `₹${(value / 10000000).toFixed(2)}Cr`;
+  } else if (absValue >= 100000) {
+    return `₹${(value / 100000).toFixed(2)}L`;
+  } else if (absValue >= 1000) {
+    return `₹${(value / 1000).toFixed(2)}K`;
+  } else {
+    return `₹${value.toFixed(2)}`;
+  }
+};
+
 export default function DashboardPage() {
+    const [data, setData] = useState<DashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+          try {
+            setLoading(true);
+            const response = await fetch('http://localhost:8000/dashboard/', { method: 'GET' });
+
+            if (!response.ok) throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+            const dashboardData: DashboardData = await response.json();
+            setData(dashboardData);
+            setError(null);
+          } catch (err) {
+            console.error('Error fetching dashboard data:', err);
+            setError(`Failed to load dashboard data. Make sure Python backend is running. ${response}`);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchDashboardData();
+    },[]);
+
+    if (loading) {
+        return <div className="text-center py-8 text-[var(--color-text-secondary)]">Loading dashboard...</div>;
+    }
+
+    if (error) {
+        return <div className="text-center py-8 text-red-400">{error}</div>;
+    }
+
+    if (!data) {
+        return <div className="text-center py-8 text-[var(--color-text-secondary)]">No data available</div>;
+    }
+
+    const corpus = data.emergency_coverage
+    const totalReturns = data.total_returns
+    const averageRoi = data.average_roi
+    const assets = data.assets
+
+    // Sort investments to get best performer
+    const sortedInvestments = Object.entries(data.investment_returns).sort(
+    (a, b) => b[1] - a[1]
+  );
+  const [bestPerformer, ...restInvestments] = sortedInvestments;
 
   return (
     <div className="space-y-6 bg-[var(--color-bg)]">
 
       {/* Header with Title and Data Refresh Button */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-semibold">Dashboard :: Reports & Analytics </h1>
+        <h1 className="text-3xl font-semibold">Financial Information Dashboard</h1>
         <button className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition">
           Refresh Data
         </button>
       </div>
 
       {/* Corpus Fund Progress Bar */}
-      <Corpus />
+      <Corpus percentage={corpus} />
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard title="Total Earnings" value="₹982.42" percentage="+12.8%" change="+100 than last month" />
-        <StatCard title="Total Spending's" value="₹982.42" percentage="+12.8%" change="+100 than last month" />
-        <StatCard title="Total Investments" value="₹982.42" percentage="+12.8%" change="+100 than last month" />
+        <StatCard title="Total Income (YTD)" value="₹9,82,420" comparison="Last Year (same date): ₹8,45,000" metric="10% Increase" metricValue={10} />
+        <StatCard title="Total Expenses (YTD)" value="₹4,56,789" comparison="Avg/month: ₹38,065" metric="46% of income" metricValue={-5} />
+        <StatCard title="Total Invested" value="₹78,92,345" comparison="Avg/month: ₹75,065" metric="Growth: +24.5%" metricValue={24} />
       </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-3 gap-4">
-        {/* Balance Summary - Takes 2 Columns */}
-        <div className="card col-span-2 bg-[var(--color-card)] p-6 rounded-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Spending`s Summary</h2>
-            <MonthDropdown  currentMonth={currentMonth} onChange={(monthIndex) => setCurrentMonth(new Date(currentMonth.getFullYear(), monthIndex))}/>
-          </div>
-          {/* Placeholder for chart */}
-          {mockSpendingData ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={mockSpendingData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="month" stroke="#EED4B7" />
-                <YAxis stroke="#EED4B7" />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="spending"
-                  stroke="#EED4B7"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <Skeleton height={250} />
-          )}
+
+        {/* Net Worth Breakdown */}
+        <div className="card col-span-2 bg-[var(--color-card)] p-6 rounded-lg h-[520px]">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Net Worth Breakdown</h2>
+                <span className="text-sm text-[var(--color-text-secondary)]"> (Cash + Investments) </span>
+            </div>
+            <InvestmentPieChart earnings={assets} />
         </div>
 
-        {/* Card Widget */}
+        {/* Investment Return Card */}
         <div className="card bg-[var(--color-card)] p-6 rounded-lg shadow flex flex-col">
-          <div className="bg-gradient-to-r from-[var(--color-accent-hover)] to-[var(--color-accent)] rounded-lg p-6 text-[var(--color-bg)] mb-4 flex-1">
-            <p className="text-sm opacity-75 mb-8">Mera Paisa Card</p>
-            <p className="text-3xl font-bold mb-8">₹1,00,000</p>
-            <div className="flex justify-between text-sm">
-              <div>
-                <p className="opacity-75">Card Holder</p>
-                <p className="opacity-75">Rajkiran Singh M</p>
+            {/* Header: Total Returns & ROI */}
+            <div className="h-full bg-gradient-to-r from-[var(--color-accent-hover)] to-[var(--color-accent)] rounded-lg p-6 text-[var(--color-bg)] mb-4 flex flex-col">
+              <div className="flex justify-between mb-4">
+                <div>
+                  <p className="text-sm opacity-75 mb-1">Total Returns</p>
+                  <p className="text-3xl font-bold">{totalReturns}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm opacity-75 mb-1">ROI</p>
+                  <p className="text-3xl font-bold">{averageRoi}%</p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="opacity-75">Expires</p>
-                <p className="opacity-75">11/29</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black text-xs py-2 rounded font-semibold transition">
-            Send
-            </button>
-            <button className="flex-1 bg-[var(--color-bg)] hover:bg-[var(--color-card)] text-[var(--color-text-primary)] text-xs py-2 rounded font-semibold transition border-[var(--color-card)]">
-            Request
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Quick Transaction Section */}
-      <div className="card bg-[var(--color-card)] p-6 rounded-lg">
-        <h2 className="text-lg font-semibold mb-4">Quick Transaction</h2>
-        <div className="flex gap-4">
-          <div className="flex flex-col items-center">
-            <div className="w-12 h-12 bg-[var(--color-accent)] rounded-full flex items-center justify-center text-xl mb-2">
-              +
-            </div>
-            <p className="text-xs text-[var(--color-text-secondary)]">Add</p>
-          </div>
-          {["Pitaji", "Mummyji", "Dad", "Ashwini"].map((name) => (
-            <div key={name} className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-[var(--color-bg)] rounded-full flex items-center justify-center text-sm text-[var(--color-text-primary)] mb-2">
-                {name.charAt(0)}
-              </div>
-              <p className="text-xs text-[var(--color-text-secondary)]">{name}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+              <div className="h-[1px] bg-gradient-to-r from-[var(--color-text-primary)] to-[var(--color-text-secondary)] rounded mb-4"></div>
 
-      {/* Bottom Cards Grid */}
-      <div className="grid grid-cols-3 gap-4">
-        {/* Admit Snap */}
-        <div className="card bg-[var(--color-card)] p-6 rounded-lg">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-lg font-semibold">Admit Snap</h2>
-            <span className="text-[var(--color-text-secondary)]">•••</span>
-          </div>
-          <div className="mb-4">
-            <div className="text-sm text-[var(--color-text-secondary)] mb-1">+30.00%</div>
-            <p className="text-2xl font-bold text-[var(--color-accent)]">₹40,585</p>
-            <p className="text-xs text-[var(--color-text-secondary)]">Total Amount</p>
-          </div>
-          <div className="h-24 bg-[var(--color-bg)] rounded flex items-center justify-center text-[var(--color-text-secondary)]">
-            [Bar Chart]
-          </div>
-        </div>
-        {/* Customer Growth */}
-      <div className="card bg-[var(--color-card)] p-6 rounded-lg">
-        <h2 className="text-lg font-semibold mb-4">Customer Growth</h2>
-        <div className="h-40 bg-[var(--color-bg)] rounded flex items-center justify-center text-[var(--color-text-secondary)]">
-          [Pie Chart]
-        </div>
-      </div>
-      {/* Expenses Summary */}
-        <div className="card bg-[var(--color-card)] p-6 rounded-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Expenses Summary</h2>
-            <MonthDropdown  currentMonth={currentMonth} onChange={(monthIndex) => setCurrentMonth(new Date(currentMonth.getFullYear(), monthIndex))}/>
-          </div>
-          <div className="h-40 bg-[var(--color-bg)] rounded flex items-center justify-center text-[var(--color-text-secondary)] mb-4">
-            {mockCategoryData ? (
-            <ResponsiveContainer width="100%" height={150}>
-              <BarChart data={mockCategoryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="category" stroke="#EED4B7" />
-                <YAxis stroke="#EED4B7" />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="amount" fill="#EED4B7" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <Skeleton height={250} />
-          )}
-          </div>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-[var(--color-text-secondary)]">Information tech</span>
-              <span className="text-[var(--color-accent)]">₹2,657.89</span>
+              {/* Best Performer */}
+              <div className="text-sm mb-2 opacity-75">Best Performer</div>
+                {bestPerformer && (
+                  <div className="flex justify-between text-sm mb-6">
+                    <p className="font-semibold">{`${bestPerformer[0]}`}</p>
+                    <p className="font-semibold">{`${bestPerformer[1]}%`}</p>
+              </div>
+              )}
+
+              {/* Other Investments */}
+              <div className="text-sm mb-2 opacity-75">Other Investments</div>
+                {restInvestments.map(([name, value]) => (
+                  <div key={name} className="flex justify-between text-sm mb-3" >
+                    <p className="font-semibold">{name}</p>
+                    <p className="font-semibold">{value}%</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Button */}
+              <button className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black text-xs py-2 rounded font-semibold transition">
+                View Analysis →
+              </button>
             </div>
-            <div className="flex justify-between">
-              <span className="text-[var(--color-text-secondary)]">Various shopping</span>
-              <span className="text-[var(--color-accent)]">₹2,657.89</span>
-            </div>
-          </div>
-          <div className="mt-2 pt-2 border-t border-[var(--color-bg)]">
-            <p className="text-xs text-[var(--color-text-secondary)]">72% Total Expense</p>
-          </div>
         </div>
+
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-2 sm:grid-cols-1">
+  {/* Financial Forecast Card */}
+  <div className="card bg-[var(--color-card)] p-6 rounded-lg flex flex-col justify-between">
+    <div>
+      <h2 className="text-lg font-semibold mb-4">Next Month Forecast</h2>
+
+      <div className="flex flex-col gap-3 text-sm">
+        {[
+          { label: "Expected Income", value: "7 200 PLN", color: "bg-green-500/20 text-green-400" },
+          { label: "Expected Expenses", value: "4 500 PLN", color: "bg-red-500/20 text-red-400" },
+          { label: "Predicted Savings", value: "2 700 PLN", color: "bg-[var(--color-accent)]/20 text-[var(--color-accent)]" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="flex justify-between items-center">
+            <span className="text-[var(--color-text-secondary)]">{label}:</span>
+            <span
+              className={`px-3 py-1 text-xs font-semibold rounded-full ${color} whitespace-nowrap`}
+            >
+              {value}
+            </span>
+          </div>
+        ))}
       </div>
-      {/* Transaction History */}
-      <TransactionTable data={mockTransactions} />
     </div>
-  );
-}
+
+    <div className="mt-6 text-xs text-[var(--color-text-secondary)] italic">
+      Based on the last 3 months’ trend analysis.
+    </div>
+  </div>
+
+  {/* Monthly Goals Card */}
+  <div className="card bg-[var(--color-card)] p-6 rounded-lg flex flex-col justify-between">
+    <div>
+      <h2 className="text-lg font-semibold mb-4">Monthly Goals</h2>
+
+      <div className="flex flex-col gap-3 text-sm">
+        {[
+          { goal: "Investment", progress: 72 },
+          { goal: "Savings", progress: 55 },
+          { goal: "Emergency Fund", progress: 84 },
+        ].map(({ goal, progress }) => (
+          <div
+            key={goal}
+            className="flex justify-between items-center"
+          >
+            <span>{goal}</span>
+            <div
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                progress >= 75
+                  ? "bg-green-500/20 text-green-400"
+                  : progress >= 50
+                  ? "bg-yellow-500/20 text-yellow-400"
+                  : "bg-red-500/20 text-red-400"
+              }`}
+            >
+              {progress}%
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div className="mt-6 text-xs text-[var(--color-text-secondary)] italic">
+      Updated weekly based on your target performance.
+    </div>
+  </div>
+</div>
+</div>
+);}

@@ -1,4 +1,11 @@
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  formatter?: (value: number, name?: string) => string;
+}
+
+const CustomTooltip = ({ active, payload, label, formatter }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div
@@ -10,11 +17,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         }}
       >
         <p className="font-semibold mb-1 text-[var(--color-accent)]">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
           <p key={`item-${index}`}>
             {entry.name}:{" "}
             <span className="text-[var(--color-accent)]">
-              ₹{entry.value}
+              {formatter ? formatter(Number(entry.value), entry.name) : entry.value}
             </span>
           </p>
         ))}

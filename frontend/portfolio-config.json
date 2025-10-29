@@ -1,0 +1,106 @@
+{
+  "mappings": {
+    "MutualFunds": [
+      "mutual_funds"
+    ],
+    "ETFs": [
+      "etf"
+    ],
+    "Metals": [
+      "bullion"
+    ],
+    "Stocks": [
+      "stocks"
+    ],
+    "Crypto": [
+      "crypto"
+    ],
+    "RealEstate": [
+      "real_estate"
+    ],
+    "Core": [
+      "HDFCBANK",
+      "HINDUNILVR",
+      "EMBASSY-RR",
+      "HINDZINC"
+    ],
+    "Compounders": [
+      "REDINGTON",
+      "PETRONET"
+    ],
+    "Gems": [
+      "MOL",
+      "AVTNPL",
+      "NSLNISP",
+      "MOMENTUM50"
+    ]
+  },
+  "targets": {
+    "ETFs": {
+      "weight": 0.2,
+      "sub_allocations": {
+        "NiftyBees": 0.5,
+        "Mid150Bees": 0.25,
+        "CPSEETF": 0.15,
+        "HDFCSML250": 0.1
+      }
+    },
+    "Reits": {
+      "weight": 0.05,
+      "sub_allocations": {
+        "EMBASSY-RR": 1
+      }
+    },
+    "MutualFunds": {
+      "weight": 0.2,
+      "sub_allocations": {
+        "SundaramLongTerm": 0.1,
+        "KotakFlexicap": 0.1,
+        "MotilalOswalSnP": 0.05,
+        "ParagParikhFlexicap": 0.2,
+        "JioBlackrockFlexicap": 0.05,
+        "AxisMidcap": 0.15,
+        "CanaraRobeco": 0.2,
+        "QuantSmallcap": 0.15
+      }
+    },
+    "Stocks": {
+      "weight": 0.15,
+      "sub_allocations": {
+        "Core": 0.5,
+        "Compounders": 0.3,
+        "Gems": 0.2
+      }
+    },
+    "Metals": {
+      "weight": 0.1,
+      "sub_allocations": {
+        "Gold": 0.67,
+        "Silver": 0.33
+      }
+    },
+    "RealEstate": {
+      "weight": 0.25
+    },
+    "Crypto": {
+      "weight": 0.05
+    }
+  },
+  "monthly_sip": 68000,
+  "step_up": {
+    "enabled": true,
+    "annual_rate": 0.1,
+    "apply_month": 4,
+    "apply_day": 1
+  },
+  "rebalancing": {
+    "soft_threshold_pct": 0.05,
+    "hard_threshold_pct": 0.1,
+    "use_inflows_first": true,
+    "allow_sells": true,
+    "sell_minimum_rupees": 1000
+  },
+  "snapshot_months": 6,
+  "last_stepup_applied": "2026-04-01",
+  "portfolio_currency": "INR"
+}

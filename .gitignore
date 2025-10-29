@@ -33,3 +33,6 @@ finance_env/
 
 # aws script
 /scripts/aws/
+
+# Ignoring node js
+node_modules/

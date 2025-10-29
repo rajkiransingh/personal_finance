@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime, UTC
 from decimal import Decimal
 from typing import Dict
@@ -7,85 +6,68 @@ from typing import Dict
 import requests
 from sqlalchemy.orm import Session
 
-from backend.common.setup import AppConfig, config
+from backend.common.base_fetcher import BaseFetcher
 from backend.models.investments.mutual_fund import MutualFundInvestment, MutualFundSummary
 
 
-class MutualFundPriceFetcher:
+class MutualFundPriceFetcher(BaseFetcher):
     """Utility class to fetch mutual fund prices"""
 
     def __init__(self):
-        # Set up logging using the common config
-        self.logger = AppConfig.setup_logger(config, "Mutual_Fund_price_fetcher",
-                                             "Mutual_Fund_price_fetcher_logs.log")
-
-        # Get Redis client
-        self.logger.info("Initializing Redis Client")
-        self.redis_client = AppConfig.redis_client(config)
-
-        # Initialize env variables
-        self.rapid_api_host = os.getenv("RAPID_API_MF_HOST")
-        self.base_url = os.getenv("RAPID_API_MF_URL")
-        self.rapid_api_key = os.getenv("RAPID_MF_API_KEY")
-
         # Load config data from environment
         self.cache_expiry_in_seconds = 86400
-        self.cache_key_prefix = "mutual-fund:"
+        self.cache_key_prefix = "mutual-fund"
 
-        self.currency = {
-            1: "₹",  # INR
-            2: "zł",  # PLN
-            3: "$",  # USD
-        }
-
+        super().__init__("Mutual_Fund_price_fetcher", self.cache_key_prefix, self.cache_expiry_in_seconds)
         self.logger.info("Mutual Fund price fetcher initialized successfully")
 
     def get_mutual_fund_rates_bulk(self, scheme_code_list: list):
         """Fetch Mutual Fund NAVs for multiple scheme codes with caching"""
-        result = {}
+        results = {}
+        cached_map = self.get_from_cache(self.cache_key_prefix, scheme_code_list)
+        missing_schemes = [scheme for scheme, val in cached_map.items() if val is None]
 
-        for scheme_code in scheme_code_list:
-            cache_key = f"{self.cache_key_prefix}:{scheme_code}"
-            cached_data = self.redis_client.get(cache_key)
-            cached_info = json.loads(cached_data) if cached_data else None
-
-            if cached_info:
-                self.logger.info(
-                    f"Cache hit: Using cached data for Mutual Fund: {cached_info['Fund_Name']} with value: {cached_info['NAV']}")
-                result[scheme_code] = cached_info
-                continue
-
-            try:
-                self.logger.info(f"Fetching the data from rapid API for scheme code: {scheme_code}")
-                endpoint = f"{self.base_url}{scheme_code}"
-
-                headers = {
-                    'x-rapidapi-host': self.rapid_api_host,
-                    'x-rapidapi-key': self.rapid_api_key
-                }
-
-                response = requests.get(endpoint, headers=headers, timeout=30)
-                response.raise_for_status()
-
-                data = response.json()
-                self.logger.info(
-                    f"Fetched {data['data']['Fund_Name']} with scheme code: {scheme_code}:: nav - {data['data']['NAV']}")
-
-                # Store in Redis with a 24-hour expiry
+        if missing_schemes:
+            self.logger.info(f"Cache miss for {len(missing_schemes)} mutual fund(s): {missing_schemes}")
+            for scheme_code in missing_schemes:
                 try:
-                    self.redis_client.setex(cache_key, self.cache_expiry_in_seconds, json.dumps(data['data']))
-                    self.logger.info(f"Cached mutual fund nav of - {data['data']['Fund_Name']} in Redis")
+                    self.logger.info(f"Fetching data from Rapid API for scheme: {scheme_code}")
+                    endpoint = f"{self.mf_base_url}{scheme_code}"
+                    headers = {
+                        'x-rapidapi-host': self.rapid_api_mf_host,
+                        'x-rapidapi-key': self.rapid_api_key
+                    }
+
+                    response = requests.get(endpoint, headers=headers, timeout=30)
+                    response.raise_for_status()
+                    data = response.json()
+                    mf_data = data['data']
+
+                    # Store in cache
+                    try:
+                        self.set_cache(f"{self.cache_key_prefix}", {scheme_code: mf_data})
+                        self.logger.info(f"Cached NAV for {mf_data['Fund_Name']} successfully")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to cache NAV for {scheme_code}: {e}")
+
+                    results[scheme_code] = mf_data
+
+                except requests.exceptions.RequestException as e:
+                    self.logger.error(f"Request failed for {scheme_code}: {e}")
+                    results[scheme_code] = None
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Failed to parse JSON for {scheme_code}: {e}")
+                    results[scheme_code] = None
                 except Exception as e:
-                    self.logger.warning(f"Failed to cache nav of - {data['data']['Fund_Name']}:: Error - {e}")
+                    self.logger.error(f"Unexpected error for {scheme_code}: {e}")
+                    results[scheme_code] = None
 
-                result[scheme_code] = data
+        # Merge cached and newly fetched data
+        for scheme_code, cached_val in cached_map.items():
+            if cached_val is not None:
+                results[scheme_code] = cached_val
 
-            except Exception as e:
-                self.logger.error(
-                    f"Cache miss: Error fetching Mutual Fund data for scheme code: {scheme_code} Error - {e}")
-                result[scheme_code] = None  # Store None for this scheme code
-
-        return result
+        return results
 
     def update_bullion_investments(self, db: Session, mf_data: Dict) -> Dict:
 
@@ -123,8 +105,11 @@ class MutualFundPriceFetcher:
                         investment.current_price_per_unit = nav
                         investment.current_total_value = current_value
                         investment.return_on_investment = roi_value
-                        investment.xirr = (((current_value / initial_investment) ** (
-                                1 / years)) - 1) * 100 if years > 0 else 0.0
+
+                        if years >= 1:
+                            investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
+                        else:
+                            investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
 
                         updated_count += 1
                         self.logger.debug(

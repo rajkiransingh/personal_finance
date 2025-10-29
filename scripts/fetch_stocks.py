@@ -3,7 +3,7 @@ import sys
 from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db
-from utilities.fetch_overall_investment_data import get_data_from_investments, get_dividends_data
+from utilities.fetch_overall_investment_data import get_investments_symbols, get_dividends_data
 from utilities.stock_price_fetcher import StockPriceFetcher as sPF, stockFetcher
 
 # Add the app root directory to Python path
@@ -11,7 +11,7 @@ sys.path.insert(0, '/app')
 
 db: Session = next(get_db())
 # Get all investment data and stock prices upfront
-all_investment_data = get_data_from_investments(db)
+all_investment_data = get_investments_symbols(db)
 dividends_data = get_dividends_data(db)
 
 # Extracting investment specific data from the DB

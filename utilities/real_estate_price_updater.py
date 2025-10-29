@@ -25,8 +25,11 @@ def update_real_estate_investment(db: Session, investment_id: int, investment_da
     real_estate_investment.current_price_per_sqyds = current_price_per_sqyds
     real_estate_investment.current_total_value = current_value
     real_estate_investment.return_on_investment = ((current_value - initial_investment) / initial_investment) * 100
-    real_estate_investment.xirr = (((current_value / initial_investment) ** (
-            1 / years)) - 1) * 100 if years > 0 else 0.0
+
+    if years >= 1:
+        real_estate_investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
+    else:
+        real_estate_investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
 
     db.commit()
     db.refresh(real_estate_investment)
