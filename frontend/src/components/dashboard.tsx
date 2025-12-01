@@ -12,26 +12,6 @@ import Corpus from "./cards/corpus_fund"
 import TransactionTable from "./cards/transactions"
 import { DashboardData } from './types/dashboard';
 
-const mockCategoryData = [
-  { category: "Food", amount: 450 },
-  { category: "Bills", amount: 320 },
-  { category: "Travel", amount: 180 },
-  { category: "Shopping", amount: 250 },
-];
-
-const mockTransactions = [
-  { "date": "2025-10-12", "category": "Groceries", "amount": 235.60, "paymentMode": "Credit Card", "merchant": "Lidl", "status": "Completed" },
-  { "date": "2025-10-11", "category": "Utilities", "amount": 89.99, "paymentMode": "Bank Transfer", "merchant": "Energa", "status": "Completed" },
-  { "date": "2025-10-09", "category": "Transportation", "amount": 15.20, "paymentMode": "Cash", "merchant": "ZTM Gdańsk", "status": "Completed" },
-  { "date": "2025-10-08", "category": "Dining", "amount": 72.50, "paymentMode": "Credit Card", "merchant": "Pizza Hut", "status": "Completed" },
-  { "date": "2025-10-06", "category": "Subscription", "amount": 49.00, "paymentMode": "Auto Debit", "merchant": "Netflix", "status": "Completed" },
-  { "date": "2025-10-04", "category": "Healthcare", "amount": 130.00, "paymentMode": "Credit Card", "merchant": "Medicover", "status": "Completed" },
-  { "date": "2025-10-02", "category": "Shopping", "amount": 260.75, "paymentMode": "Credit Card", "merchant": "Decathlon", "status": "Completed" },
-  { "date": "2025-09-30", "category": "Rent", "amount": 2300.00, "paymentMode": "Bank Transfer", "merchant": "Landlord", "status": "Completed" },
-  { "date": "2025-09-28", "category": "Insurance", "amount": 540.00, "paymentMode": "Bank Transfer", "merchant": "PZU", "status": "Completed" },
-  { "date": "2025-09-25", "category": "Fuel", "amount": 210.30, "paymentMode": "Credit Card", "merchant": "BP", "status": "Completed" },
-]
-
 const formatCurrency = (value: number): string => {
   if (typeof value !== 'number' || Number.isNaN(value)) return '₹0.00';
 
@@ -87,10 +67,26 @@ export default function DashboardPage() {
     }
 
     const corpus = data.emergency_coverage
+    const income_data = data.income_ytd
+    const expense_data = data.expense_avg
+    const investment_data = data.investment_avg
     const totalReturns = data.total_returns
     const averageRoi = data.average_roi
     const assets = data.assets
 
+    const incomeChange = income_data.change
+    const incomeMetric = incomeChange >= 0
+  ? `${Math.abs(incomeChange).toFixed(1)}% Increase`
+  : `${Math.abs(incomeChange).toFixed(1)}% Decrease`;
+
+    const expense_ratio = expense_data.change
+    const expenseMetric = `${Math.abs(expense_ratio).toFixed(1)}% of Income`
+    const expenseColorCode = expense_ratio >=35 ? -5 : 5
+
+    const investmentChange = investment_data.change
+    const investmentMetric = investmentChange >= 0
+  ? `${Math.abs(investmentChange).toFixed(1)}% Increase`
+  : `${Math.abs(investmentChange).toFixed(1)}% Decrease`;
     // Sort investments to get best performer
     const sortedInvestments = Object.entries(data.investment_returns).sort(
     (a, b) => b[1] - a[1]
@@ -113,9 +109,9 @@ export default function DashboardPage() {
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard title="Total Income (YTD)" value="₹9,82,420" comparison="Last Year (same date): ₹8,45,000" metric="10% Increase" metricValue={10} />
-        <StatCard title="Total Expenses (YTD)" value="₹4,56,789" comparison="Avg/month: ₹38,065" metric="46% of income" metricValue={-5} />
-        <StatCard title="Total Invested" value="₹78,92,345" comparison="Avg/month: ₹75,065" metric="Growth: +24.5%" metricValue={24} />
+        <StatCard title="Total Income (YTD)" value={formatCurrency(income_data.income)} comparison={`Last Year (same date): ${formatCurrency(income_data.income_last_year_to_date)}`} metric={incomeMetric} metricValue={incomeChange} />
+        <StatCard title="Total Expenses (YTD)" value={formatCurrency(expense_data.expense)} comparison={`Avg/month: ${formatCurrency(expense_data.average_expense)}`} metric={expenseMetric} metricValue={expenseColorCode} />
+        <StatCard title="Total Invested" value={formatCurrency(investment_data.investment)} comparison={`Last Year (same date): ${formatCurrency(investment_data.investment_last_year_to_date)}`} metric={investmentMetric} metricValue={investmentChange} />
       </div>
 
       {/* Main Content Grid */}

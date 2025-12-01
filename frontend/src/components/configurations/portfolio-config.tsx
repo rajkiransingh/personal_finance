@@ -150,7 +150,7 @@ export default function PortfolioConfigPage() {
               />
               <button
                 onClick={() => handleRemoveAllocation(target)}
-                className="text-xs text-red-400 hover:text-red-500 px-2 py-1 border rounded"
+                className="bg-red-400 px-3 py-1 rounded text-white"
               >
                 ✕ Delete
               </button>
@@ -182,7 +182,7 @@ export default function PortfolioConfigPage() {
                       />
                       <button
                         onClick={() => handleRemoveSub(target, sub)}
-                        className="text-xs text-red-400 hover:text-red-500"
+                        className="bg-red-400 px-3 py-1 rounded text-white"
                       >
                         ✕
                       </button>

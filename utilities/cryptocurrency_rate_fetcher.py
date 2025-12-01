@@ -164,7 +164,7 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                         self.logger.info(f"Current price for {symbol}: {currency_symbol}{current_price}")
 
                         invested_currency = self.currency_map.get(investment.currency_id, "INR")
-                        conversion_rate = self.get_conversion_rate(invested_currency)
+                        conversion_rate = self.get_conversion_rate_from_usd(invested_currency)
 
                         current_value = (current_price * investment.coin_quantity) * conversion_rate
                         initial_investment = investment.total_invested_amount

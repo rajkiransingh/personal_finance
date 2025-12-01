@@ -53,19 +53,47 @@ async def update_config(request: dict):
 # Get all the environment data related to mera paisa dashboard
 @router.get("/environment-config")
 async def get_environment_config():
-    path = f"./.env"
+    protected_keys = {"DATABASE_URL", "REDIS_HOST", "REDIS_PORT"}
+    path = "./.env"
     if not os.path.exists(path):
         return {"error": f"Config not found at path: {path}"}
+
+    env_dict = {}
     with open(path) as f:
-        data = json.load(f)
-    return data
+        for line in f:
+            if "=" in line and not line.startswith("#"):
+                key, value = line.strip().split("=", 1)
+                if key not in protected_keys:
+                    env_dict[key] = value
+
+    return env_dict
 
 
 @router.post("/environment-config")
 async def update_environment_config(request: dict):
-    path = f"./.env"
-    if not os.path.exists(path):
-        return {"error": f"Config not found at path: {path}"}
+    path = "./.env"
+    protected_keys = ["DATABASE_URL", "REDIS_HOST", "REDIS_PORT"]
+
+    # Load the current .env so we preserve keys not in payload
+    current_env = {}
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    current_env[key.strip()] = value.strip().strip('"').strip("'")
+
+    # Update only keys that are provided in payload
+    for k, v in request.items():
+        if k not in protected_keys:
+            current_env[k] = v
+
+    # Write back to .env
     with open(path, "w") as f:
-        json.dump(request, f, indent=2)
-    return {"status": "success", "updated": "environment-config.json"}
+        for k, v in current_env.items():
+            f.write(f"{k}={v}\n")
+
+    return {"status": "success", "updated": len(request)}
