@@ -152,7 +152,7 @@ export default function StockPickStrategyConfigPage() {
               </h3>
               <button
                 onClick={() => handleRemoveStrategy(strategy)}
-                className="text-xs text-red-400 hover:text-red-500 px-2 py-1 border rounded"
+                className="bg-red-400 px-3 py-1 rounded text-white"
               >
                 ✕ Delete Strategy
               </button>
@@ -190,7 +190,7 @@ export default function StockPickStrategyConfigPage() {
                   />
                   <button
                     onClick={() => handleRemoveMetric(strategy, metric)}
-                    className="text-xs text-red-400 hover:text-red-500"
+                    className="bg-red-400 px-3 py-1 rounded text-white"
                   >
                     ✕
                   </button>

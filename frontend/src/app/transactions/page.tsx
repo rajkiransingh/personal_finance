@@ -654,6 +654,7 @@ function formatAmount(amount: any, currency?: string) {
                             <input placeholder="Scheme code" value={investmentForm.scheme_code ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, scheme_code: e.target.value})} className={inputClass} />
                             <input placeholder="Fund name" value={investmentForm.fund_name ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, fund_name: e.target.value})} className={inputClass} />
                             <input type="number" placeholder="Unit quantity" value={investmentForm.unit_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, unit_quantity: e.target.value})} className={inputClass} />
+                            <input type="number" placeholder="Price per unit" value={investmentForm.initial_price_per_unit ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, initial_price_per_unit: e.target.value})} className={inputClass} />
                           </>
                       )}
 

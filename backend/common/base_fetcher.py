@@ -32,9 +32,9 @@ class BaseFetcher:
         self.open_exchange_api_key = os.getenv("EXCHANGE_RATE_API_KEY")
 
         # Getting data from Redis
-        self.redis_forex_key_usd_inr = self.redis_client.get("forex::USD:INR")
-        self.redis_forex_key_usd_pln = self.redis_client.get("forex::USD:PLN")
-        self.redis_forex_key_pln_inr = self.redis_client.get("forex::PLN:INR")
+        self.redis_forex_key_usd_inr = self.redis_client.get("forex::USD-INR")
+        self.redis_forex_key_usd_pln = self.redis_client.get("forex::USD-PLN")
+        self.redis_forex_key_pln_inr = self.redis_client.get("forex::PLN-INR")
 
         self.currency = {
             1: "₹",  # INR
@@ -48,14 +48,28 @@ class BaseFetcher:
             3: "USD"
         }
 
-    def get_conversion_rate(self, currency_code: str) -> float:
+    def get_conversion_rate_from_usd(self, currency_code: str) -> float:
         try:
             if currency_code == "INR":
-                return round(float(self.redis_forex_key_usd_inr), 2)
+                return round(float(json.loads(self.redis_forex_key_usd_inr)['rate']), 2)
             elif currency_code == "PLN":
-                return round(float(self.redis_forex_key_usd_pln), 2)
+                return round(float(json.loads(self.redis_forex_key_usd_pln)['rate']), 2)
             elif currency_code == "USD":
                 return 1.0
+            else:
+                raise ValueError(f"Unsupported currency type: {currency_code}")
+        except (TypeError, ValueError):
+            self.logger.warning(f"Missing forex rate for {currency_code}, defaulting to 1.0")
+            return 1.0
+
+    def get_conversion_rate_against_inr(self, currency_code: str) -> float:
+        try:
+            if currency_code == "INR":
+                return 1.0
+            elif currency_code == "PLN":
+                return round(float(json.loads(self.redis_forex_key_pln_inr)['rate']), 2)
+            elif currency_code == "USD":
+                return round(float(json.loads(self.redis_forex_key_usd_inr)['rate']), 2)
             else:
                 raise ValueError(f"Unsupported currency type: {currency_code}")
         except (TypeError, ValueError):

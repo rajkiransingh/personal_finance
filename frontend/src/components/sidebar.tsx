@@ -69,13 +69,19 @@ const navItems = [
     ],
   },
   {
-    name: "Configurations",
+    name: "Configurations", icon: <FileText size={16} />,
     children: [
       { name: "Portfolio Config", path: "/configurations/portfolio-config" },
       { name: "Stock Strategy", path: "/configurations/stock-picking-strategy" },
+      { name: "Environment Configuration", path: "/configurations/environment" }
     ],
   },
-  { name: "Settings", path: "/settings", icon: <Settings size={16} /> },
+  {
+      name: "Settings", icon: <Settings size={16} />,
+      children: [
+      { name: "Supporting Data", path: "/settings/supporting-data" }
+    ],
+  },
 ];
 
 export default function Sidebar() {

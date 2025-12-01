@@ -1,3 +1,21 @@
+interface IncomeYTD {
+    income: number
+    income_last_year_to_date: number
+    change: number
+}
+
+interface ExpenseYTD {
+    expense: number
+    average_expense: number
+    change: number
+}
+
+interface InvestmentYTD {
+    investment: number
+    investment_last_year_to_date: number
+    change: number
+}
+
 interface Assets {
   Cash: number;
   Stocks: number;
@@ -19,6 +37,9 @@ interface InvestmentReturns {
 
 interface DashboardData {
   emergency_coverage: number;
+  income_ytd: IncomeYTD,
+  expense_avg: ExpenseYTD,
+  investment_avg: InvestmentYTD,
   total_returns: number;
   average_roi: number;
   earning: Record<string, unknown>;

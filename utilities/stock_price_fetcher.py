@@ -198,7 +198,7 @@ class StockPriceFetcher(BaseFetcher):
         updated_count = 0
         errors = []
         try:
-            for symbol, data in stock_data.items():
+            for symbol, data in stock_data['data'].items():
                 # Get all bullion investments that need updating
                 stock_investments = (
                     db.query(StockInvestment)
@@ -272,7 +272,7 @@ class StockPriceFetcher(BaseFetcher):
         errors = []
 
         try:
-            for symbol, data in stock_data.items():
+            for symbol, data in stock_data['data'].items():
 
                 # Get all stock investments that need updating
                 mf_summaries = db.query(StockSummary).filter(StockSummary.stock_symbol == symbol).all()
@@ -350,5 +350,4 @@ class StockPriceFetcher(BaseFetcher):
             }
 
 
-# Global configuration instance
 stockFetcher = StockPriceFetcher()
