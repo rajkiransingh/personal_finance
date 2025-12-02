@@ -23,13 +23,13 @@ export default function InvestmentPieChart({ earnings }: { earnings: EarningsDat
   const total = Object.values(earnings).reduce((a, b) => a + b, 0);
 
   const colorMap: Record<string, string> = {
-    Cash: '#43AA8B',
-    Stocks: '#277DA1',
-    Mutual_Fund: '#90BE6D',
-    Gold: '#F9C74F',
-    Silver: '#ADB5BD',
-    Land: '#577590',
-    Crypto: '#9D4EDD',
+    Cash: '#50C878',
+    Stocks: '#F28500',
+    'Mutual Fund': '#99FFFF',
+    Gold: '#FADA5E',
+    Silver: '#E5E4E2',
+    Land: '#9F8170',
+    Crypto: '#FFB7C5',
   };
 
   return (

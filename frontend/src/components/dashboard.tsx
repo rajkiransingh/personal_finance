@@ -66,29 +66,37 @@ export default function DashboardPage() {
         return <div className="text-center py-8 text-[var(--color-text-secondary)]">No data available</div>;
     }
 
+    /* Base Data from the API call */
     const corpus = data.emergency_coverage
     const income_data = data.income_ytd
     const expense_data = data.expense_avg
     const investment_data = data.investment_avg
     const totalReturns = data.total_returns
     const averageRoi = data.average_roi
+    const savings_ytd = data.savings_ytd
+    const savings_rate = data.savings_rate
     const assets = data.assets
+    const net_worth = data.net_worth
+    const spending = data.spending_categories
+    const investment_returns = data.investment_returns
 
+    /* Extracted Data from the above consts */
     const incomeChange = income_data.change
     const incomeMetric = incomeChange >= 0
   ? `${Math.abs(incomeChange).toFixed(1)}% Increase`
   : `${Math.abs(incomeChange).toFixed(1)}% Decrease`;
 
-    const expense_ratio = expense_data.change
+    const expense_ratio = expense_data.expense_ratio
     const expenseMetric = `${Math.abs(expense_ratio).toFixed(1)}% of Income`
     const expenseColorCode = expense_ratio >=35 ? -5 : 5
 
-    const investmentChange = investment_data.change
+    const investmentChange = investment_data.investment_ratio
     const investmentMetric = investmentChange >= 0
   ? `${Math.abs(investmentChange).toFixed(1)}% Increase`
   : `${Math.abs(investmentChange).toFixed(1)}% Decrease`;
+
     // Sort investments to get best performer
-    const sortedInvestments = Object.entries(data.investment_returns).sort(
+    const sortedInvestments = Object.entries(investment_returns).sort(
     (a, b) => b[1] - a[1]
   );
   const [bestPerformer, ...restInvestments] = sortedInvestments;
@@ -109,9 +117,9 @@ export default function DashboardPage() {
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard title="Total Income (YTD)" value={formatCurrency(income_data.income)} comparison={`Last Year (same date): ${formatCurrency(income_data.income_last_year_to_date)}`} metric={incomeMetric} metricValue={incomeChange} />
-        <StatCard title="Total Expenses (YTD)" value={formatCurrency(expense_data.expense)} comparison={`Avg/month: ${formatCurrency(expense_data.average_expense)}`} metric={expenseMetric} metricValue={expenseColorCode} />
-        <StatCard title="Total Invested" value={formatCurrency(investment_data.investment)} comparison={`Last Year (same date): ${formatCurrency(investment_data.investment_last_year_to_date)}`} metric={investmentMetric} metricValue={investmentChange} />
+        <StatCard title="Total Income (YTD)" value={formatCurrency(income_data.income)} average={`Avg/month: N/A`} comparison={`Last Year (same date): ${formatCurrency(income_data.income_last_year_to_date)}`} metric={incomeMetric} metricValue={incomeChange} />
+        <StatCard title="Total Expenses (YTD)" value={formatCurrency(expense_data.expense)} average={`Avg/month: ${formatCurrency(expense_data.average_expense)}`} comparison={`Last Year (same date): ${formatCurrency(expense_data.expense_last_year_to_date)}`} metric={expenseMetric} metricValue={expenseColorCode} />
+        <StatCard title="Total Invested" value={formatCurrency(investment_data.investment)} average={`Avg/month: N/A`} comparison={`Last Year (same date): ${formatCurrency(investment_data.investment_last_year_to_date)}`} metric={investmentMetric} metricValue={investmentChange} />
       </div>
 
       {/* Main Content Grid */}
