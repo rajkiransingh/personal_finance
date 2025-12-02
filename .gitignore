@@ -36,3 +36,5 @@ finance_env/
 
 # Ignoring node js
 node_modules/
+frontend/public/
+backend/files/
