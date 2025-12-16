@@ -129,7 +129,13 @@ Check If Latest Database Backup Exists
 
 Restore Backup
     [Arguments]    ${backup_files}
-    ${latest_backup}=    Evaluate    sorted(${backup_files})[-1]
+    # Filter out GOLDEN backup and get only timestamped backups
+    ${timestamped_backups}=    Evaluate    [f for f in ${backup_files} if 'GOLDEN' not in f]
+    Run Keyword If    ${timestamped_backups} == []    Log To Console    No timestamped backup found. Skipping restore.    ELSE    Restore Latest Timestamped Backup    ${timestamped_backups}
+
+Restore Latest Timestamped Backup
+    [Arguments]    ${timestamped_backups}
+    ${latest_backup}=    Evaluate    sorted(${timestamped_backups})[-1]
     Log To Console    Found latest backup: ${latest_backup}
     ${restore_command}=    Set Variable    gunzip -c /backups/${latest_backup} | mysql -u root -ppassword --database=${DB_NAME}
     ${result}=    Run Process    docker exec ${DB_CONTAINER} sh -c "${restore_command}"    shell=True
