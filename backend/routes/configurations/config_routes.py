@@ -11,7 +11,7 @@ router = APIRouter(prefix="/config", tags=["config"])
 # Get all the data related to mera paisa dashboard
 @router.get("/portfolio-config")
 async def get_portfolio_config():
-    path = f"./frontend/portfolio-config.json"
+    path = "./frontend/portfolio-config.json"
     if not os.path.exists(path):
         return {"error": f"Config not found at path: {path}"}
     with open(path) as f:
@@ -21,7 +21,7 @@ async def get_portfolio_config():
 
 @router.post("/portfolio-config")
 async def update_config(request: dict):
-    path = f"./frontend/portfolio-config.json"
+    path = "./frontend/portfolio-config.json"
     if not os.path.exists(path):
         return {"error": f"Config not found at path: {path}"}
     with open(path, "w") as f:
@@ -31,8 +31,8 @@ async def update_config(request: dict):
 
 # Get all the data related to mera paisa dashboard
 @router.get("/stock-picking-strategy-config")
-async def get_portfolio_config():
-    path = f"./frontend/stock-score-config.json"
+async def get_stock_strategy_config():
+    path = "./frontend/stock-score-config.json"
     if not os.path.exists(path):
         return {"error": f"Config not found at path: {path}"}
     with open(path) as f:
@@ -41,8 +41,8 @@ async def get_portfolio_config():
 
 
 @router.post("/stock-picking-strategy-config")
-async def update_config(request: dict):
-    path = f"./frontend/stock-score-config.json"
+async def update_stock_strategy_config(request: dict):
+    path = "./frontend/stock-score-config.json"
     if not os.path.exists(path):
         return {"error": f"Config not found at path: {path}"}
     with open(path, "w") as f:

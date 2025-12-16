@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
-from backend.common.setup import config
+from utilities.common.app_config import config
 
 
 def _build_cache_key(prefix: str, symbol: str) -> str:

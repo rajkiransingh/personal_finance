@@ -6,7 +6,8 @@ from typing import Dict
 import yfinance as yf
 from sqlalchemy.orm import Session
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
+from utilities.common.financial_utils import FinancialCalculator
 from backend.models.investments.stock import StockInvestment, StockSummary
 
 
@@ -221,22 +222,17 @@ class StockPriceFetcher(BaseFetcher):
                         self.logger.info(
                             f"We got the current value {current_value} for stock: {symbol} by adding: {float(price * investment.stock_quantity)} and dividend: {dividend_amount}")
                         initial_investment = investment.total_invested_amount
-                        roi_value = ((current_value - initial_investment) /
-                                     initial_investment * 100)
-
+                        # Calculate financial metrics using shared utility
+                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
                         # Calculate XIRR (simplified version)
-                        days_invested = (today.date() - investment.investment_date).days
-                        years = days_invested / 365.0
+                        investment.xirr = FinancialCalculator.calculate_xirr(
+                            current_value, initial_investment, investment.investment_date, today.date()
+                        )
 
                         # Updating the investment table
                         investment.current_price_per_stock = price
                         investment.current_total_value = current_value
                         investment.return_on_investment = roi_value
-
-                        if years >= 1:
-                            investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
-                        else:
-                            investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
 
                         updated_count += 1
                         self.logger.debug(
@@ -295,8 +291,7 @@ class StockPriceFetcher(BaseFetcher):
                             f"We got the current value {current_value} for stock: {symbol} by adding: {float(price * summary.total_quantity)} and dividend: {dividend_amount}")
 
                         initial_investment = summary.total_cost
-                        roi_value = ((current_value - initial_investment) /
-                                     initial_investment * 100)
+                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
 
                         # Weighted average XIRR calculation from Bullion Investment
                         relevant_investments = [

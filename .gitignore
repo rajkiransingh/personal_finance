@@ -38,3 +38,7 @@ finance_env/
 node_modules/
 frontend/public/
 backend/files/
+
+# Ignore ruff
+.ruff_cache/
+.ruff_cache.json

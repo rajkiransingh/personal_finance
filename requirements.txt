@@ -1,11 +1,9 @@
 requests
 sqlalchemy
 robotframework
-Flask==2.3.2
-Flask-SQLAlchemy==3.0.4
 schemas==0.7.1
 dotenv==0.9.9
-fastapi== 0.116.2
+fastapi==0.116.2
 uvicorn==0.23.1
 pydantic==2.4.0
 typing-extensions==4.8.0

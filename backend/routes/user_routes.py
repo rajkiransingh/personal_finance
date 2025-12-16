@@ -28,7 +28,7 @@ async def get_user_api(user_id: int, db: Session = Depends(get_db)):
     try:
         return user
     except Exception as e:
-        logger.exception("Exception occurred while fetching user {user_id}: {e}")
+        logger.exception(f"Exception occurred while fetching user {user_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
@@ -43,7 +43,7 @@ async def get_user_id_by_name_api(name: str, db: Session = Depends(get_db)):
     try:
         return user
     except Exception as e:
-        logger.exception("Exception occurred while fetching user {user_id}: {e}")
+        logger.exception(f"Exception occurred while fetching user {name}: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 

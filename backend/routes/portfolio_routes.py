@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter
 
-from backend.models.Portfolio import PortfolioResponse
+from backend.models.portfolio import PortfolioResponse
 from utilities.analytics.balancing_screener import BalancingScreener as bS, balancingScreener
 
 logger = logging.getLogger(__name__)

@@ -3,6 +3,7 @@ from datetime import datetime, UTC
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from utilities.common.financial_utils import FinancialCalculator
 from backend.models.investments.real_estate import RealEstateInvestment, RealEstateSummary
 from backend.schemas.investments.common import InvestmentUpdate
 
@@ -17,19 +18,16 @@ def update_real_estate_investment(db: Session, investment_id: int, investment_da
     # Calculate the data:
     today = datetime.now(UTC)
     current_value = current_price_per_sqyds * real_estate_investment.area_in_sqyds
-    days_invested = (today.date() - real_estate_investment.investment_date).days
-    years = days_invested / 365.0
     initial_investment = real_estate_investment.total_invested_amount
 
     # Update current value
     real_estate_investment.current_price_per_sqyds = current_price_per_sqyds
     real_estate_investment.current_total_value = current_value
-    real_estate_investment.return_on_investment = ((current_value - initial_investment) / initial_investment) * 100
-
-    if years >= 1:
-        real_estate_investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
-    else:
-        real_estate_investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
+    real_estate_investment.return_on_investment = FinancialCalculator.calculate_roi(current_value, initial_investment)
+    
+    real_estate_investment.xirr = FinancialCalculator.calculate_xirr(
+        current_value, initial_investment, real_estate_investment.investment_date, today.date()
+    )
 
     db.commit()
     db.refresh(real_estate_investment)
@@ -57,7 +55,7 @@ def update_real_estate_summary(db: Session, investment_id: int, investment_data:
     # Update current value
     real_estate_summary.current_price_per_unit = current_price_per_sqyds
     real_estate_summary.current_value = current_value
-    real_estate_summary.roi = ((current_value - initial_investment) / initial_investment) * 100
+    real_estate_summary.roi = FinancialCalculator.calculate_roi(current_value, initial_investment)
     real_estate_summary.xirr = (((current_value / initial_investment) ** (
             1 / years)) - 1) * 100 if years > 0 else 0.0
     real_estate_summary.last_updated = today.now(UTC)
