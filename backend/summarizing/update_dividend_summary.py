@@ -1,3 +1,4 @@
+from datetime import date
 from sqlalchemy.orm import Session
 
 from backend.models.earnings.income import Income

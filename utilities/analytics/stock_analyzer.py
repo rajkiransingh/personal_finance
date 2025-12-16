@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
 from backend.services.db_services import get_db
 
 METRIC_NAME_MAP = {
@@ -312,13 +312,9 @@ stockAnalysis = StockAnalysis()
 
 def get_stock_score():
     cached_info = stockAnalysis.fetch_data_from_cache(["TOP_500_STOCKS"])
-    fundamental_fields = [
-        "market_cap", "pe_ratio", "pb_ratio", "peg_ratio", "roe", "roce",
-        "debt_to_equity", "eps", "ebitda_margin"
-    ]
 
     if cached_info['TOP_500_STOCKS'] is not None:
-        stockAnalysis.logger.info(f"Cache hit: Using cached Top_500_Stocks scores")
+        stockAnalysis.logger.info("Cache hit: Using cached Top_500_Stocks scores")
         return cached_info['TOP_500_STOCKS']
 
     # Loading data from Json and DB
@@ -335,5 +331,5 @@ def get_stock_score():
     cache_key = stockAnalysis.cache_key_prefix + "::TOP_500_STOCKS"
     serialized = json.dumps(result)
     stockAnalysis.redis_client.setex(cache_key, stockAnalysis.cache_expiry_in_seconds, serialized)
-    stockAnalysis.logger.info(f"Cached Top_500_Stocks scores in Redis")
+    stockAnalysis.logger.info("Cached Top_500_Stocks scores in Redis")
     return result

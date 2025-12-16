@@ -4,7 +4,7 @@ from typing import Tuple, Dict, Any
 
 from sqlalchemy.orm import Session
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
 from backend.services.db_services import get_db
 from utilities.common.config_loader_util import load_config, save_config
 from utilities.common.value_extractor_util import round2, sum_current_values, extract_current_value

@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import requests
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
 
 
 class ForexExchangeRateFetcher(BaseFetcher):

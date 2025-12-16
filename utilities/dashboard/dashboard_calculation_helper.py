@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import case
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
 from backend.models.earnings.income import Income
 from backend.models.investments.bullion import BullionInvestment
 from backend.models.investments.crypto import CryptoInvestment

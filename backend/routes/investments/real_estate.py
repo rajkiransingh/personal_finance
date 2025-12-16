@@ -10,7 +10,7 @@ from backend.services.investments.common import get_all_investments, get_investm
 from backend.services.investments.real_estate import create_property
 from backend.services.user_services import get_user
 from backend.summarizing import update_real_estate_summary
-from utilities.real_estate_price_updater import update_real_estate_investment, update_real_estate_summary
+from utilities.real_estate_price_updater import update_real_estate_investment
 
 router = APIRouter(prefix="/investment/real-estate", tags=["Investment"])
 

@@ -6,7 +6,8 @@ from typing import Dict
 import requests
 from sqlalchemy.orm import Session
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
+from utilities.common.financial_utils import FinancialCalculator
 from backend.models.investments.bullion import BullionInvestment, BullionSummary
 
 
@@ -150,19 +151,14 @@ class MetalRateFetcher(BaseFetcher):
                         investment.current_price_per_gram = current_price
                         investment.current_total_value = current_value
 
-                        roi_value = ((investment.current_total_value - initial_investment) /
-                                     initial_investment * 100)
+                        roi_value = FinancialCalculator.calculate_roi(investment.current_total_value, initial_investment)
                         # Calculate return on investment
                         investment.return_on_investment = roi_value
 
-                        # Calculate XIRR (simplified version)
-                        days_invested = (today.date() - investment.investment_date).days
-                        years = days_invested / 365.0
-
-                        if years >= 1:
-                            investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
-                        else:
-                            investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
+                        # Calculate XIRR (simplified version) using shared utility
+                        investment.xirr = FinancialCalculator.calculate_xirr(
+                            current_value, initial_investment, investment.investment_date, today.date()
+                        )
 
                         updated_count += 1
                         self.logger.debug(f"Updated {metal} investment: ${current_price}")
@@ -210,8 +206,7 @@ class MetalRateFetcher(BaseFetcher):
                         current_value = round((current_price * summary.total_quantity), 2)
 
                         initial_investment = summary.total_cost
-                        roi_value = ((current_value - initial_investment) /
-                                     initial_investment * 100)
+                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
 
                         # Weighted average XIRR calculation from Bullion Investment
                         relevant_investments = [

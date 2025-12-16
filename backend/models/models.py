@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime
 from backend.services.db_services import Base
 
 class MonthlyFinancialData(Base):

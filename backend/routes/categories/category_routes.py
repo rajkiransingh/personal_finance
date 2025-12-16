@@ -160,7 +160,7 @@ async def update_investment_category(investment_category_id: int, investment_cat
 
 
 @router.delete("/investment-category/{investment_category_id}")
-async def delete_expense_category(investment_category_id: int, db: Session = Depends(get_db)):
+async def delete_investment_category(investment_category_id: int, db: Session = Depends(get_db)):
     investment_category = db.query(InvestmentCategory).filter(
         InvestmentCategory.id == investment_category_id).first()
     if not investment_category:
@@ -204,7 +204,7 @@ async def update_investment_subcategory(investment_subcategory_id: int, investme
 
 
 @router.delete("/investment-subcategory/{investment_subcategory_id}")
-async def delete_expense_category(investment_subcategory_id: int, db: Session = Depends(get_db)):
+async def delete_investment_subcategory(investment_subcategory_id: int, db: Session = Depends(get_db)):
     investment_subcategory = db.query(InvestmentSubCategory).filter(
         InvestmentSubCategory.id == investment_subcategory_id).first()
     if not investment_subcategory:

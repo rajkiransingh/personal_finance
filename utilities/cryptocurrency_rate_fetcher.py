@@ -6,7 +6,8 @@ from typing import Dict
 import requests
 from sqlalchemy.orm import Session
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
+from utilities.common.financial_utils import FinancialCalculator
 from backend.models.investments.crypto import CryptoInvestment, CryptoSummary
 
 
@@ -168,22 +169,17 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
 
                         current_value = (current_price * investment.coin_quantity) * conversion_rate
                         initial_investment = investment.total_invested_amount
-                        roi_value = ((current_value - initial_investment) /
-                                     investment.total_invested_amount * 100)
-
-                        # Calculate XIRR (simplified version)
-                        days_invested = (today.date() - investment.investment_date).days
-                        years = days_invested / 365.0
-
+                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
+                        
                         # updating the crypto investment table with current values and roi
                         investment.current_price_per_coin = current_price * conversion_rate
                         investment.current_total_value = current_value
                         investment.return_on_investment = roi_value
 
-                        if years >= 1:
-                            investment.xirr = (((current_value / initial_investment) ** (1 / years)) - 1) * 100
-                        else:
-                            investment.xirr = ((current_value - initial_investment) / initial_investment) * 100
+                        # Calculate XIRR using shared utility
+                        investment.xirr = FinancialCalculator.calculate_xirr(
+                            current_value, initial_investment, investment.investment_date, today.date()
+                        )
 
                         updated_count += 1
                         self.logger.info(f"Updated {symbol} investment: {currency_symbol}{current_price}")
@@ -248,8 +244,7 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                         current_value = round((current_price_inr * summary.total_quantity), 2)
 
                         initial_investment = summary.total_cost
-                        roi_value = ((current_value - initial_investment) /
-                                     initial_investment * 100)
+                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
 
                         # Weighted average XIRR calculation from CryptoInvestment
                         relevant_investments = [

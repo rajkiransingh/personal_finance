@@ -7,7 +7,7 @@ import pandas as pd
 from rapidfuzz import process, fuzz
 from sqlalchemy.orm import Session
 
-from backend.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher
 from backend.models.investments.analytics import StocksValuableData, StockList
 from backend.services.db_services import get_db
 from utilities.analytics.sector_mapping import SECTOR_MAP
