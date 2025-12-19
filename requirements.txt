@@ -24,3 +24,4 @@ botocore>=1.34.0
 numpy
 numpy-financial
 rapidfuzz
+python-dotenv==1.0.0
