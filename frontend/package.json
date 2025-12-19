@@ -10,6 +10,8 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
+    "@tanstack/react-query": "^5.90.12",
+    "@tanstack/react-virtual": "^3.13.13",
     "autoprefixer": "^10.4.21",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.546.0",
@@ -19,7 +21,8 @@
     "react-datepicker": "^8.8.0",
     "react-dom": "19.1.0",
     "react-icons": "^4.10.1",
-    "recharts": "^3.2.1"
+    "recharts": "^3.2.1",
+    "use-debounce": "^10.0.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",

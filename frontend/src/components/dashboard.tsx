@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useState, useCallback } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 import MonthDropdown from "./helpers/month_helper"
@@ -34,25 +35,26 @@ export default function DashboardPage() {
     const [error, setError] = useState<string | null>(null);
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
-    useEffect(() => {
-        const fetchDashboardData = async () => {
-          try {
-            setLoading(true);
-            const response = await fetch('http://localhost:8000/dashboard/', { method: 'GET' });
+    const fetchDashboardData = useCallback(async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:8000/dashboard/', { method: 'GET' });
 
-            if (!response.ok) throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
-            const dashboardData: DashboardData = await response.json();
-            setData(dashboardData);
-            setError(null);
-          } catch (err) {
-            console.error('Error fetching dashboard data:', err);
-            setError(`Failed to load dashboard data. Make sure Python backend is running. ${response}`);
-          } finally {
-            setLoading(false);
-          }
-        };
+        if (!response.ok) throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+        const dashboardData: DashboardData = await response.json();
+        setData(dashboardData);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError(`Failed to load dashboard data. Make sure Python backend is running.`);
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    useEffect(() => {
         fetchDashboardData();
-    },[]);
+    },[fetchDashboardData]);
 
     if (loading) {
         return <div className="text-center py-8 text-[var(--color-text-secondary)]">Loading dashboard...</div>;
@@ -107,7 +109,10 @@ export default function DashboardPage() {
       {/* Header with Title and Data Refresh Button */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-semibold">Financial Information Dashboard</h1>
-        <button className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition">
+        <button 
+          onClick={fetchDashboardData}
+          className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition cursor-pointer"
+        >
           Refresh Data
         </button>
       </div>
@@ -171,9 +176,11 @@ export default function DashboardPage() {
               </div>
 
               {/* Button */}
-              <button className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black text-xs py-2 rounded font-semibold transition">
-                View Analysis →
-              </button>
+              <Link href="/analytics/investment-breakdown/by-category" className="block w-full">
+                <button className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black text-xs py-2 rounded font-semibold transition cursor-pointer">
+                  View Analysis →
+                </button>
+              </Link>
             </div>
         </div>
 

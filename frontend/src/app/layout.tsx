@@ -3,6 +3,7 @@ import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import { Inter, Poppins } from "next/font/google";
 import localFont from "next/font/local";
+import Providers from "./providers";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -28,11 +29,15 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} ${playwrite.variable}`}>
       <body className="flex bg-[var(--color-bg)] text-[var(--color-text-primary)]">
-        <Sidebar />
-        <main className="flex-1 flex flex-col min-h-screen bg-[var(--color-bg)]">
-          <Topbar />
-          <div className="flex-1 p-6 bg-[var(--color-bg)]">{children}</div>
-        </main>
+        <Providers>
+          <div className="flex w-full min-h-screen">
+            <Sidebar />
+            <main className="flex-1 flex flex-col min-h-screen bg-[var(--color-bg)]">
+              <Topbar />
+              <div className="flex-1 p-6 bg-[var(--color-bg)]">{children}</div>
+            </main>
+          </div>
+        </Providers>
       </body>
     </html>
   );
