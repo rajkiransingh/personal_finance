@@ -13,7 +13,7 @@ from backend.services.db_services import get_db
 from utilities.analytics.sector_mapping import SECTOR_MAP
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-FILE_LOCATION = ROOT_DIR / 'backend' / 'files' / 'stocks'
+FILE_LOCATION = ROOT_DIR / "backend" / "files" / "stocks"
 ALL_STOCKS_CSV = os.path.join(FILE_LOCATION, "All_Stocks_List.csv")
 NIFTY_500_CSV = os.path.join(FILE_LOCATION, "NIFTY_500_Stocks_List.csv")
 OUTPUT_CSV = os.path.join(FILE_LOCATION, "Merged_List_of_500_Stocks.csv")
@@ -34,13 +34,23 @@ def normalize_company_name(name):
     name = str(name).lower()
     # Remove common suffixes and extra whitespace
     replacements = [
-        'limited', 'ltd', 'ltd.', 'pvt', 'pvt.', 'private',
-        'corporation', 'corp', 'inc', 'incorporated', '(I)', 'India'
+        "limited",
+        "ltd",
+        "ltd.",
+        "pvt",
+        "pvt.",
+        "private",
+        "corporation",
+        "corp",
+        "inc",
+        "incorporated",
+        "(I)",
+        "India",
     ]
     for word in replacements:
-        name = name.replace(word, '')
-    name.replace('&', 'and')
-    return ' '.join(name.split()).strip()
+        name = name.replace(word, "")
+    name.replace("&", "and")
+    return " ".join(name.split()).strip()
 
 
 def clean_numeric_value(value):
@@ -54,13 +64,13 @@ def clean_numeric_value(value):
     if isinstance(value, str):
         value = value.strip()
         # Check for placeholder values
-        if value in ['-', '--', 'N/A', 'NA', 'n/a', '', 'null']:
+        if value in ["-", "--", "N/A", "NA", "n/a", "", "null"]:
             return None
 
         # Remove commas and convert to float
         try:
             # Remove commas and any other non-numeric characters except . and -
-            cleaned = value.replace(',', '').replace('%', '')
+            cleaned = value.replace(",", "").replace("%", "")
             return float(cleaned)
         except (ValueError, AttributeError):
             return None
@@ -71,7 +81,8 @@ def clean_numeric_value(value):
 def _build_extra_metrics(row):
     """Build nested JSON metrics structure for DB insertion."""
 
-    def val(key): return clean_numeric_value(row.get(key))
+    def val(key):
+        return clean_numeric_value(row.get(key))
 
     return {
         "growth": {
@@ -83,7 +94,6 @@ def _build_extra_metrics(row):
             "200_days_sma": val("200d sma"),
             "total_revenue": val("total revenue"),
         },
-
         "valuation": {
             "price_to_sales": val("price / sales"),
             "price_to_cfo": val("price / cfo"),
@@ -97,7 +107,6 @@ def _build_extra_metrics(row):
             "total_assets": val("total assets"),
             "enterprise_value": val("enterprise value"),
         },
-
         "profitability": {
             "roi": val("return on investment"),
             "net_profit_margin": val("net profit margin"),
@@ -110,14 +119,12 @@ def _build_extra_metrics(row):
             "5y_avg_ebitda_margin": val("5y average ebitda margin"),
             "5y_cagr": val("5y cagr"),
         },
-
         "ownership": {
             "promoter_holding": val("promoter holding"),
             "promoter_holding_change_3m": val("promoter holding change\xa0–\xa03m"),
             "dii_holding": val("domestic institutional holding"),
             "fii_holding": val("foreign institutional holding"),
         },
-
         "liquidity": {
             "quick_ratio": val("quick ratio"),
             "current_ratio": val("current ratio"),
@@ -129,13 +136,12 @@ def _build_extra_metrics(row):
             "cash_flow_margin": val("cash flow margin"),
             "operating_cash_flow": val("operating cash flow"),
         },
-
         "market": {
             "dividend_yield": val("dividend yield"),
             "sharpe_ratio": val("sharpe ratio"),
             "1m_return": val("1m return"),
             "1d_return": val("1d return"),
-        }
+        },
     }
 
 
@@ -145,8 +151,12 @@ class StockMerger(BaseFetcher):
         self.cache_expiry_in_seconds = 86400 * 30
         self.cache_key_prefix = "stock_merge"
 
-        super().__init__("Stock_Merger", self.cache_key_prefix, self.cache_expiry_in_seconds)
-        self.logger.info("Stock merger initialized successfully")
+        super().__init__(
+            "utilities.analytics.stock_merger",
+            self.cache_key_prefix,
+            self.cache_expiry_in_seconds,
+        )
+        self.logger.debug("Stock merger initialized")
         self.db: Session = next(get_db())
 
     def is_recently_modified(self, file_path, hours=48):
@@ -157,9 +167,19 @@ class StockMerger(BaseFetcher):
 
         mod_time = os.path.getmtime(file_path)
         self.logger.info("✅ Last modified: %s", datetime.fromtimestamp(mod_time))
-        return (datetime.now() - datetime.fromtimestamp(mod_time)).total_seconds() < hours * 3600
+        return (
+            datetime.now() - datetime.fromtimestamp(mod_time)
+        ).total_seconds() < hours * 3600
 
     def _load_and_normalize_data(self):
+        """Load and normalize stock data from CSV files.
+
+        Reads merged stock list and ticker tape data, normalizes company names
+        for better matching.
+
+        Returns:
+            Tuple of (merged_list_df, ticker_data_df) as pandas DataFrames
+        """
         self.logger.info("🔄 Reading Ticker & Top 500 Stocks CSV files...")
         merged_list = pd.read_csv(OUTPUT_CSV)
         ticker_data = pd.read_csv(TICKER_TAPE_CSV)
@@ -175,18 +195,34 @@ class StockMerger(BaseFetcher):
         ticker_data = enrich_with_sector(ticker_data)
 
         # Create normalized name columns
-        merged_list['normalized_name'] = merged_list['name of company'].apply(normalize_company_name)
-        ticker_data['normalized_name'] = ticker_data['name'].apply(normalize_company_name)
+        merged_list["normalized_name"] = merged_list["name of company"].apply(
+            normalize_company_name
+        )
+        ticker_data["normalized_name"] = ticker_data["name"].apply(
+            normalize_company_name
+        )
 
         return merged_list, ticker_data
 
     def _merge_dataframes(self, merged_list, ticker_data):
+        """Merge stock list with ticker data.
+
+        Performs fuzzy matching on company names to merge stock symbols with
+        their corresponding ticker tape data.
+
+        Args:
+            merged_list: DataFrame with stock symbols and company names
+            ticker_data: DataFrame with ticker tape fundamental data
+
+        Returns:
+            Merged DataFrame with stock data and fundamentals
+        """
         final_df = pd.merge(
             merged_list,
             ticker_data,
             on="normalized_name",
             how="left",
-            suffixes=("", "_ticker")
+            suffixes=("", "_ticker"),
         )
 
         unmatched_mask = final_df["name"].isna()
@@ -197,10 +233,14 @@ class StockMerger(BaseFetcher):
                 query = final_df.loc[idx, "normalized_name"]
                 if not query:
                     continue
-                match = process.extractOne(query, ticker_names, scorer=fuzz.token_sort_ratio, score_cutoff=80)
+                match = process.extractOne(
+                    query, ticker_names, scorer=fuzz.token_sort_ratio, score_cutoff=80
+                )
                 if match:
                     best_name, score, _ = match
-                    ticker_row = ticker_data[ticker_data["normalized_name"] == best_name].iloc[0]
+                    ticker_row = ticker_data[
+                        ticker_data["normalized_name"] == best_name
+                    ].iloc[0]
                     for col in ticker_data.columns:
                         if col != "normalized_name" and col in final_df.columns:
                             final_df.loc[idx, col] = ticker_row[col]
@@ -210,23 +250,41 @@ class StockMerger(BaseFetcher):
         return final_df
 
     def _save_and_log_merge(self, final_df):
-        matched = final_df['name'].notna().sum()
+        """Save merged data and log results.
+
+        Saves the merged DataFrame to CSV and logs statistics about the merge.
+
+        Args:
+            final_df: Merged DataFrame to save
+        """
+        matched = final_df["name"].notna().sum()
         total = len(final_df)
-        self.logger.info(f"✅ Matched {matched}/{total} records ({(matched / total) * 100:.1f}%)")
+        self.logger.info(
+            f"✅ Matched {matched}/{total} records ({(matched / total) * 100:.1f}%)"
+        )
 
         # Save to CSV as reference
         final_df.to_csv(FINAL_OUTPUT_CSV, index=False)
         self.logger.info(f"📁 Saved enriched CSV: {FINAL_OUTPUT_CSV}")
 
         # Show sample of unmatched companies
-        unmatched = final_df[final_df['name'].isna()]['name of company'].head(10)
+        unmatched = final_df[final_df["name"].isna()]["name of company"].head(10)
         if not unmatched.empty:
             self.logger.info("🔍 Sample unmatched companies:")
             for name in unmatched:
                 self.logger.info(f"  - {name}")
 
     def _insert_into_database(self, final_df, db: Session):
-        final_df = final_df.replace({np.nan: None, 'nan': None, 'NaN': None})
+        """Insert merged stock data into database.
+
+        Inserts or updates stock valuable data in the database, including
+        fundamental metrics and extra metrics.
+
+        Args:
+            final_df: Merged DataFrame with stock data to insert
+            db: Database session
+        """
+        final_df = final_df.replace({np.nan: None, "nan": None, "NaN": None})
         stocks_added = stocks_updated = valuable_added = 0
         errors = []
 
@@ -236,11 +294,15 @@ class StockMerger(BaseFetcher):
                 company_name = row.get("name of company")
                 name = row.get("name")
                 if not symbol or pd.isna(symbol):
-                    errors.append(f"Row {idx}: Missing symbol (Name: {row.get('name of company', 'Unknown')})")
+                    errors.append(
+                        f"Row {idx}: Missing symbol (Name: {row.get('name of company', 'Unknown')})"
+                    )
                     continue
 
                 if not name or pd.isna(name):
-                    self.logger.warning(f"Row {idx}: Symbol {symbol} has no ticker data match, skipping valuable data")
+                    self.logger.warning(
+                        f"Row {idx}: Symbol {symbol} has no ticker data match, skipping valuable data"
+                    )
 
                 if symbol == "NIFTY 500":
                     self.logger.info(f"Skipping index entry: {symbol}")
@@ -254,7 +316,7 @@ class StockMerger(BaseFetcher):
                         sector=row.get("sector") or "Unknown",
                         sub_sector=row.get("sub-sector") or "Unknown",
                         is_active=True,
-                        last_updated=datetime.now()
+                        last_updated=datetime.now(),
                     )
                     db.add(stock)
                     stocks_added += 1
@@ -268,24 +330,42 @@ class StockMerger(BaseFetcher):
 
                 if name:
                     today = datetime.now().date()
-                    existing = db.query(StocksValuableData).filter_by(symbol=symbol, date=today).first()
+                    existing = (
+                        db.query(StocksValuableData)
+                        .filter_by(symbol=symbol, date=today)
+                        .first()
+                    )
                     metrics = _build_extra_metrics(row)
-                    eps_growth = clean_numeric_value(row.get("1y historical eps growth"))
+                    eps_growth = clean_numeric_value(
+                        row.get("1y historical eps growth")
+                    )
                     pe = clean_numeric_value(row.get("pe ratio"))
                     peg = (pe / eps_growth) if eps_growth and eps_growth > 0 else None
 
                     if existing:
-                        existing.market_cap = clean_numeric_value(row.get("↓market cap"))
-                        existing.close_price = clean_numeric_value(row.get("close price"))
+                        existing.market_cap = clean_numeric_value(
+                            row.get("↓market cap")
+                        )
+                        existing.close_price = clean_numeric_value(
+                            row.get("close price")
+                        )
                         existing.pe_ratio = pe
                         existing.pb_ratio = clean_numeric_value(row.get("pb ratio"))
                         existing.peg_ratio = peg
                         existing.roe = clean_numeric_value(row.get("return on equity"))
                         existing.roce = clean_numeric_value(row.get("roce"))
-                        existing.debt_to_equity = clean_numeric_value(row.get("debt to equity"))
-                        existing.promoter_holding = clean_numeric_value(row.get("promoter holding"))
-                        existing.ebitda_margin = clean_numeric_value(row.get("ebitda margin"))
-                        existing.ev_ebitda = clean_numeric_value(row.get("ev/ebitda ratio"))
+                        existing.debt_to_equity = clean_numeric_value(
+                            row.get("debt to equity")
+                        )
+                        existing.promoter_holding = clean_numeric_value(
+                            row.get("promoter holding")
+                        )
+                        existing.ebitda_margin = clean_numeric_value(
+                            row.get("ebitda margin")
+                        )
+                        existing.ev_ebitda = clean_numeric_value(
+                            row.get("ev/ebitda ratio")
+                        )
                         existing.extra_metrics = metrics
                         existing.updated_flag = True
                         existing.last_updated = datetime.now()
@@ -302,8 +382,12 @@ class StockMerger(BaseFetcher):
                             peg_ratio=peg,
                             roe=clean_numeric_value(row.get("return on equity")),
                             roce=clean_numeric_value(row.get("roce")),
-                            debt_to_equity=clean_numeric_value(row.get("debt to equity")),
-                            promoter_holding=clean_numeric_value(row.get("promoter holding")),
+                            debt_to_equity=clean_numeric_value(
+                                row.get("debt to equity")
+                            ),
+                            promoter_holding=clean_numeric_value(
+                                row.get("promoter holding")
+                            ),
                             ebitda_margin=clean_numeric_value(row.get("ebitda margin")),
                             ev_ebitda=clean_numeric_value(row.get("ev/ebitda ratio")),
                             extra_metrics=metrics,
@@ -319,7 +403,8 @@ class StockMerger(BaseFetcher):
 
         db.commit()
         self.logger.info(
-            f"\n✅ DB update done | Added: {stocks_added}, Updated: {stocks_updated}, Valuable: {valuable_added}")
+            f"\n✅ DB update done | Added: {stocks_added}, Updated: {stocks_updated}, Valuable: {valuable_added}"
+        )
         if errors:
             self.logger.error(f"⚠️ Errors: {len(errors)} (showing 10)")
             for err in errors[:10]:
@@ -328,8 +413,13 @@ class StockMerger(BaseFetcher):
     def merge_stock_lists(self):
         """Merge All_stocks_list and 500_stocks_list to create final 500 stock symbol-name mapping."""
         # Check modification timestamps
-        if not (self.is_recently_modified(ALL_STOCKS_CSV) or self.is_recently_modified(NIFTY_500_CSV)):
-            self.logger.info("⚙️  No changes in top 500 stock list or base stocks list. Skipping merge.")
+        if not (
+            self.is_recently_modified(ALL_STOCKS_CSV)
+            or self.is_recently_modified(NIFTY_500_CSV)
+        ):
+            self.logger.info(
+                "⚙️  No changes in top 500 stock list or base stocks list. Skipping merge."
+            )
             return
 
         self.logger.info("🔄 Reading new stocks CSV files...")
@@ -341,13 +431,15 @@ class StockMerger(BaseFetcher):
         nifty_500.columns = nifty_500.columns.str.strip().str.upper()
 
         # Merge based on SYMBOL
-        merged = pd.merge(
-            nifty_500, all_stocks,
-            on="SYMBOL",
-            how="left"
-        )
+        merged = pd.merge(nifty_500, all_stocks, on="SYMBOL", how="left")
 
-        keep_cols = ["SYMBOL", "NAME OF COMPANY", "ISIN NUMBER", "DATE OF LISTING", "FACE VALUE"]
+        keep_cols = [
+            "SYMBOL",
+            "NAME OF COMPANY",
+            "ISIN NUMBER",
+            "DATE OF LISTING",
+            "FACE VALUE",
+        ]
         merged = merged[[col for col in keep_cols if col in merged.columns]]
 
         self.logger.info(f"✅ Merged {len(merged)} records. Saving output...")
@@ -358,8 +450,13 @@ class StockMerger(BaseFetcher):
         """Merge merged stock list with Tickertape data and push to DB."""
 
         # Check modification timestamps
-        if not (self.is_recently_modified(TICKER_TAPE_CSV) or self.is_recently_modified(OUTPUT_CSV)):
-            self.logger.info("⚙️  No changes in Ticker & Top 500 stocks CSVs. Skipping merge.")
+        if not (
+            self.is_recently_modified(TICKER_TAPE_CSV)
+            or self.is_recently_modified(OUTPUT_CSV)
+        ):
+            self.logger.info(
+                "⚙️  No changes in Ticker & Top 500 stocks CSVs. Skipping merge."
+            )
             return None
 
         merged_list, ticker_data = self._load_and_normalize_data()

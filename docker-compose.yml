@@ -4,9 +4,12 @@ services:
     container_name: mera_paisa
     restart: unless-stopped
     depends_on:
-      - db
-      - redis
-      - redis-cli
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      redis-cli:
+        condition: service_started
     environment:
       - DATABASE_URL=mysql+pymysql://user:password@db:3306/personal_finance_db
       - REDIS_URL=redis://redis:6379/0
@@ -34,7 +37,17 @@ services:
       - ./backup_config/backup.sh:/backup.sh
       - ./backup_config/cleanup-entrypoint.sh:/cleanup-entrypoint.sh
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD" ]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p$MYSQL_ROOT_PASSWORD",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,7 +55,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 1G
 
   redis:
@@ -53,7 +66,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: [ "redis-server", "--appendonly", "yes", "--save","60", "1" ]
+    command: [ "redis-server", "--appendonly", "yes", "--save", "60", "1" ]
 
   redis-cli:
     image: redis:latest

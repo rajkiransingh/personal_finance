@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -10,8 +8,9 @@ from backend.models.spendings.expense import ExpenseCategory
 from backend.models.unit import Unit
 from backend.models.user import User
 from backend.services.db_services import get_db
+from utilities.common.app_config import config
 
-logger = logging.getLogger(__name__)
+logger = config.setup_logger("api.routes.categories")
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
@@ -61,7 +60,10 @@ async def get_income_sources():
 
 @router.post("/income-sources")
 async def add_income_sources(income_source_data: dict, db: Session = Depends(get_db)):
-    new_source = IncomeSource(name=income_source_data.get("name"), description=income_source_data.get("description"))
+    new_source = IncomeSource(
+        name=income_source_data.get("name"),
+        description=income_source_data.get("description"),
+    )
     db.add(new_source)
     db.commit()
     db.refresh(new_source)
@@ -69,12 +71,20 @@ async def add_income_sources(income_source_data: dict, db: Session = Depends(get
 
 
 @router.put("/income-sources/{income_source_id}")
-async def update_income_source(income_source_id: int, income_source_data: dict, db: Session = Depends(get_db)):
-    income_source = db.query(IncomeSource).filter(IncomeSource.income_source_id == income_source_id).first()
+async def update_income_source(
+    income_source_id: int, income_source_data: dict, db: Session = Depends(get_db)
+):
+    income_source = (
+        db.query(IncomeSource)
+        .filter(IncomeSource.income_source_id == income_source_id)
+        .first()
+    )
     if not income_source:
         raise HTTPException(status_code=404, detail="Income Source not found")
     income_source.name = income_source_data.get("name", income_source.name)
-    income_source.description = income_source_data.get("description", income_source.description)
+    income_source.description = income_source_data.get(
+        "description", income_source.description
+    )
     db.commit()
     db.refresh(income_source)
     return income_source
@@ -82,7 +92,11 @@ async def update_income_source(income_source_id: int, income_source_data: dict, 
 
 @router.delete("/income-sources/{income_source_id}")
 async def delete_income_source(income_source_id: int, db: Session = Depends(get_db)):
-    income_source = db.query(IncomeSource).filter(IncomeSource.income_source_id == income_source_id).first()
+    income_source = (
+        db.query(IncomeSource)
+        .filter(IncomeSource.income_source_id == income_source_id)
+        .first()
+    )
     if not income_source:
         raise HTTPException(status_code=404, detail="Income Source not found")
     db.delete(income_source)
@@ -97,9 +111,13 @@ async def get_expense_category():
 
 
 @router.post("/expense-category")
-async def add_expense_category(expense_category_data: dict, db: Session = Depends(get_db)):
-    new_category = ExpenseCategory(name=expense_category_data.get("name"),
-                                   description=expense_category_data.get("description"))
+async def add_expense_category(
+    expense_category_data: dict, db: Session = Depends(get_db)
+):
+    new_category = ExpenseCategory(
+        name=expense_category_data.get("name"),
+        description=expense_category_data.get("description"),
+    )
     db.add(new_category)
     db.commit()
     db.refresh(new_category)
@@ -107,22 +125,34 @@ async def add_expense_category(expense_category_data: dict, db: Session = Depend
 
 
 @router.put("/expense-category/{expense_category_id}")
-async def update_expense_category(expense_category_id: int, expense_category_data: dict, db: Session = Depends(get_db)):
-    expense_category = db.query(ExpenseCategory).filter(
-        ExpenseCategory.expense_category_id == expense_category_id).first()
+async def update_expense_category(
+    expense_category_id: int, expense_category_data: dict, db: Session = Depends(get_db)
+):
+    expense_category = (
+        db.query(ExpenseCategory)
+        .filter(ExpenseCategory.expense_category_id == expense_category_id)
+        .first()
+    )
     if not expense_category:
         raise HTTPException(status_code=404, detail="Expense Category not found")
     expense_category.name = expense_category_data.get("name", expense_category.name)
-    expense_category.description = expense_category_data.get("description", expense_category.description)
+    expense_category.description = expense_category_data.get(
+        "description", expense_category.description
+    )
     db.commit()
     db.refresh(expense_category)
     return expense_category
 
 
 @router.delete("/expense-category/{expense_category_id}")
-async def delete_expense_category(expense_category_id: int, db: Session = Depends(get_db)):
-    expense_category = db.query(ExpenseCategory).filter(
-        ExpenseCategory.expense_category_id == expense_category_id).first()
+async def delete_expense_category(
+    expense_category_id: int, db: Session = Depends(get_db)
+):
+    expense_category = (
+        db.query(ExpenseCategory)
+        .filter(ExpenseCategory.expense_category_id == expense_category_id)
+        .first()
+    )
     if not expense_category:
         raise HTTPException(status_code=404, detail="Expense Category not found")
     db.delete(expense_category)
@@ -137,8 +167,12 @@ async def get_investment_category():
 
 
 @router.post("/investment-category")
-async def add_investment_category(investment_category_data: dict, db: Session = Depends(get_db)):
-    new_category = InvestmentCategory(investment_type=investment_category_data.get("investment_type"))
+async def add_investment_category(
+    investment_category_data: dict, db: Session = Depends(get_db)
+):
+    new_category = InvestmentCategory(
+        investment_type=investment_category_data.get("investment_type")
+    )
     db.add(new_category)
     db.commit()
     db.refresh(new_category)
@@ -146,23 +180,35 @@ async def add_investment_category(investment_category_data: dict, db: Session = 
 
 
 @router.put("/investment-category/{investment_category_id}")
-async def update_investment_category(investment_category_id: int, investment_category_data: dict,
-                                     db: Session = Depends(get_db)):
-    investment_category = db.query(InvestmentCategory).filter(
-        InvestmentCategory.id == investment_category_id).first()
+async def update_investment_category(
+    investment_category_id: int,
+    investment_category_data: dict,
+    db: Session = Depends(get_db),
+):
+    investment_category = (
+        db.query(InvestmentCategory)
+        .filter(InvestmentCategory.id == investment_category_id)
+        .first()
+    )
     if not investment_category:
         raise HTTPException(status_code=404, detail="Investment Category not found")
-    investment_category.investment_type = investment_category_data.get("investment_type",
-                                                                       investment_category.investment_type)
+    investment_category.investment_type = investment_category_data.get(
+        "investment_type", investment_category.investment_type
+    )
     db.commit()
     db.refresh(investment_category)
     return investment_category
 
 
 @router.delete("/investment-category/{investment_category_id}")
-async def delete_investment_category(investment_category_id: int, db: Session = Depends(get_db)):
-    investment_category = db.query(InvestmentCategory).filter(
-        InvestmentCategory.id == investment_category_id).first()
+async def delete_investment_category(
+    investment_category_id: int, db: Session = Depends(get_db)
+):
+    investment_category = (
+        db.query(InvestmentCategory)
+        .filter(InvestmentCategory.id == investment_category_id)
+        .first()
+    )
     if not investment_category:
         raise HTTPException(status_code=404, detail="Investment Category not found")
     db.delete(investment_category)
@@ -177,10 +223,15 @@ async def get_investment_subcategory():
 
 
 @router.post("/investment-subcategory")
-async def add_investment_sub_category(investment_sub_category_data: dict, db: Session = Depends(get_db)):
+async def add_investment_sub_category(
+    investment_sub_category_data: dict, db: Session = Depends(get_db)
+):
     new_sub_category = InvestmentSubCategory(
-        investment_subcategory_name=investment_sub_category_data.get("investment_subcategory_name"),
-        category_id=investment_sub_category_data.get("category_id"))
+        investment_subcategory_name=investment_sub_category_data.get(
+            "investment_subcategory_name"
+        ),
+        category_id=investment_sub_category_data.get("category_id"),
+    )
     db.add(new_sub_category)
     db.commit()
     db.refresh(new_sub_category)
@@ -188,25 +239,41 @@ async def add_investment_sub_category(investment_sub_category_data: dict, db: Se
 
 
 @router.put("/investment-subcategory/{investment_subcategory_id}")
-async def update_investment_subcategory(investment_subcategory_id: int, investment_subcategory_data: dict,
-                                        db: Session = Depends(get_db)):
-    investment_subcategory = db.query(InvestmentSubCategory).filter(
-        InvestmentSubCategory.id == investment_subcategory_id).first()
+async def update_investment_subcategory(
+    investment_subcategory_id: int,
+    investment_subcategory_data: dict,
+    db: Session = Depends(get_db),
+):
+    investment_subcategory = (
+        db.query(InvestmentSubCategory)
+        .filter(InvestmentSubCategory.id == investment_subcategory_id)
+        .first()
+    )
     if not investment_subcategory:
         raise HTTPException(status_code=404, detail="Investment Sub Category not found")
-    investment_subcategory.category_id = investment_subcategory_data.get("category_id",
-                                                                         investment_subcategory.category_id)
-    investment_subcategory.investment_subcategory_name = investment_subcategory_data.get("investment_subcategory_name",
-                                                                                         investment_subcategory.investment_subcategory_name)
+    investment_subcategory.category_id = investment_subcategory_data.get(
+        "category_id", investment_subcategory.category_id
+    )
+    investment_subcategory.investment_subcategory_name = (
+        investment_subcategory_data.get(
+            "investment_subcategory_name",
+            investment_subcategory.investment_subcategory_name,
+        )
+    )
     db.commit()
     db.refresh(investment_subcategory)
     return investment_subcategory
 
 
 @router.delete("/investment-subcategory/{investment_subcategory_id}")
-async def delete_investment_subcategory(investment_subcategory_id: int, db: Session = Depends(get_db)):
-    investment_subcategory = db.query(InvestmentSubCategory).filter(
-        InvestmentSubCategory.id == investment_subcategory_id).first()
+async def delete_investment_subcategory(
+    investment_subcategory_id: int, db: Session = Depends(get_db)
+):
+    investment_subcategory = (
+        db.query(InvestmentSubCategory)
+        .filter(InvestmentSubCategory.id == investment_subcategory_id)
+        .first()
+    )
     if not investment_subcategory:
         raise HTTPException(status_code=404, detail="Investment Sub Category not found")
     db.delete(investment_subcategory)
@@ -222,8 +289,10 @@ async def get_currencies():
 
 @router.post("/currencies")
 async def add_currencies(currency_data: dict, db: Session = Depends(get_db)):
-    new_currency = Currencies(currency_code=currency_data.get("currency_code"),
-                              currency_name=currency_data.get("currency_name"))
+    new_currency = Currencies(
+        currency_code=currency_data.get("currency_code"),
+        currency_name=currency_data.get("currency_name"),
+    )
     db.add(new_currency)
     db.commit()
     db.refresh(new_currency)
@@ -231,8 +300,12 @@ async def add_currencies(currency_data: dict, db: Session = Depends(get_db)):
 
 
 @router.put("/currencies/{currency_id}")
-async def update_currency(currency_id: int, currency_data: dict, db: Session = Depends(get_db)):
-    currency = db.query(Currencies).filter(Currencies.currency_id == currency_id).first()
+async def update_currency(
+    currency_id: int, currency_data: dict, db: Session = Depends(get_db)
+):
+    currency = (
+        db.query(Currencies).filter(Currencies.currency_id == currency_id).first()
+    )
     if not currency:
         raise HTTPException(status_code=404, detail="Currency not found")
     currency.currency_code = currency_data.get("currency_code", currency.currency_code)
@@ -244,7 +317,9 @@ async def update_currency(currency_id: int, currency_data: dict, db: Session = D
 
 @router.delete("/currencies/{currency_id}")
 async def delete_currency(currency_id: int, db: Session = Depends(get_db)):
-    currency = db.query(Currencies).filter(Currencies.currency_id == currency_id).first()
+    currency = (
+        db.query(Currencies).filter(Currencies.currency_id == currency_id).first()
+    )
     if not currency:
         raise HTTPException(status_code=404, detail="Currency not found")
     db.delete(currency)
@@ -260,8 +335,10 @@ async def get_region():
 
 @router.post("/region")
 async def add_region(region_data: dict, db: Session = Depends(get_db)):
-    new_region = Regions(region_name=region_data.get("region_name"),
-                         currency_id=region_data.get("currency_id"))
+    new_region = Regions(
+        region_name=region_data.get("region_name"),
+        currency_id=region_data.get("currency_id"),
+    )
     db.add(new_region)
     db.commit()
     db.refresh(new_region)
@@ -269,7 +346,9 @@ async def add_region(region_data: dict, db: Session = Depends(get_db)):
 
 
 @router.put("/region/{region_id}")
-async def update_region(region_id: int, region_data: dict, db: Session = Depends(get_db)):
+async def update_region(
+    region_id: int, region_data: dict, db: Session = Depends(get_db)
+):
     region = db.query(Regions).filter(Regions.region_id == region_id).first()
     if not region:
         raise HTTPException(status_code=404, detail="Region not found")

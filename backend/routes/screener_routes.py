@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter
 from sqlalchemy.orm import Session
 
@@ -7,8 +5,9 @@ from backend.models.screener import RedisDataResponse
 from backend.services.db_services import get_db
 from utilities.fetch_overall_investment_data import get_investments_symbols
 from utilities.stock_price_fetcher import StockPriceFetcher as sPF, stockFetcher
+from utilities.common.app_config import config
 
-logger = logging.getLogger(__name__)
+logger = config.setup_logger("api.routes.screener")
 router = APIRouter(prefix="/screener", tags=["screener"])
 
 

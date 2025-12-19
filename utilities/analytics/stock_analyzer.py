@@ -27,7 +27,6 @@ EXTRA_METRIC_MAP = {
     "liquidity_quick_ratio": "QuickRatio",
     "liquidity_debt_to_equity": "DebtToEquity",
     "liquidity_interest_coverage_ratio": "InterestCoverage",
-
     # Profitability
     "profitability_ebitda_margin": "EBITDA_Margin",
     "profitability_net_profit_margin": "NPM",
@@ -35,14 +34,12 @@ EXTRA_METRIC_MAP = {
     "profitability_roi": "ROI",
     "profitability_eps": "EPS",
     "profitability_ebitda": "EBITDA",
-
     # Market
     "market_dividend_yield": "DividendYield",
     "market_sharpe_ratio": "SharpeRatio",
     "market_price_to_sales": "PriceToSales",
     "market_1d_return": "1DReturn",
     "market_1m_return": "1MReturn",
-
     # Valuation
     "valuation_pe_ratio": "PE",
     "valuation_pb_ratio": "PB",
@@ -53,7 +50,6 @@ EXTRA_METRIC_MAP = {
     "valuation_book_value": "book_value",
     "valuation_price_to_sales": "price_to_sales",
     "valuation_sector_dividend_yield": "sector_dividend_yield",
-
     # Ownership
     "ownership_promoter_holding": "PromoterHolding",
     "ownership_promoter_holding_change_3m": "PromoterHoldingChange3M",
@@ -76,17 +72,13 @@ def flatten_json(data, parent_key="", sep="_"):
 
 def compute_sector_metrics(df: pd.DataFrame):
     """
-        Compute mean and std deviation for numeric columns grouped by sector.
-        Returns a MultiIndex DataFrame where:
-            index -> sector
-            columns -> (metric, ['mean', 'std'])
-        """
+    Compute mean and std deviation for numeric columns grouped by sector.
+    Returns a MultiIndex DataFrame where:
+        index -> sector
+        columns -> (metric, ['mean', 'std'])
+    """
     numeric_cols = df.select_dtypes(include=["number"]).columns
-    sector_metrics = (
-        df.groupby("sector")[numeric_cols]
-        .agg(["mean", "std"])
-        .fillna(0.0)
-    )
+    sector_metrics = df.groupby("sector")[numeric_cols].agg(["mean", "std"]).fillna(0.0)
     return sector_metrics
 
 
@@ -97,7 +89,9 @@ def calculate_strategy_scores(normalized_df, strategies, original_df=None):
     results = []
 
     for _, row in normalized_df.iterrows():
-        stock_data = {k.lower(): v for k, v in row.items()}  # normalize keys to lowercase
+        stock_data = {
+            k.lower(): v for k, v in row.items()
+        }  # normalize keys to lowercase
         stock_symbol = row.get("symbol", "")
         stock_sector = row.get("sector", "")
         stock_subsector = row.get("sub_sector", "")
@@ -112,7 +106,7 @@ def calculate_strategy_scores(normalized_df, strategies, original_df=None):
                 "pb": ["pb_ratio"],
                 "pe": ["pe_ratio"],
                 "marketcap": ["market_cap"],
-                "peg": ["peg_ratio"]
+                "peg": ["peg_ratio"],
             }
 
             for metric, weight in metrics.items():
@@ -131,28 +125,43 @@ def calculate_strategy_scores(normalized_df, strategies, original_df=None):
             final_score = total_score / total_weight if total_weight != 0 else 0.0
             stock_scores[strat_name] = final_score
 
-        results.append({
-            "symbol": stock_symbol,
-            "sector": stock_sector,
-            "sub_sector": stock_subsector,
-            **stock_scores
-        })
+        results.append(
+            {
+                "symbol": stock_symbol,
+                "sector": stock_sector,
+                "sub_sector": stock_subsector,
+                **stock_scores,
+            }
+        )
 
     # Convert to DataFrame
     scores_df = pd.DataFrame(results)
 
     # ✅ Merge back real (non-normalized) fundamentals
     if original_df is not None:
-        merge_cols = ["symbol", "sector", "sub_sector",
-                      "market_cap", "pe_ratio", "pb_ratio", "peg_ratio",
-                      "roe", "roce", "debt_to_equity", "promoter_holding",
-                      "ebitda_margin", "ev_ebitda"]
+        merge_cols = [
+            "symbol",
+            "sector",
+            "sub_sector",
+            "market_cap",
+            "pe_ratio",
+            "pb_ratio",
+            "peg_ratio",
+            "roe",
+            "roce",
+            "debt_to_equity",
+            "promoter_holding",
+            "ebitda_margin",
+            "ev_ebitda",
+        ]
 
         raw_subset = original_df[merge_cols].copy()
 
         # ✅ Remove duplicates before merge
         scores_df = scores_df.drop_duplicates(subset=["symbol", "sector", "sub_sector"])
-        raw_subset = raw_subset.drop_duplicates(subset=["symbol", "sector", "sub_sector"])
+        raw_subset = raw_subset.drop_duplicates(
+            subset=["symbol", "sector", "sub_sector"]
+        )
 
         merged_df = scores_df.merge(
             raw_subset, on=["symbol", "sector", "sub_sector"], how="left"
@@ -163,25 +172,47 @@ def calculate_strategy_scores(normalized_df, strategies, original_df=None):
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-FILE_LOCATION = ROOT_DIR / 'frontend'
+FILE_LOCATION = ROOT_DIR / "frontend"
 
 
 class StockAnalysis(BaseFetcher):
     def __init__(self):
+        """Initialize stock analyzer with cache configuration.
+
+        Sets up the analyzer with a 30-day cache expiry for stock scores,
+        initializes the base fetcher, and loads strategy configuration.
+        """
         # Load config data from environment
         self.cache_expiry_in_seconds = 86400 * 30
         self.cache_key_prefix = "stock_scores_v1"
 
-        super().__init__("Stock_analysis", self.cache_key_prefix, self.cache_expiry_in_seconds)
-        self.logger.info("Stock analysis initialized successfully")
+        super().__init__(
+            "utilities.analytics.stock_analyzer",
+            self.cache_key_prefix,
+            self.cache_expiry_in_seconds,
+        )
+        self.logger.debug("Stock analyzer initialized")
 
         self.strategy_file = os.path.join(FILE_LOCATION, "stock-score-config.json")
         self.db: Session = next(get_db())
 
     def fetch_data_from_cache(self, stock_score_key: list):
+        """Retrieve stock scores from cache.
+
+        Args:
+            stock_score_key: List of cache keys to retrieve
+
+        Returns:
+            Dictionary mapping keys to cached stock score data
+        """
         return self.get_from_cache(self.cache_key_prefix, stock_score_key)
 
     def load_strategy(self):
+        """Load stock scoring strategy configuration.
+
+        Returns:
+            Dictionary containing strategy configuration with metrics and weights
+        """
         with open(self.strategy_file, "r") as f:
             return json.load(f)["strategy"]
 
@@ -234,7 +265,9 @@ class StockAnalysis(BaseFetcher):
                 else:
                     extra = {}
             except Exception as e:
-                self.logger.error("⚠️ Failed to parse extra_metrics for {} : {}", r['symbol'], e)
+                self.logger.error(
+                    "⚠️ Failed to parse extra_metrics for {} : {}", r["symbol"], e
+                )
                 extra = {}
 
             # Flatten nested metrics (e.g. liquidity_current_ratio)
@@ -299,9 +332,13 @@ class StockAnalysis(BaseFetcher):
             norm_df.to_json(output_file, orient="records")
 
         if norm_df.empty:
-            self.logger.warning("⚠️ Warning: Normalized dataframe is empty — check sector matching.")
+            self.logger.warning(
+                "⚠️ Warning: Normalized dataframe is empty — check sector matching."
+            )
         else:
-            self.logger.info(f"✅ Normalized {len(norm_df)} rows across {norm_df['sector'].nunique()} sectors")
+            self.logger.info(
+                f"✅ Normalized {len(norm_df)} rows across {norm_df['sector'].nunique()} sectors"
+            )
 
         return norm_df, sector_metrics
 
@@ -311,11 +348,19 @@ stockAnalysis = StockAnalysis()
 
 
 def get_stock_score():
+    """Calculate and return stock scores for all stocks.
+
+    Fetches stock data, normalizes metrics within sectors, calculates scores
+    based on configured strategies, and caches the results.
+
+    Returns:
+        List of dictionaries containing stock symbols, sectors, and calculated scores
+    """
     cached_info = stockAnalysis.fetch_data_from_cache(["TOP_500_STOCKS"])
 
-    if cached_info['TOP_500_STOCKS'] is not None:
+    if cached_info["TOP_500_STOCKS"] is not None:
         stockAnalysis.logger.info("Cache hit: Using cached Top_500_Stocks scores")
-        return cached_info['TOP_500_STOCKS']
+        return cached_info["TOP_500_STOCKS"]
 
     # Loading data from Json and DB
     strategy = stockAnalysis.load_strategy()
@@ -323,13 +368,17 @@ def get_stock_score():
 
     # Segregating data based on sector and normalizing it
     sector_metrics = compute_sector_metrics(df)
-    normalized_df, sector_stats = stockAnalysis.normalize_within_sector(df, sector_metrics)
+    normalized_df, sector_stats = stockAnalysis.normalize_within_sector(
+        df, sector_metrics
+    )
 
     # Calculating the overall score for a stock
     result_df = calculate_strategy_scores(normalized_df, strategy, original_df=df)
     result = json.loads(result_df.to_json(orient="records"))
     cache_key = stockAnalysis.cache_key_prefix + "::TOP_500_STOCKS"
     serialized = json.dumps(result)
-    stockAnalysis.redis_client.setex(cache_key, stockAnalysis.cache_expiry_in_seconds, serialized)
+    stockAnalysis.redis_client.setex(
+        cache_key, stockAnalysis.cache_expiry_in_seconds, serialized
+    )
     stockAnalysis.logger.info("Cached Top_500_Stocks scores in Redis")
     return result
