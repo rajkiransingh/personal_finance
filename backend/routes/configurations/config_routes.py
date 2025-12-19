@@ -1,10 +1,11 @@
 import json
-import logging
 import os
 
 from fastapi import APIRouter
 
-logger = logging.getLogger(__name__)
+from utilities.common.app_config import config
+
+logger = config.setup_logger("api.routes.config")
 router = APIRouter(prefix="/config", tags=["config"])
 
 

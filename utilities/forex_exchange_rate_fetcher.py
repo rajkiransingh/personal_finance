@@ -11,12 +11,21 @@ class ForexExchangeRateFetcher(BaseFetcher):
     """Utility class to fetch forex rates"""
 
     def __init__(self):
+        """Initialize forex exchange rate fetcher with cache configuration.
+
+        Sets up the fetcher with a 24-hour cache expiry for forex rates
+        and initializes the base fetcher with forex-specific configuration.
+        """
         # Load config data from environment
         self.cache_expiry_in_seconds = 86400
         self.cache_key_prefix = "forex"
 
-        super().__init__("Forex_exchange_rate_fetcher", self.cache_key_prefix, self.cache_expiry_in_seconds)
-        self.logger.info("Forex Exchange rate fetcher initialized successfully")
+        super().__init__(
+            "utilities.forex_fetcher",
+            self.cache_key_prefix,
+            self.cache_expiry_in_seconds,
+        )
+        self.logger.debug("Forex fetcher initialized")
 
     def get_exchange_rates(self, from_currency: str, to_currency: str):
         """Fetch exchange rate with caching"""
@@ -33,7 +42,9 @@ class ForexExchangeRateFetcher(BaseFetcher):
                 self.logger.info(f"Cache hit: {from_currency}->{to_currency} = {rate}")
                 return rate
             except (KeyError, ValueError, TypeError) as e:
-                self.logger.warning(f"Invalid cached rate for {from_currency}->{to_currency}, refetching: {e}")
+                self.logger.warning(
+                    f"Invalid cached rate for {from_currency}->{to_currency}, refetching: {e}"
+                )
 
         # --- Cache miss: fetch from API ---
         url = f"{self.open_exchange_url}{self.open_exchange_api_key}/pair/{from_currency.upper()}/{to_currency.upper()}"
@@ -52,14 +63,18 @@ class ForexExchangeRateFetcher(BaseFetcher):
                 "to": to_currency.upper(),
                 "rate": str(exchange_rate),
                 "cached_at": datetime.now(timezone.utc).isoformat(),
-                "source": "open-exchange"
+                "source": "open-exchange",
             }
 
             try:
                 self.set_cache(cache_key, {currency_pair: payload})
-                self.logger.info(f"Cached exchange rate {from_currency}->{to_currency}: {exchange_rate}")
+                self.logger.info(
+                    f"Cached exchange rate {from_currency}->{to_currency}: {exchange_rate}"
+                )
             except Exception as e:
-                self.logger.warning(f"Cache write failed for {from_currency}->{to_currency}: {e}")
+                self.logger.warning(
+                    f"Cache write failed for {from_currency}->{to_currency}: {e}"
+                )
 
             return exchange_rate
 

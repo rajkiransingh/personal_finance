@@ -1,11 +1,13 @@
-import logging
-
 from fastapi import APIRouter
 
 from backend.models.dashboard import DashboardResponse
-from utilities.dashboard.dashboard_calculation_helper import DashboardDataCalculator as ddc, dashboardDataCalculator
+from utilities.dashboard.dashboard_calculation_helper import (
+    DashboardDataCalculator as ddc,
+    dashboardDataCalculator,
+)
+from utilities.common.app_config import config
 
-logger = logging.getLogger(__name__)
+logger = config.setup_logger("api.routes.dashboard")
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 

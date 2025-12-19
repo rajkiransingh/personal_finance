@@ -7,23 +7,36 @@ from sqlalchemy.orm import Session
 from utilities.common.base_fetcher import BaseFetcher
 from backend.services.db_services import get_db
 from utilities.common.config_loader_util import load_config, save_config
-from utilities.common.value_extractor_util import round2, sum_current_values, extract_current_value
+from utilities.common.value_extractor_util import (
+    round2,
+    sum_current_values,
+    extract_current_value,
+)
 from utilities.fetch_overall_investment_data import get_investments_with_sub_allocations
 
 
 class BalancingScreener(BaseFetcher):
     def __init__(self):
+        """Initialize balancing screener with database and cache configuration.
+
+        Sets up the screener with database session, cache configuration for
+        rebalancing calculations, and initializes the base fetcher.
+        """
         self.db: Session = next(get_db())
         self.cache_key_prefix = "rebalancing_screener"
         self.cache_expiry_in_seconds = 86400
-        super().__init__("Balancing_Screener", self.cache_key_prefix, self.cache_expiry_in_seconds)
-        self.logger.info("Portfolio Balancing Screener class initialized successfully")
+        super().__init__(
+            "utilities.analytics.balancing_screener",
+            self.cache_key_prefix,
+            self.cache_expiry_in_seconds,
+        )
+        self.logger.debug("Balancing screener initialized")
 
     # ---------------------------------------------------------------
     # Aggregate Portfolio Values
     # ---------------------------------------------------------------
     def get_total_and_categories(
-            self, portfolio_config: dict, portfolio_data: dict = None
+        self, portfolio_config: dict, portfolio_data: dict = None
     ) -> Tuple[float, Dict[str, Any]]:
         """Aggregate total and per-category investment values."""
 
@@ -47,35 +60,41 @@ class BalancingScreener(BaseFetcher):
                     # Extract name and symbol correctly
                     if isinstance(e, dict):
                         e_name = (
-                                e.get("metal_name") or
-                                e.get("stock_name") or
-                                e.get("fund_name") or
-                                e.get("name") or ""
+                            e.get("metal_name")
+                            or e.get("stock_name")
+                            or e.get("fund_name")
+                            or e.get("name")
+                            or ""
                         ).lower()
                         e_symbol = (
-                                e.get("symbol") or
-                                e.get("stock_symbol") or
-                                e.get("fund_symbol") or ""
+                            e.get("symbol")
+                            or e.get("stock_symbol")
+                            or e.get("fund_symbol")
+                            or ""
                         ).lower()
                         cur_val = e.get("current_value", 0.0)
                     else:
                         e_name = (
-                                getattr(e, "metal_name", None) or
-                                getattr(e, "stock_name", None) or
-                                getattr(e, "fund_name", None) or
-                                getattr(e, "name", None) or ""
+                            getattr(e, "metal_name", None)
+                            or getattr(e, "stock_name", None)
+                            or getattr(e, "fund_name", None)
+                            or getattr(e, "name", None)
+                            or ""
                         )
                         e_symbol = (
-                                getattr(e, "symbol", None) or
-                                getattr(e, "stock_symbol", None) or
-                                getattr(e, "fund_symbol", None) or ""
+                            getattr(e, "symbol", None)
+                            or getattr(e, "stock_symbol", None)
+                            or getattr(e, "fund_symbol", None)
+                            or ""
                         )
                         e_name = str(e_name).lower()
                         e_symbol = str(e_symbol).lower()
                         cur_val = extract_current_value(e)
 
                     # If mapped_symbols exist, check direct symbol match first
-                    if mapped_symbols and e_symbol.upper() in [s.upper() for s in mapped_symbols]:
+                    if mapped_symbols and e_symbol.upper() in [
+                        s.upper() for s in mapped_symbols
+                    ]:
                         matched_sum += float(cur_val)
                         matched_any = True
                         continue
@@ -88,7 +107,9 @@ class BalancingScreener(BaseFetcher):
                             continue
 
                     # fallback fuzzy match for other categories
-                    if sub_norm in e_name.replace(" ", "") or sub_norm in e_symbol.replace(" ", ""):
+                    if sub_norm in e_name.replace(
+                        " ", ""
+                    ) or sub_norm in e_symbol.replace(" ", ""):
                         matched_sum += float(cur_val)
                         matched_any = True
 
@@ -98,15 +119,16 @@ class BalancingScreener(BaseFetcher):
         for cat, cat_info in portfolio_config.get("targets", {}).items():
             mapped_keys = mappings.get(cat, [cat])
             parent_val = sum(
-                sum_current_values(portfolio_data.get(k)) for k in mapped_keys if k in portfolio_data
+                sum_current_values(portfolio_data.get(k))
+                for k in mapped_keys
+                if k in portfolio_data
             )
 
             sub_values, any_sub_matched = {}, False
             for sub_name, _ in cat_info.get("sub_allocations", {}).items():
                 sub_map = mappings.get(sub_name, [sub_name])
-                is_symbol_list = (
-                        isinstance(sub_map, list)
-                        and all(isinstance(x, str) and x.isupper() for x in sub_map)
+                is_symbol_list = isinstance(sub_map, list) and all(
+                    isinstance(x, str) and x.isupper() for x in sub_map
                 )
 
                 if is_symbol_list:
@@ -141,7 +163,9 @@ class BalancingScreener(BaseFetcher):
         due_month, due_day = step.get("apply_month"), step.get("apply_day")
 
         if today.month == due_month and today.day >= due_day:
-            last_date = datetime.fromisoformat(last_applied).date() if last_applied else None
+            last_date = (
+                datetime.fromisoformat(last_applied).date() if last_applied else None
+            )
             if not last_date or last_date.year < today.year:
                 years = today.year - (last_date.year if last_date else today.year - 1)
                 new_val = float(cfg["monthly_sip"]) * ((1 + rate) ** years)
@@ -182,7 +206,9 @@ class BalancingScreener(BaseFetcher):
             status = (
                 "Significant drift"
                 if abs(drift_pct) > hard
-                else "Drifted" if abs(drift_pct) > soft else "OK"
+                else "Drifted"
+                if abs(drift_pct) > soft
+                else "OK"
             )
 
             total_gap_pos += max(0, gap)
@@ -219,7 +245,8 @@ class BalancingScreener(BaseFetcher):
         if total_gap_pos > 0:
             result["rebalance_plan"] = {
                 cat: round2((info["gap"] / total_gap_pos) * cfg["monthly_sip"])
-                if info["gap"] > 0 else 0
+                if info["gap"] > 0
+                else 0
                 for cat, info in result["categories"].items()
             }
 

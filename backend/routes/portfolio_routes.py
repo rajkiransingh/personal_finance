@@ -1,11 +1,13 @@
-import logging
-
 from fastapi import APIRouter
 
 from backend.models.portfolio import PortfolioResponse
-from utilities.analytics.balancing_screener import BalancingScreener as bS, balancingScreener
+from utilities.analytics.balancing_screener import (
+    BalancingScreener as bS,
+    balancingScreener,
+)
+from utilities.common.app_config import config
 
-logger = logging.getLogger(__name__)
+logger = config.setup_logger("api.routes.portfolio")
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 

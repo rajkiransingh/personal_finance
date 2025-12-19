@@ -26,5 +26,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 8000
 
-# Run the app with uvicorn
-CMD [ "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "debug"]
+# Run the app with uvicorn using centralized logging
+CMD [ "python", "start_with_logging.py" ]

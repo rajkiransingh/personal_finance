@@ -31,10 +31,11 @@ class BaseFetcher:
         self.open_exchange_url = os.getenv("EXCHANGE_API_URL")
         self.open_exchange_api_key = os.getenv("EXCHANGE_RATE_API_KEY")
 
-        # Getting data from Redis
-        self.redis_forex_key_usd_inr = self.redis_client.get("forex::USD-INR")
-        self.redis_forex_key_usd_pln = self.redis_client.get("forex::USD-PLN")
-        self.redis_forex_key_pln_inr = self.redis_client.get("forex::PLN-INR")
+        # Lazy-load forex rates from Redis (don't fetch in __init__)
+        # These will be None initially and loaded on-demand
+        self._redis_forex_key_usd_inr = None
+        self._redis_forex_key_usd_pln = None
+        self._redis_forex_key_pln_inr = None
 
         self.currency = {
             1: "₹",  # INR
@@ -42,24 +43,43 @@ class BaseFetcher:
             3: "$",  # USD
         }
 
-        self.currency_map = {
-            1: "INR",
-            2: "PLN",
-            3: "USD"
-        }
+        self.currency_map = {1: "INR", 2: "PLN", 3: "USD"}
+
+    @property
+    def redis_forex_key_usd_inr(self):
+        """Lazy-load USD-INR forex rate from Redis"""
+        if self._redis_forex_key_usd_inr is None:
+            self._redis_forex_key_usd_inr = self.redis_client.get("forex::USD-INR")
+        return self._redis_forex_key_usd_inr
+
+    @property
+    def redis_forex_key_usd_pln(self):
+        """Lazy-load USD-PLN forex rate from Redis"""
+        if self._redis_forex_key_usd_pln is None:
+            self._redis_forex_key_usd_pln = self.redis_client.get("forex::USD-PLN")
+        return self._redis_forex_key_usd_pln
+
+    @property
+    def redis_forex_key_pln_inr(self):
+        """Lazy-load PLN-INR forex rate from Redis"""
+        if self._redis_forex_key_pln_inr is None:
+            self._redis_forex_key_pln_inr = self.redis_client.get("forex::PLN-INR")
+        return self._redis_forex_key_pln_inr
 
     def get_conversion_rate_from_usd(self, currency_code: str) -> float:
         try:
             if currency_code == "INR":
-                return round(float(json.loads(self.redis_forex_key_usd_inr)['rate']), 2)
+                return round(float(json.loads(self.redis_forex_key_usd_inr)["rate"]), 2)
             elif currency_code == "PLN":
-                return round(float(json.loads(self.redis_forex_key_usd_pln)['rate']), 2)
+                return round(float(json.loads(self.redis_forex_key_usd_pln)["rate"]), 2)
             elif currency_code == "USD":
                 return 1.0
             else:
                 raise ValueError(f"Unsupported currency type: {currency_code}")
         except (TypeError, ValueError):
-            self.logger.warning(f"Missing forex rate for {currency_code}, defaulting to 1.0")
+            self.logger.warning(
+                f"Missing forex rate for {currency_code}, defaulting to 1.0"
+            )
             return 1.0
 
     def get_conversion_rate_against_inr(self, currency_code: str) -> float:
@@ -67,16 +87,20 @@ class BaseFetcher:
             if currency_code == "INR":
                 return 1.0
             elif currency_code == "PLN":
-                return round(float(json.loads(self.redis_forex_key_pln_inr)['rate']), 2)
+                return round(float(json.loads(self.redis_forex_key_pln_inr)["rate"]), 2)
             elif currency_code == "USD":
-                return round(float(json.loads(self.redis_forex_key_usd_inr)['rate']), 2)
+                return round(float(json.loads(self.redis_forex_key_usd_inr)["rate"]), 2)
             else:
                 raise ValueError(f"Unsupported currency type: {currency_code}")
         except (TypeError, ValueError):
-            self.logger.warning(f"Missing forex rate for {currency_code}, defaulting to 1.0")
+            self.logger.warning(
+                f"Missing forex rate for {currency_code}, defaulting to 1.0"
+            )
             return 1.0
 
-    def set_cache(self, prefix: str, data: Dict[str, dict], expiry: Optional[int] = None):
+    def set_cache(
+        self, prefix: str, data: Dict[str, dict], expiry: Optional[int] = None
+    ):
         """
         Cache cryptocurrency or asset data individually by symbol.
 
@@ -88,17 +112,19 @@ class BaseFetcher:
         try:
             for symbol, value in data.items():
                 cache_key = _build_cache_key(prefix, symbol)
-                payload = {
-                    **value,
-                    "cached_at": datetime.now(timezone.utc).isoformat()
-                }
-                self.redis_client.setex(cache_key, expiry or self.cache_expiry, json.dumps(payload))
+                payload = {**value, "cached_at": datetime.now(timezone.utc).isoformat()}
+                self.redis_client.setex(
+                    cache_key, expiry or self.cache_expiry, json.dumps(payload)
+                )
                 self.logger.info(
-                    f"✅ Cached data for {symbol} under key [{cache_key}] (expiry: {expiry or self.cache_expiry}s)")
+                    f"✅ Cached data for {symbol} under key [{cache_key}] (expiry: {expiry or self.cache_expiry}s)"
+                )
         except Exception as e:
             self.logger.warning(f"⚠️ Cache write failed for prefix={prefix}: {e}")
 
-    def get_from_cache(self, prefix: str, symbols: List[str]) -> Dict[str, Optional[dict]]:
+    def get_from_cache(
+        self, prefix: str, symbols: List[str]
+    ) -> Dict[str, Optional[dict]]:
         """
         Retrieve cached data for multiple symbols.
 
@@ -143,9 +169,17 @@ class BaseFetcher:
                 if ttl == -2:
                     info[symbol] = {"status": "not_cached", "cache_key": cache_key}
                 elif ttl == -1:
-                    info[symbol] = {"status": "cached", "ttl": "no_expiry", "cache_key": cache_key}
+                    info[symbol] = {
+                        "status": "cached",
+                        "ttl": "no_expiry",
+                        "cache_key": cache_key,
+                    }
                 else:
-                    info[symbol] = {"status": "cached", "ttl_seconds": ttl, "cache_key": cache_key}
+                    info[symbol] = {
+                        "status": "cached",
+                        "ttl_seconds": ttl,
+                        "cache_key": cache_key,
+                    }
             except Exception as e:
                 self.logger.error(f"Failed to get cache info for {symbol}: {e}")
                 info[symbol] = {"status": "error", "cache_key": None, "error": str(e)}
@@ -170,7 +204,9 @@ class BaseFetcher:
                 keys = self.redis_client.keys(pattern)
                 if keys:
                     self.redis_client.delete(*keys)
-                    self.logger.info(f"🧹 Cleared all {len(keys)} cache keys for prefix {prefix}")
+                    self.logger.info(
+                        f"🧹 Cleared all {len(keys)} cache keys for prefix {prefix}"
+                    )
                 else:
                     self.logger.info(f"No cache keys found for prefix {prefix}")
         except Exception as e:

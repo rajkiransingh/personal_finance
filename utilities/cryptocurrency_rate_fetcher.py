@@ -15,12 +15,35 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
     """Utility class to fetch cryptocurrency rates"""
 
     def __init__(self):
-        self.cache_key_prefix = "cryptocurrency"
-        super().__init__("Crypto_currency_price_fetcher", self.cache_key_prefix, cache_expiry_seconds=86400)
+        """Initialize cryptocurrency rate fetcher with cache configuration.
 
-        self.logger.info("Crypto currency price fetcher initialized successfully")
+        Sets up the fetcher with a 24-hour cache expiry and initializes
+        the base fetcher with cryptocurrency-specific configuration.
+        """
+        self.cache_key_prefix = "cryptocurrency"
+        super().__init__(
+            "utilities.crypto_fetcher",
+            self.cache_key_prefix,
+            cache_expiry_seconds=86400,
+        )
+
+        self.logger.debug("Cryptocurrency fetcher initialized")
 
     def fetch_coin_data(self, symbols: list):
+        """Fetch coin data from CoinMarketCap API with caching support.
+
+        Attempts to retrieve data from cache first. For cache misses, fetches
+        from CoinMarketCap API and caches the results. Handles errors gracefully
+        and returns both successful data and error information.
+
+        Args:
+            symbols: List of cryptocurrency symbols to fetch (e.g., ['BTC', 'ETH'])
+
+        Returns:
+            Dict with two keys:
+                - 'data': Dict mapping symbols to their coin data (or None if failed)
+                - 'errors': Dict mapping symbols to error messages for failed fetches
+        """
         cached_map = self.get_from_cache(self.cache_key_prefix, symbols)
         missing_symbols = [sym for sym, val in cached_map.items() if val is None]
         fetched = {}
@@ -30,26 +53,31 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
             self.logger.info("Cache hit for all symbols — using cached data only")
             return {"data": cached_map, "errors": {}}
 
-        url = os.getenv('COIN_MARKET_URL')
-        api_key = os.getenv('COIN_MARKET_CAP_API_KEY')
-        headers = {'X-CMC_PRO_API_KEY': api_key, 'Accept': 'application/json'}
+        url = os.getenv("COIN_MARKET_URL")
+        api_key = os.getenv("COIN_MARKET_CAP_API_KEY")
+        headers = {"X-CMC_PRO_API_KEY": api_key, "Accept": "application/json"}
 
         try:
             for symbol in missing_symbols:
                 try:
                     self.logger.info(f"Fetching {symbol} from CoinMarketCap API")
-                    resp = requests.get(url, headers=headers, params={'symbol': symbol, 'convert': 'USD'}, timeout=15)
+                    resp = requests.get(
+                        url,
+                        headers=headers,
+                        params={"symbol": symbol, "convert": "USD"},
+                        timeout=15,
+                    )
                     resp.raise_for_status()
                     data = resp.json()
 
-                    if 'data' not in data or symbol not in data['data']:
+                    if "data" not in data or symbol not in data["data"]:
                         msg = "no_data_in_api_response"
                         self.logger.warning(f"API returned no data for {symbol}")
                         errors[symbol] = msg
                         fetched[symbol] = None
                         continue
 
-                    fetched[symbol] = data['data'][symbol]
+                    fetched[symbol] = data["data"][symbol]
 
                 except requests.exceptions.Timeout:
                     self.logger.error(f"Timeout when fetching {symbol}")
@@ -72,13 +100,17 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
             to_cache = {s: v for s, v in fetched.items() if v is not None}
             if to_cache:
                 try:
-                    self.logger.info(f"Caching {len(to_cache)} new items: {list(to_cache.keys())}")
+                    self.logger.info(
+                        f"Caching {len(to_cache)} new items: {list(to_cache.keys())}"
+                    )
                     self.set_cache(self.cache_key_prefix, to_cache)
                 except Exception as e:
                     self.logger.warning(f"Failed to write fetched items to cache: {e}")
 
         except Exception as e:
-            self.logger.error(f"Unexpected outer error while fetching missing symbols: {e}")
+            self.logger.error(
+                f"Unexpected outer error while fetching missing symbols: {e}"
+            )
             for sym in missing_symbols:
                 errors.setdefault(sym, f"unexpected_error: {str(e)}")
                 fetched.setdefault(sym, None)
@@ -90,7 +122,9 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
 
         return {"data": final_map, "errors": errors}
 
-    def fetch_cryptocurrency_data_in_usd(self, coin_symbol_list: list, use_cache: bool = True):
+    def fetch_cryptocurrency_data_in_usd(
+        self, coin_symbol_list: list, use_cache: bool = True
+    ):
         """
         Fetch cryptocurrency data using CoinMarketCap API with Redis caching
 
@@ -102,7 +136,9 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
         response = self.fetch_coin_data(coin_symbol_list)
 
         if "error" in response and response["error"]:
-            self.logger.error(f"Failed to fetch cryptocurrency data: {response['error']}")
+            self.logger.error(
+                f"Failed to fetch cryptocurrency data: {response['error']}"
+            )
             return {"error": response["error"]}
 
         all_crypto_data = response
@@ -127,7 +163,9 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
-            self.logger.info(f"Fetched {symbol}: {currency_symbol}{crypto_data[symbol]['price']}")
+            self.logger.info(
+                f"Fetched {symbol}: {currency_symbol}{crypto_data[symbol]['price']}"
+            )
 
         self.logger.info(f"Successfully fetched {len(crypto_data)} cryptocurrencies")
         return {"data": crypto_data}
@@ -151,38 +189,59 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
             self.logger.info(f"Received updates for cryptocurrency data: {crypto_data}")
 
             # Get all crypto investments that need updating
-            crypto_investments = db.query(CryptoInvestment).filter(
-                CryptoInvestment.coin_symbol.in_(list(crypto_data['data'].keys()))
-            ).all()
+            crypto_investments = (
+                db.query(CryptoInvestment)
+                .filter(
+                    CryptoInvestment.coin_symbol.in_(list(crypto_data["data"].keys()))
+                )
+                .all()
+            )
 
             for investment in crypto_investments:
                 currency_symbol = self.currency.get(3)
                 try:
                     symbol = investment.coin_symbol.upper()
                     self.logger.info(f"Updating cryptocurrency data for {symbol}")
-                    if symbol in crypto_data['data']:
-                        current_price = crypto_data['data'][symbol]['price']
-                        self.logger.info(f"Current price for {symbol}: {currency_symbol}{current_price}")
+                    if symbol in crypto_data["data"]:
+                        current_price = crypto_data["data"][symbol]["price"]
+                        self.logger.info(
+                            f"Current price for {symbol}: {currency_symbol}{current_price}"
+                        )
 
-                        invested_currency = self.currency_map.get(investment.currency_id, "INR")
-                        conversion_rate = self.get_conversion_rate_from_usd(invested_currency)
+                        invested_currency = self.currency_map.get(
+                            investment.currency_id, "INR"
+                        )
+                        conversion_rate = self.get_conversion_rate_from_usd(
+                            invested_currency
+                        )
 
-                        current_value = (current_price * investment.coin_quantity) * conversion_rate
+                        current_value = (
+                            current_price * investment.coin_quantity
+                        ) * conversion_rate
                         initial_investment = investment.total_invested_amount
-                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
-                        
+                        roi_value = FinancialCalculator.calculate_roi(
+                            current_value, initial_investment
+                        )
+
                         # updating the crypto investment table with current values and roi
-                        investment.current_price_per_coin = current_price * conversion_rate
+                        investment.current_price_per_coin = (
+                            current_price * conversion_rate
+                        )
                         investment.current_total_value = current_value
                         investment.return_on_investment = roi_value
 
                         # Calculate XIRR using shared utility
                         investment.xirr = FinancialCalculator.calculate_xirr(
-                            current_value, initial_investment, investment.investment_date, today.date()
+                            current_value,
+                            initial_investment,
+                            investment.investment_date,
+                            today.date(),
                         )
 
                         updated_count += 1
-                        self.logger.info(f"Updated {symbol} investment: {currency_symbol}{current_price}")
+                        self.logger.info(
+                            f"Updated {symbol} investment: {currency_symbol}{current_price}"
+                        )
 
                 except Exception as e:
                     error_msg = f"Error updating investment {investment.id}: {e}"
@@ -193,24 +252,15 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
             db.commit()
             self.logger.info(f"Updated {updated_count} crypto investments")
 
-            return {
-                "success": True,
-                "updated_count": updated_count,
-                "errors": errors
-            }
+            return {"success": True, "updated_count": updated_count, "errors": errors}
 
         except Exception as e:
             db.rollback()
             error_msg = f"Failed to update crypto investments: {e}"
             self.logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg,
-                "updated_count": 0
-            }
+            return {"success": False, "error": error_msg, "updated_count": 0}
 
     def update_crypto_summary(self, db: Session, crypto_data: Dict) -> Dict:
-
         """
         Update CryptoSummary table with current prices
 
@@ -234,17 +284,29 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
             for summary in crypto_summaries:
                 try:
                     symbol = summary.coin_symbol.upper()
-                    self.logger.info(f"Updating cryptocurrency summary data for {symbol}")
-                    conversion_rate = round(float(json.loads(self.redis_forex_key_usd_inr)['rate']), 2)
+                    self.logger.info(
+                        f"Updating cryptocurrency summary data for {symbol}"
+                    )
+                    conversion_rate = round(
+                        float(json.loads(self.redis_forex_key_usd_inr)["rate"]), 2
+                    )
 
-                    if symbol in crypto_data['data']:
-                        current_price_inr = crypto_data['data'][symbol]['price'] * conversion_rate
-                        self.logger.info(f"Current price for {symbol} in INR: {currency_symbol}{current_price_inr}")
+                    if symbol in crypto_data["data"]:
+                        current_price_inr = (
+                            crypto_data["data"][symbol]["price"] * conversion_rate
+                        )
+                        self.logger.info(
+                            f"Current price for {symbol} in INR: {currency_symbol}{current_price_inr}"
+                        )
 
-                        current_value = round((current_price_inr * summary.total_quantity), 2)
+                        current_value = round(
+                            (current_price_inr * summary.total_quantity), 2
+                        )
 
                         initial_investment = summary.total_cost
-                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
+                        roi_value = FinancialCalculator.calculate_roi(
+                            current_value, initial_investment
+                        )
 
                         # Weighted average XIRR calculation from CryptoInvestment
                         relevant_investments = [
@@ -253,11 +315,13 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
 
                         if relevant_investments:
                             total_weighted_xirr = sum(
-                                (investment.total_invested_amount / initial_investment) * investment.xirr
+                                (investment.total_invested_amount / initial_investment)
+                                * investment.xirr
                                 for investment in relevant_investments
                             )
                             self.logger.info(
-                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%")
+                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%"
+                            )
                         else:
                             total_weighted_xirr = 0.0
 
@@ -270,7 +334,8 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
 
                         updated_count += 1
                         self.logger.info(
-                            f"Updated {symbol} investment summary with price: {currency_symbol}{current_price_inr}")
+                            f"Updated {symbol} investment summary with price: {currency_symbol}{current_price_inr}"
+                        )
 
                 except Exception as e:
                     error_msg = f"Error updating investment summary {summary.id}: {e}"
@@ -281,21 +346,13 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
             db.commit()
             self.logger.info(f"Updated {updated_count} crypto investment summary")
 
-            return {
-                "success": True,
-                "updated_count": updated_count,
-                "errors": errors
-            }
+            return {"success": True, "updated_count": updated_count, "errors": errors}
 
         except Exception as e:
             db.rollback()
             error_msg = f"Failed to update crypto investment summary: {e}"
             self.logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg,
-                "updated_count": 0
-            }
+            return {"success": False, "error": error_msg, "updated_count": 0}
 
 
 # Global configuration instance

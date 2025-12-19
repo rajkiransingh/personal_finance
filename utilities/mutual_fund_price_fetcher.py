@@ -6,21 +6,33 @@ from typing import Dict
 import requests
 from sqlalchemy.orm import Session
 
+from backend.models.investments.mutual_fund import (
+    MutualFundInvestment,
+    MutualFundSummary,
+)
 from utilities.common.base_fetcher import BaseFetcher
 from utilities.common.financial_utils import FinancialCalculator
-from backend.models.investments.mutual_fund import MutualFundInvestment, MutualFundSummary
 
 
 class MutualFundPriceFetcher(BaseFetcher):
     """Utility class to fetch mutual fund prices"""
 
     def __init__(self):
+        """Initialize mutual fund price fetcher with cache configuration.
+
+        Sets up the fetcher with a 24-hour cache expiry for mutual fund NAVs
+        and initializes the base fetcher with mutual fund-specific configuration.
+        """
         # Load config data from environment
         self.cache_expiry_in_seconds = 86400
-        self.cache_key_prefix = "mutual-fund"
+        self.cache_key_prefix = "mutual_fund"
 
-        super().__init__("Mutual_Fund_price_fetcher", self.cache_key_prefix, self.cache_expiry_in_seconds)
-        self.logger.info("Mutual Fund price fetcher initialized successfully")
+        super().__init__(
+            "utilities.mutual_fund_fetcher",
+            self.cache_key_prefix,
+            self.cache_expiry_in_seconds,
+        )
+        self.logger.debug("Mutual fund fetcher initialized")
 
     def get_mutual_fund_rates_bulk(self, scheme_code_list: list):
         """Fetch Mutual Fund NAVs for multiple scheme codes with caching"""
@@ -29,27 +41,37 @@ class MutualFundPriceFetcher(BaseFetcher):
         missing_schemes = [scheme for scheme, val in cached_map.items() if val is None]
 
         if missing_schemes:
-            self.logger.info(f"Cache miss for {len(missing_schemes)} mutual fund(s): {missing_schemes}")
+            self.logger.info(
+                f"Cache miss for {len(missing_schemes)} mutual fund(s): {missing_schemes}"
+            )
             for scheme_code in missing_schemes:
                 try:
-                    self.logger.info(f"Fetching data from Rapid API for scheme: {scheme_code}")
+                    self.logger.info(
+                        f"Fetching data from Rapid API for scheme: {scheme_code}"
+                    )
                     endpoint = f"{self.mf_base_url}{scheme_code}"
                     headers = {
-                        'x-rapidapi-host': self.rapid_api_mf_host,
-                        'x-rapidapi-key': self.rapid_api_key
+                        "x-rapidapi-host": self.rapid_api_mf_host,
+                        "x-rapidapi-key": self.rapid_api_key,
                     }
 
                     response = requests.get(endpoint, headers=headers, timeout=30)
                     response.raise_for_status()
                     data = response.json()
-                    mf_data = data['data']
+                    mf_data = data["data"]
 
                     # Store in cache
                     try:
-                        self.set_cache(f"{self.cache_key_prefix}", {scheme_code: mf_data})
-                        self.logger.info(f"Cached NAV for {mf_data['Fund_Name']} successfully")
+                        self.set_cache(
+                            f"{self.cache_key_prefix}", {scheme_code: mf_data}
+                        )
+                        self.logger.info(
+                            f"Cached NAV for {mf_data['Fund_Name']} successfully"
+                        )
                     except Exception as e:
-                        self.logger.warning(f"Failed to cache NAV for {scheme_code}: {e}")
+                        self.logger.warning(
+                            f"Failed to cache NAV for {scheme_code}: {e}"
+                        )
 
                     results[scheme_code] = mf_data
 
@@ -71,6 +93,21 @@ class MutualFundPriceFetcher(BaseFetcher):
         return results
 
     def update_bullion_investments(self, db: Session, mf_data: Dict) -> Dict:
+        """Update mutual fund investment records with current NAVs.
+
+        Updates all mutual fund investments in the database with current NAV prices,
+        recalculating current values, ROI, and XIRR for each investment.
+
+        Args:
+            db: Database session
+            mf_data: Dictionary mapping scheme codes to mutual fund data including NAV
+
+        Returns:
+            Dictionary with keys:
+                - 'success': Boolean indicating overall success
+                - 'updated_count': Number of investments successfully updated
+                - 'errors': List of error messages (if success=True) or single error (if success=False)
+        """
 
         today = datetime.now(UTC)
         updated_count = 0
@@ -80,26 +117,35 @@ class MutualFundPriceFetcher(BaseFetcher):
                 # Get all bullion investments that need updating
                 mutual_fund_investments = (
                     db.query(MutualFundInvestment)
-                    .filter(MutualFundInvestment.scheme_code == scheme_code,
-                            MutualFundInvestment.transaction_type == 'BUY')
+                    .filter(
+                        MutualFundInvestment.scheme_code == scheme_code,
+                        MutualFundInvestment.transaction_type == "BUY",
+                    )
                     .all()
                 )
-                nav = Decimal(data['NAV'])
+                nav = Decimal(data["NAV"])
                 currency_symbol = "₹"
                 for investment in mutual_fund_investments:
                     try:
                         self.logger.info(
-                            f"Updating Mutual Fund investment data for {mf_data[scheme_code]['Fund_Name']}")
+                            f"Updating Mutual Fund investment data for {mf_data[scheme_code]['Fund_Name']}"
+                        )
                         self.logger.info(
-                            f"Current price for scheme code: {scheme_code} in INR is: {currency_symbol}{nav}")
+                            f"Current price for scheme code: {scheme_code} in INR is: {currency_symbol}{nav}"
+                        )
 
                         current_value = float(nav * investment.unit_quantity)
                         initial_investment = investment.total_invested_amount
-                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
-                        
+                        roi_value = FinancialCalculator.calculate_roi(
+                            current_value, initial_investment
+                        )
+
                         # Calculate XIRR using shared utility
                         investment.xirr = FinancialCalculator.calculate_xirr(
-                            current_value, initial_investment, investment.investment_date, today.date()
+                            current_value,
+                            initial_investment,
+                            investment.investment_date,
+                            today.date(),
                         )
 
                         # Updating the investment table
@@ -109,55 +155,76 @@ class MutualFundPriceFetcher(BaseFetcher):
 
                         updated_count += 1
                         self.logger.debug(
-                            f"Updated {mf_data[scheme_code]['Fund_Name']}  with nav: {currency_symbol}{nav}")
+                            f"Updated {mf_data[scheme_code]['Fund_Name']}  with nav: {currency_symbol}{nav}"
+                        )
 
                     except Exception as e:
-                        self.logger.error(f"Failed to update {mf_data[scheme_code]['Fund_Name']} investment: {e}")
+                        self.logger.error(
+                            f"Failed to update {mf_data[scheme_code]['Fund_Name']} investment: {e}"
+                        )
 
             # Commit all changes
             db.commit()
             self.logger.info(f"Updated {updated_count} mutual fund investments")
 
-            return {
-                "success": True,
-                "updated_count": updated_count,
-                "errors": errors
-            }
+            return {"success": True, "updated_count": updated_count, "errors": errors}
 
         except Exception as e:
             db.rollback()
             error_msg = f"Failed to update mutual fund investments: {e}"
             self.logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg,
-                "updated_count": 0
-            }
+            return {"success": False, "error": error_msg, "updated_count": 0}
 
     def update_bullion_summary(self, db: Session, mf_data: Dict) -> Dict:
+        """Update mutual fund summary records with current NAVs.
+
+        Updates all mutual fund summary records in the database with current NAV prices,
+        recalculating aggregated values, ROI, and weighted average XIRR.
+
+        Args:
+            db: Database session
+            mf_data: Dictionary mapping scheme codes to mutual fund data including NAV
+
+        Returns:
+            Dictionary with keys:
+                - 'success': Boolean indicating overall success
+                - 'updated_count': Number of summaries successfully updated
+                - 'errors': List of error messages (if success=True) or single error (if success=False)
+        """
         updated_count = 0
         errors = []
 
         try:
             for scheme_code, data in mf_data.items():
-
                 # Get all mutual fund investments that need updating
-                mf_summaries = db.query(MutualFundSummary).filter(MutualFundSummary.scheme_code == scheme_code).all()
-                investments = db.query(MutualFundInvestment).filter(
-                    MutualFundInvestment.scheme_code == scheme_code).all()
+                mf_summaries = (
+                    db.query(MutualFundSummary)
+                    .filter(MutualFundSummary.scheme_code == scheme_code)
+                    .all()
+                )
+                investments = (
+                    db.query(MutualFundInvestment)
+                    .filter(MutualFundInvestment.scheme_code == scheme_code)
+                    .all()
+                )
 
-                nav = float(data['NAV'])
+                nav = float(data["NAV"])
                 currency_symbol = "₹"
                 for summary in mf_summaries:
                     try:
-                        self.logger.info(f"Updating Mutual Fund Summary data for {mf_data[scheme_code]['Fund_Name']}")
                         self.logger.info(
-                            f"Current price for scheme code: {scheme_code} in INR is: {currency_symbol}{nav}")
+                            f"Updating Mutual Fund Summary data for {mf_data[scheme_code]['Fund_Name']}"
+                        )
+                        self.logger.info(
+                            f"Current price for scheme code: {scheme_code} in INR is: {currency_symbol}{nav}"
+                        )
 
                         current_value = round((nav * summary.total_quantity), 2)
 
                         initial_investment = summary.total_cost
-                        roi_value = FinancialCalculator.calculate_roi(current_value, initial_investment)
+                        roi_value = FinancialCalculator.calculate_roi(
+                            current_value, initial_investment
+                        )
 
                         # Weighted average XIRR calculation from Bullion Investment
                         relevant_investments = [
@@ -166,11 +233,13 @@ class MutualFundPriceFetcher(BaseFetcher):
 
                         if relevant_investments:
                             total_weighted_xirr = sum(
-                                (investment.total_invested_amount / initial_investment) * investment.xirr
+                                (investment.total_invested_amount / initial_investment)
+                                * investment.xirr
                                 for investment in relevant_investments
                             )
                             self.logger.info(
-                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%")
+                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%"
+                            )
                         else:
                             total_weighted_xirr = 0.0
 
@@ -183,10 +252,13 @@ class MutualFundPriceFetcher(BaseFetcher):
 
                         updated_count += 1
                         self.logger.info(
-                            f"Updated {mf_data[scheme_code]['Fund_Name']} investment summary with price: {currency_symbol}{nav}")
+                            f"Updated {mf_data[scheme_code]['Fund_Name']} investment summary with price: {currency_symbol}{nav}"
+                        )
 
                     except Exception as e:
-                        error_msg = f"Error updating investment summary {summary.id}: {e}"
+                        error_msg = (
+                            f"Error updating investment summary {summary.id}: {e}"
+                        )
                         self.logger.error(error_msg)
                         errors.append(error_msg)
 
@@ -194,21 +266,13 @@ class MutualFundPriceFetcher(BaseFetcher):
             db.commit()
             self.logger.info(f"Updated {updated_count} mutual fund investment summary")
 
-            return {
-                "success": True,
-                "updated_count": updated_count,
-                "errors": errors
-            }
+            return {"success": True, "updated_count": updated_count, "errors": errors}
 
         except Exception as e:
             db.rollback()
             error_msg = f"Failed to update mutual fund investment summary: {e}"
             self.logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg,
-                "updated_count": 0
-            }
+            return {"success": False, "error": error_msg, "updated_count": 0}
 
 
 # Global configuration instance
