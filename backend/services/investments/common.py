@@ -26,56 +26,116 @@ def get_all_investments(investment_type: str, db: Session):
 
 def get_investment_by_user(investment_type: str, db: Session, user_id: int):
     if investment_type == "stock":
-        return db.query(StockInvestment).filter(StockInvestment.investor == user_id).all()
+        return (
+            db.query(StockInvestment).filter(StockInvestment.investor == user_id).all()
+        )
     elif investment_type == "mutual fund":
-        return db.query(MutualFundInvestment).filter(MutualFundInvestment.investor == user_id).all()
+        return (
+            db.query(MutualFundInvestment)
+            .filter(MutualFundInvestment.investor == user_id)
+            .all()
+        )
     elif investment_type == "bullion":
-        return db.query(BullionInvestment).filter(BullionInvestment.investor == user_id).all()
+        return (
+            db.query(BullionInvestment)
+            .filter(BullionInvestment.investor == user_id)
+            .all()
+        )
     elif investment_type == "real estate":
-        return db.query(RealEstateInvestment).filter(RealEstateInvestment.investor == user_id).all()
+        return (
+            db.query(RealEstateInvestment)
+            .filter(RealEstateInvestment.investor == user_id)
+            .all()
+        )
     elif investment_type == "crypto":
-        return db.query(CryptoInvestment).filter(CryptoInvestment.investor == user_id).all()
+        return (
+            db.query(CryptoInvestment)
+            .filter(CryptoInvestment.investor == user_id)
+            .all()
+        )
     else:
         raise HTTPException(status_code=400, detail="Invalid investment type")
 
 
 def get_investment_by_id(investment_type: str, db: Session, investment_id: int):
     if investment_type == "stock":
-        return db.query(StockInvestment).filter(StockInvestment.id == investment_id).first()
+        return (
+            db.query(StockInvestment)
+            .filter(StockInvestment.id == investment_id)
+            .first()
+        )
     elif investment_type == "mutual fund":
-        return db.query(MutualFundInvestment).filter(MutualFundInvestment.id == investment_id).first()
+        return (
+            db.query(MutualFundInvestment)
+            .filter(MutualFundInvestment.id == investment_id)
+            .first()
+        )
     elif investment_type == "bullion":
-        return db.query(BullionInvestment).filter(BullionInvestment.id == investment_id).first()
+        return (
+            db.query(BullionInvestment)
+            .filter(BullionInvestment.id == investment_id)
+            .first()
+        )
     elif investment_type == "real estate":
-        return db.query(RealEstateInvestment).filter(RealEstateInvestment.id == investment_id).first()
+        return (
+            db.query(RealEstateInvestment)
+            .filter(RealEstateInvestment.id == investment_id)
+            .first()
+        )
     elif investment_type == "crypto":
-        return db.query(CryptoInvestment).filter(CryptoInvestment.id == investment_id).first()
+        return (
+            db.query(CryptoInvestment)
+            .filter(CryptoInvestment.id == investment_id)
+            .first()
+        )
     else:
         raise HTTPException(status_code=400, detail="Invalid investment type")
 
 
-def update_investment(investment_type: str, investment_id: int, update_data: InvestmentUpdate, db: Session):
+def update_investment(
+    investment_type: str, investment_id: int, update_data: InvestmentUpdate, db: Session
+):
     """
     Updates only the provided fields for the investment transaction while keeping other values unchanged.
     """
     if investment_type == "stock":
-        investment = db.query(StockInvestment).filter(StockInvestment.id == investment_id).first()
+        investment = (
+            db.query(StockInvestment)
+            .filter(StockInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "mutual fund":
-        investment = db.query(MutualFundInvestment).filter(MutualFundInvestment.id == investment_id).first()
+        investment = (
+            db.query(MutualFundInvestment)
+            .filter(MutualFundInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "bullion":
-        investment = db.query(BullionInvestment).filter(BullionInvestment.id == investment_id).first()
+        investment = (
+            db.query(BullionInvestment)
+            .filter(BullionInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "real estate":
-        investment = db.query(RealEstateInvestment).filter(RealEstateInvestment.id == investment_id).first()
+        investment = (
+            db.query(RealEstateInvestment)
+            .filter(RealEstateInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "crypto":
-        investment = db.query(CryptoInvestment).filter(CryptoInvestment.id == investment_id).first()
+        investment = (
+            db.query(CryptoInvestment)
+            .filter(CryptoInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     else:
@@ -93,27 +153,69 @@ def update_investment(investment_type: str, investment_id: int, update_data: Inv
 
 def delete_investment(investment_type: str, investment_id: int, db: Session):
     if investment_type == "stock":
-        investment = db.query(StockInvestment).filter(StockInvestment.id == investment_id).first()
+        investment = (
+            db.query(StockInvestment)
+            .filter(StockInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "mutual fund":
-        investment = db.query(MutualFundInvestment).filter(MutualFundInvestment.id == investment_id).first()
+        investment = (
+            db.query(MutualFundInvestment)
+            .filter(MutualFundInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "bullion":
-        investment = db.query(BullionInvestment).filter(BullionInvestment.id == investment_id).first()
+        investment = (
+            db.query(BullionInvestment)
+            .filter(BullionInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "real estate":
-        investment = db.query(RealEstateInvestment).filter(RealEstateInvestment.id == investment_id).first()
+        investment = (
+            db.query(RealEstateInvestment)
+            .filter(RealEstateInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "crypto":
-        investment = db.query(CryptoInvestment).filter(CryptoInvestment.id == investment_id).first()
+        investment = (
+            db.query(CryptoInvestment)
+            .filter(CryptoInvestment.id == investment_id)
+            .first()
+        )
         if not investment:
             raise HTTPException(status_code=404, detail="Investment not found")
     else:
         raise HTTPException(status_code=400, detail="Invalid investment type")
+
+    # Revert summary before deletion
+    if investment_type == "stock":
+        from backend.summarizing import revert_stock_summary
+
+        revert_stock_summary.revert(db, investment)
+    elif investment_type == "mutual fund":
+        from backend.summarizing import revert_mutual_fund_summary
+
+        revert_mutual_fund_summary.revert(db, investment)
+    elif investment_type == "bullion":
+        from backend.summarizing import revert_bullion_summary
+
+        revert_bullion_summary.revert(db, investment)
+    elif investment_type == "real estate":
+        from backend.summarizing import revert_real_estate_summary
+
+        revert_real_estate_summary.revert(db, investment)
+    elif investment_type == "crypto":
+        from backend.summarizing import revert_crypto_summary
+
+        revert_crypto_summary.revert(db, investment)
 
     db.delete(investment)
     db.commit()
