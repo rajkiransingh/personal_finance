@@ -337,6 +337,26 @@ class StockPriceFetcher(BaseFetcher):
         try:
             for symbol, data in stock_data["data"].items():
                 # Get all bullion investments that need updating
+                if data is None:
+                    self.logger.warning(
+                        f"Skipping update for stock {symbol} as data is None"
+                    )
+                    continue
+
+                # Ensure we have price data
+                raw_price = (
+                    data.get("currentPrice")
+                    if data.get("currentPrice") != "N/A"
+                    else data.get("previousClose")
+                )
+                if raw_price == "N/A" or raw_price is None:
+                    self.logger.warning(
+                        f"Skipping update for stock {symbol} as price is N/A"
+                    )
+                    continue
+
+                price = Decimal(raw_price)
+
                 stock_investments = (
                     db.query(StockInvestment)
                     .filter(
@@ -345,17 +365,14 @@ class StockPriceFetcher(BaseFetcher):
                     )
                     .all()
                 )
-                price = Decimal(
-                    data["previousClose"]
-                    if data.get("currentPrice") == "N/A"
-                    else data["currentPrice"]
-                )
+
                 dividend_amount = dividend_data.get(symbol, 0)
                 currency_symbol = "₹"
                 for investment in stock_investments:
                     try:
+                        stock_name = data.get("shortName", symbol)
                         self.logger.info(
-                            f"Updating Stock investment data for {data['shortName']}"
+                            f"Updating Stock investment data for {stock_name}"
                         )
                         self.logger.info(
                             f"Current price for stock: {symbol} in INR is: {currency_symbol}{price}"
@@ -387,12 +404,13 @@ class StockPriceFetcher(BaseFetcher):
 
                         updated_count += 1
                         self.logger.debug(
-                            f"Updated {data['shortName']} with price: {currency_symbol}{price}"
+                            f"Updated {stock_name} with price: {currency_symbol}{price}"
                         )
 
                     except Exception as e:
+                        stock_name = data.get("shortName", symbol)
                         self.logger.error(
-                            f"Failed to update {data['shortName']} investment: {e}"
+                            f"Failed to update {stock_name} investment: {e}"
                         )
 
             # Commit all changes
@@ -434,6 +452,26 @@ class StockPriceFetcher(BaseFetcher):
         try:
             for symbol, data in stock_data["data"].items():
                 # Get all stock investments that need updating
+                if data is None:
+                    self.logger.warning(
+                        f"Skipping summary update for stock {symbol} as data is None"
+                    )
+                    continue
+
+                # Ensure we have price data
+                raw_price = (
+                    data.get("currentPrice")
+                    if data.get("currentPrice") != "N/A"
+                    else data.get("previousClose")
+                )
+                if raw_price == "N/A" or raw_price is None:
+                    self.logger.warning(
+                        f"Skipping summary update for stock {symbol} as price is N/A"
+                    )
+                    continue
+
+                price = float(raw_price)
+
                 mf_summaries = (
                     db.query(StockSummary)
                     .filter(StockSummary.stock_symbol == symbol)
@@ -445,17 +483,13 @@ class StockPriceFetcher(BaseFetcher):
                     .all()
                 )
 
-                price = float(
-                    data["previousClose"]
-                    if data.get("currentPrice") == "N/A"
-                    else data["currentPrice"]
-                )
                 dividend_amount = dividend_data.get(symbol, 0)
                 currency_symbol = "₹"
                 for summary in mf_summaries:
                     try:
+                        stock_name = data.get("shortName", symbol)
                         self.logger.info(
-                            f"Updating Stock Summary data for {data['shortName']}"
+                            f"Updating Stock Summary data for {stock_name}"
                         )
                         self.logger.info(
                             f"Current price for stock: {symbol} in INR is: {currency_symbol}{price}"
@@ -499,7 +533,7 @@ class StockPriceFetcher(BaseFetcher):
 
                         updated_count += 1
                         self.logger.info(
-                            f"Updated {data['shortName']} investment summary with price: {currency_symbol}{price}"
+                            f"Updated {stock_name} investment summary with price: {currency_symbol}{price}"
                         )
 
                     except Exception as e:

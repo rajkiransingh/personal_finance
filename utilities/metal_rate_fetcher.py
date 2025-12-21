@@ -61,7 +61,7 @@ class MetalRateFetcher(BaseFetcher):
         return self.get_current_metal_rates("silver", city, purity)
 
     def get_current_metal_rates(
-            self, metal: str, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY
+        self, metal: str, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY
     ):
         """Fetch current metal rates with caching.
 
@@ -155,7 +155,7 @@ class MetalRateFetcher(BaseFetcher):
             return None
 
     def extract_rate_from_response(
-            self, data: dict, metal: str, city: str, purity: str = DEFAULT_PURITY
+        self, data: dict, metal: str, city: str, purity: str = DEFAULT_PURITY
     ):
         """Extract rate from API response data.
 
@@ -223,6 +223,10 @@ class MetalRateFetcher(BaseFetcher):
                 )
 
                 currency_symbol = "₹"
+                if current_price is None:
+                    self.logger.warning(f"Skipping update for {metal} as price is None")
+                    continue
+
                 for investment in bullion_investments:
                     try:
                         self.logger.info(
@@ -307,6 +311,12 @@ class MetalRateFetcher(BaseFetcher):
                 )
 
                 currency_symbol = "₹"
+                if current_price is None:
+                    self.logger.warning(
+                        f"Skipping summary update for {metal} as price is None"
+                    )
+                    continue
+
                 for summary in bullion_summaries:
                     try:
                         self.logger.info(f"Updating Bullion Summary data for {metal}")
