@@ -6,12 +6,16 @@ Library    DateTime
 
 *** Variables ***
 ${PROJECT_DIR}=    ${CURDIR}
-${DOCKER_COMPOSE_FILE}=    ${PROJECT_DIR}/docker-compose.yml
+${DOCKER_COMPOSE_INFRA}=    ${PROJECT_DIR}/docker-compose.infra.yml
+${DOCKER_COMPOSE_APP}=    ${PROJECT_DIR}/docker-compose.app.yml
 ${DB_CONTAINER}=    database
 ${SCHEDULER_CONTAINER}=    scheduler
+${FRONTEND_CONTAINER}=    personal_finance_frontend
 ${VOLUME_NAME}=    personal_finance_data_volume
 ${DB_NAME}=    personal_finance_db
 ${IMAGE_NAME}             personal_finance_backend
+${FRONTEND_IMAGE_NAME}    personal_finance_frontend
+${COMPOSE_TIMEOUT}        300
 
 *** Keywords ***
 Check Docker Installation
@@ -24,10 +28,13 @@ Check Docker Installation
     Run Keyword If    ${result.rc} != 0    Fail    Docker Compose is not installed or not in PATH. Please install Docker Desktop.
     Log To Console    Docker Compose version: ${result.stdout}
 
-Check Docker Compose File
-    [Documentation]    Check if docker-compose.yml file exists
-    ${file_exists}=    Run Process    powershell -Command "Test-Path '${DOCKER_COMPOSE_FILE}'"    shell=True
-    Run Keyword If    '${file_exists.stdout.strip()}' == 'False'    Fail    docker-compose.yml file not found at ${DOCKER_COMPOSE_FILE}
+Check Docker Compose Files
+    [Documentation]    Check if docker-compose files exist
+    ${infra_exists}=    Run Process    powershell -Command "Test-Path '${DOCKER_COMPOSE_INFRA}'"    shell=True
+    Run Keyword If    '${infra_exists.stdout.strip()}' == 'False'    Fail    docker-compose.infra.yml file not found at ${DOCKER_COMPOSE_INFRA}
+    
+    ${app_exists}=    Run Process    powershell -Command "Test-Path '${DOCKER_COMPOSE_APP}'"    shell=True
+    Run Keyword If    '${app_exists.stdout.strip()}' == 'False'    Fail    docker-compose.app.yml file not found at ${DOCKER_COMPOSE_APP}
 
 Ensure Docker Volume
     [Documentation]    Ensure Docker volume exists
@@ -50,7 +57,7 @@ Build Docker Image If Needed
 Force Build Docker Image
     [Documentation]    Force rebuild of Docker image
     Log To Console    Force building Docker image...
-    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" build --no-cache    shell=True    cwd=${CURDIR}
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_APP}" build --no-cache    shell=True    cwd=${CURDIR}
     Log To Console    Build stdout: ${result.stdout}
     Log To Console    Build stderr: ${result.stderr}
     Run Keyword If    ${result.rc} != 0    Fail    Docker build failed. Check build logs above.
@@ -80,21 +87,29 @@ Check If Docker Image Exists
     RETURN    ${image_exists}
 
 Check If Source Files Changed
-    [Documentation]    Check if source files changed since last build
-    ${result}=    Run Process    find . -name "*.py" -newer .last_build 2>/dev/null | head -1    shell=True    cwd=${CURDIR}
-    ${files_changed}=    Set Variable If    '${result.stdout}' != ''    True    False
+    [Documentation]    Check if source files changed since last build (backend and frontend)
+    # Check backend Python files
+    ${result_py}=    Run Process    find . -name "*.py" -newer .last_build 2>/dev/null | head -1    shell=True    cwd=${CURDIR}
+    ${py_changed}=    Set Variable If    '${result_py.stdout}' != ''    True    False
+
+    # Check frontend files (TypeScript, JavaScript, JSON)
+    ${result_frontend}=    Run Process    find ./frontend -type f \\( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" \\) -newer .last_build 2>/dev/null | head -1    shell=True    cwd=${CURDIR}
+    ${frontend_changed}=    Set Variable If    '${result_frontend.stdout}' != ''    True    False
 
     # If .last_build doesn't exist, assume files changed
     ${last_build_exists}=    Run Keyword And Return Status    OperatingSystem.File Should Exist    .last_build
-    ${files_changed}=    Set Variable If    not ${last_build_exists}    True    ${files_changed}
+    ${files_changed}=    Set Variable If    not ${last_build_exists}    True    ${py_changed} or ${frontend_changed}
+    ${files_changed}=    Evaluate    ${py_changed} or ${frontend_changed} if ${last_build_exists} else True
 
-    Log To Console    Files changed since last build: ${files_changed}
+    Log To Console    Backend files changed: ${py_changed}
+    Log To Console    Frontend files changed: ${frontend_changed}
+    Log To Console    Overall files changed since last build: ${files_changed}
     RETURN    ${files_changed}
 
 Build Docker Image
     [Documentation]    Build Docker image and update timestamp
     Log To Console    Building Docker image...
-    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" build    shell=True    cwd=${CURDIR}
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_APP}" build    shell=True    cwd=${CURDIR}
     Log To Console    Build stdout: ${result.stdout}
     Log To Console    Build stderr: ${result.stderr}
     Run Keyword If    ${result.rc} != 0    Fail    Docker build failed. Check build logs above.
@@ -103,20 +118,45 @@ Build Docker Image
     Create File    .last_build    ${EMPTY}
     Log To Console    Docker image built successfully!
 
-Start Docker Containers
-    [Documentation]    Start all the necessary Docker containers
-    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_FILE}" up -d    shell=True
-    Log To Console    Docker Compose up result: ${result.stdout}
-    Run Keyword If    ${result.rc} != 0    Fail    Failed to start Docker containers: ${result.stderr}
+Start Infra Containers
+    [Documentation]    Start infrastructure containers (DB, Redis, etc.)
+    Set Environment Variable    COMPOSE_HTTP_TIMEOUT    ${COMPOSE_TIMEOUT}
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_INFRA}" up -d    shell=True
+    Log To Console    Infra Start Result: ${result.stdout}
+    Run Keyword If    ${result.rc} != 0    Fail    Failed to start infra containers: ${result.stderr}
+
+Start App Containers
+    [Documentation]    Start application containers (Backend, Frontend)
+    Set Environment Variable    COMPOSE_HTTP_TIMEOUT    ${COMPOSE_TIMEOUT}
+    ${result}=    Run Process    docker-compose -f "${DOCKER_COMPOSE_APP}" up -d    shell=True
+    Log To Console    App Start Result: ${result.stdout}
+    Run Keyword If    ${result.rc} != 0    Fail    Failed to start app containers: ${result.stderr}
 
 Wait For Database
     [Documentation]    Wait for the database container to be ready
-    FOR    ${i}    IN RANGE    30
-        ${result}=    Run Process    docker exec ${DB_CONTAINER} mysqladmin ping -h localhost -u root -ppassword    shell=True
-        Run Keyword If    ${result.rc} == 0    Exit For Loop
-        Sleep    1s
-    END
-    Run Keyword If    ${result.rc} != 0    Fail    Database container did not become ready in time
+    Log To Console    ${\n}Waiting for database to be ready...
+
+    # Wait for container health
+    Wait Until Keyword Succeeds    60s    2s    Check Container Running
+    
+    # Wait for MySQL to accept connections
+    Wait Until Keyword Succeeds    120s    3s    Check MySQL Ready
+
+    # Extra buffer for stability
+    Log To Console    Database ready, waiting extra 30 seconds for stability...
+    Sleep    30s
+    Log To Console    ✓ Database is fully ready!
+
+Check Container Running
+    ${result}=    Run Process    docker    inspect    -f    {{.State.Running}}   ${DB_CONTAINER}    shell=False
+    Should Be Equal    ${result.stdout.strip()}    true
+
+Check MySQL Ready
+    ${result}=    Run Process
+    ...    docker    exec    ${DB_CONTAINER}
+    ...    mysqladmin    ping    -h    localhost    -u    root    -p$MYSQL_ROOT_PASSWORD    --silent
+    ...    shell=False
+    Should Be Equal As Integers    ${result.rc}    0
 
 Check If Latest Database Backup Exists
     [Documentation]    Check if the database backup is available
@@ -130,15 +170,19 @@ Check If Latest Database Backup Exists
 Restore Backup
     [Arguments]    ${backup_files}
     # Filter out GOLDEN backup and get only timestamped backups
-    ${timestamped_backups}=    Evaluate    [f for f in ${backup_files} if 'GOLDEN' not in f]
+    ${timestamped_backups}=    Evaluate    [f.strip() for f in ${backup_files} if 'GOLDEN' not in f and f.strip()]
     Run Keyword If    ${timestamped_backups} == []    Log To Console    No timestamped backup found. Skipping restore.    ELSE    Restore Latest Timestamped Backup    ${timestamped_backups}
 
 Restore Latest Timestamped Backup
     [Arguments]    ${timestamped_backups}
     ${latest_backup}=    Evaluate    sorted(${timestamped_backups})[-1]
     Log To Console    Found latest backup: ${latest_backup}
-    ${restore_command}=    Set Variable    gunzip -c /backups/${latest_backup} | mysql -u root -ppassword --database=${DB_NAME}
-    ${result}=    Run Process    docker exec ${DB_CONTAINER} sh -c "${restore_command}"    shell=True
+    
+    # Use sh -c with single quotes to protect $MYSQL_ROOT_PASSWORD expansion.
+    # The pipeline is fully contained within the quotes.
+    ${restore_command}=    Set Variable    gunzip -c /backups/${latest_backup} | mysql -u root -p$MYSQL_ROOT_PASSWORD --database=${DB_NAME}
+    ${result}=    Run Process    docker exec ${DB_CONTAINER} sh -c '${restore_command}'    shell=True
+    
     Run Keyword If    ${result.rc} != 0    Fail    Failed to restore database from backup: ${result.stderr}
     Log To Console    Database restored from ${latest_backup}
 
@@ -157,15 +201,54 @@ Check Backup Script
     Run Keyword If    ${result.rc} != 0    Fail    Backup script is not executable
     Log To Console    Backup script is present and executable
 
+Check Frontend
+    [Documentation]    Check if the frontend is running and accessible
+    Log To Console    Checking frontend accessibility...
+    Sleep    5s
+    FOR    ${i}    IN RANGE    30
+        ${percent}=    Set Variable    %
+        ${result}=    Run Process    curl -f http://localhost:3000 -o /dev/null -s -w "${percent}{http_code}"    shell=True
+        ${status_code}=    Set Variable    ${result.stdout}
+        Run Keyword If    '${status_code}' == '200'    Exit For Loop
+        Sleep    2s
+    END
+    Run Keyword If    '${status_code}' != '200'    Log To Console    Warning: Frontend may not be fully ready (status: ${status_code})
+    ...    ELSE    Log To Console    Frontend is accessible at http://localhost:3000
+
+
 *** Tasks ***
 Start Personal Finance Application
     [Documentation]    Start all the necessary components for the Personal Finance Application
+    Log To Console    \n=== Starting Personal Finance Application ===\n
+    Log To Console    [1/8] Checking Docker installation...
     Check Docker Installation
-    Check Docker Compose File
+
+    Log To Console    [2/8] Verifying Docker Compose files...
+    Check Docker Compose Files
+
+    Log To Console    [3/8] Ensuring Docker volume exists...
     Ensure Docker Volume
+
+    Log To Console    [4/8] building Docker images...
     Build Docker Image If Needed
-    Start Docker Containers
+
+    Log To Console    [5/8] Starting Infrastructure...
+    Start Infra Containers
+
+    Log To Console    [6/8] Waiting for database...
     Wait For Database
+
+    Log To Console    [7/8] Restoring database sequencing...
+    Check If Latest Database Backup Exists
+
+    Log To Console    [8/8] Starting Application...
+    Start App Containers
+
+    Log To Console    [FINAL] Verification...
     Check Backup Script
     Check Scheduler
-    Check If Latest Database Backup Exists
+    Check Frontend
+
+    Log To Console    \n=== Application Started Successfully! ===
+    Log To Console    Backend: http://localhost:8000
+    Log To Console    Frontend: http://localhost:3000\n

@@ -1,24 +1,4 @@
 services:
-  backend:
-    build: .
-    container_name: mera_paisa
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      redis-cli:
-        condition: service_started
-    environment:
-      - DATABASE_URL=mysql+pymysql://user:password@db:3306/personal_finance_db
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-
   db:
     image: mysql:8.0.32
     container_name: database
@@ -37,17 +17,7 @@ services:
       - ./backup_config/backup.sh:/backup.sh
       - ./backup_config/cleanup-entrypoint.sh:/cleanup-entrypoint.sh
     healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
-          "-p$MYSQL_ROOT_PASSWORD",
-        ]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,6 +27,8 @@ services:
         limits:
           cpus: "1.0"
           memory: 1G
+    networks:
+      - personal_finance_network
 
   redis:
     image: redis:latest
@@ -67,6 +39,8 @@ services:
     volumes:
       - redis_data:/data
     command: [ "redis-server", "--appendonly", "yes", "--save", "60", "1" ]
+    networks:
+      - personal_finance_network
 
   redis-cli:
     image: redis:latest
@@ -77,6 +51,8 @@ services:
     entrypoint: [ "redis-cli", "-h", "redis" ]
     stdin_open: true
     tty: true
+    networks:
+      - personal_finance_network
 
   scheduler:
     image: mcuadros/ofelia:latest
@@ -92,6 +68,8 @@ services:
     restart: unless-stopped
     environment:
       - OFELIA_CONFIG=/etc/ofelia/config.ini
+    networks:
+      - personal_finance_network
 
 volumes:
   mysql_data:
@@ -99,3 +77,8 @@ volumes:
       name: personal_finance_data_volume
   redis_data:
     driver: local
+
+networks:
+  personal_finance_network:
+    name: personal_finance_network
+    driver: bridge
