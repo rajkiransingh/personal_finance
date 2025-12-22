@@ -2,7 +2,10 @@ from fastapi import APIRouter, Query
 from typing import Optional
 from utilities.common.app_config import config
 
+from backend.services.db_services import get_db
+from sqlalchemy.orm import Session
 from utilities.analytics.stock_analyzer import get_stock_score
+from utilities.fetch_overall_investment_data import get_investments_symbols
 
 logger = config.setup_logger("api.routes.analytics.score")
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -125,3 +128,73 @@ async def get_filter_options():
     result = {k: sorted(list(v)) for k, v in sector_map.items()}
 
     return {"sectors": result}
+
+
+# Get scores for currently invested stocks
+@router.get("/invested_scores")
+async def get_invested_stock_scores():
+    """
+    Get scores for stocks currently in the portfolio.
+    If an invested stock is not found in the top 500 candidates (cached scores),
+    it is returned with a 'Sell' recommendation.
+    """
+    db: Session = next(get_db())
+
+    # Get invested symbols
+    investment_data = get_investments_symbols(db)
+    invested_symbols = set(
+        investment_data.get("common_stocks", [])
+        + investment_data.get("stocks_with_dividends", [])
+    )
+
+    # Filtering out ETFs etc if they are present in common_stocks (based on original screener logic)
+    # The original logic filtered out: ["NIFTYBEES", "SILVERCASE", "MOMENTUM50"]
+    # We should probably respect that or handle it.
+    # But get_investments_symbols already separates these substantially.
+    # Let's clean up just in case.
+    excluded = {"NIFTYBEES", "SILVERCASE", "MOMENTUM50"}
+    invested_symbols = {s for s in invested_symbols if s not in excluded}
+
+    # Get all candidate scores
+    all_scores = get_stock_score()
+    score_map = {s.get("symbol"): s for s in all_scores}
+
+    results = []
+
+    for symbol in invested_symbols:
+        stock_data = score_map.get(symbol)
+
+        if stock_data:
+            # Stock is in top 500, return as is (maybe add a flag? optional)
+            results.append(stock_data)
+        else:
+            # Stock is NOT in top 500 -> Recommend Sell
+            results.append(
+                {
+                    "symbol": symbol,
+                    "recommendation": "Sell",
+                    "reason": "Not in Top 500 candidates",
+                    # Add dummy values for required fields to match StockData interface if strict,
+                    # or rely on frontend to handle optional fields.
+                    # Looking at frontend interface, fields are required.
+                    # So we should provide safe defaults or make frontend interface optional.
+                    # Let's provide safe defaults for now to avoid breaking current UI if it reuses components strictly.
+                    "sector": "N/A",
+                    "sub_sector": "N/A",
+                    "core": 0,
+                    "accelerators": 0,
+                    "gem": 0,
+                    "market_cap": 0,
+                    "pe_ratio": 0,
+                    "pb_ratio": 0,
+                    "peg_ratio": 0,
+                    "roe": 0,
+                    "roce": 0,
+                    "debt_to_equity": 0,
+                    "promoter_holding": 0,
+                    "ebitda_margin": 0,
+                    "ev_ebitda": 0,
+                }
+            )
+
+    return results

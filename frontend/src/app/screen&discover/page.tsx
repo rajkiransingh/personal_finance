@@ -23,6 +23,8 @@ interface StockData {
   promoter_holding: number;
   ebitda_margin: number;
   ev_ebitda: number;
+  recommendation?: string;
+  reason?: string;
 }
 
 interface ApiResponse {
@@ -48,6 +50,7 @@ function ScoreBox({ label, value }: { label: string; value: number }) {
 
 function StockCard({ stock }: { stock: StockData }) {
   const [flipped, setFlipped] = useState(false);
+  const isSell = stock.recommendation === 'Sell';
 
   return (
     <div
@@ -60,16 +63,32 @@ function StockCard({ stock }: { stock: StockData }) {
         }`}
       >
         {/* Front Side */}
-        <div className="absolute inset-0 bg-gray-900 rounded-lg p-4 shadow-lg backface-hidden border border-gray-700 hover:border-blue-500 transition-colors">
-          <h2 className="text-lg font-semibold mb-1">{stock.symbol}</h2>
+        <div className={`absolute inset-0 bg-gray-900 rounded-lg p-4 shadow-lg backface-hidden border ${isSell ? 'border-red-500' : 'border-gray-700 hover:border-blue-500'} transition-colors`}>
+          <div className="flex justify-between items-start mb-1">
+             <h2 className="text-lg font-semibold">{stock.symbol}</h2>
+             {isSell && (
+                 <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded animate-pulse">
+                    SELL
+                 </span>
+             )}
+          </div>
+          
           <p className="text-sm text-gray-400 mb-3 truncate">
             {stock.sub_sector} [{stock.sector}]
           </p>
-          <div className="flex flex-wrap gap-2">
-            <ScoreBox label="Core" value={stock.core} />
-            <ScoreBox label="Acc" value={stock.accelerators} />
-            <ScoreBox label="GEM" value={stock.gem} />
-          </div>
+          
+          {isSell ? (
+             <div className="text-red-400 text-sm mt-2 font-medium">
+                Reason: {stock.reason || "Underperforming"}
+             </div>
+          ) : (
+             <div className="flex flex-wrap gap-2">
+                <ScoreBox label="Core" value={stock.core} />
+                <ScoreBox label="Acc" value={stock.accelerators} />
+                <ScoreBox label="GEM" value={stock.gem} />
+             </div>
+          )}
+          
           <p className="text-xs text-gray-500 mt-3 absolute bottom-4">Click for fundamentals ↩</p>
         </div>
 
@@ -99,6 +118,7 @@ function StockCard({ stock }: { stock: StockData }) {
 
 export default function ScreenNDiscover() {
   // State
+  const [activeTab, setActiveTab] = useState<'Candidates' | 'Invested'>('Candidates');
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebounce(search, 500);
   const [sector, setSector] = useState('All');
@@ -108,6 +128,10 @@ export default function ScreenNDiscover() {
   // Dynamic Filters State
   const [filters, setFilters] = useState<{ sectors: Record<string, string[]> }>({ sectors: {} });
   const [availableSubSectors, setAvailableSubSectors] = useState<string[]>([]);
+
+  // Invested Data State
+  const [investedStocks, setInvestedStocks] = useState<StockData[]>([]);
+  const [investedLoading, setInvestedLoading] = useState(false);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -127,28 +151,42 @@ export default function ScreenNDiscover() {
     fetchFilters();
   }, []);
 
+  // Fetch Invested Stocks on Tab Switch
+  useEffect(() => {
+      if (activeTab === 'Invested') {
+          setInvestedLoading(true);
+          fetch('http://localhost:8000/analytics/invested_scores')
+             .then(res => res.json())
+             .then(data => {
+                 setInvestedStocks(data);
+                 setInvestedLoading(false);
+             })
+             .catch(err => {
+                 console.error("Failed to fetch invested stocks", err);
+                 setInvestedLoading(false);
+             });
+      }
+  }, [activeTab]);
+
   // Update Available Sub-Sectors when Sector Changes
   useEffect(() => {
     if (sector === 'All') {
-      // If All sectors, show ALL unique subsectors across all sectors
       const allSubs = new Set<string>();
       Object.values(filters.sectors).forEach(subs => subs.forEach(s => allSubs.add(s)));
       setAvailableSubSectors(Array.from(allSubs).sort());
     } else {
-      // Show only subsectors for selected sector
       setAvailableSubSectors(filters.sectors[sector] || []);
     }
-    // Reset sub-sector when sector changes
     setSubSector('All');
   }, [sector, filters]);
 
-  // React Query for Infinite Scroll
+  // React Query for Infinite Scroll (Candidates)
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
+    isLoading: isCandidatesLoading,
     isError,
   } = useInfiniteQuery<ApiResponse>({
     queryKey: ['stocks', debouncedSearch, sector, subSector, filterType],
@@ -171,12 +209,16 @@ export default function ScreenNDiscover() {
     initialPageParam: 1,
   });
 
-  // Flat list of all stocks
-  const allStocks = data ? data.pages.flatMap((page) => page.data) : [];
+  // Determine stocks to show based on active tab
+  const stocksToShow = activeTab === 'Candidates' 
+      ? (data ? data.pages.flatMap((page) => page.data) : [])
+      : investedStocks;
 
-  // Virtualizer
+  const isLoading = activeTab === 'Candidates' ? isCandidatesLoading : investedLoading;
+
+  // Virtualizer setup
   const COLUMNS = 3;
-  const rowCount = Math.ceil(allStocks.length / COLUMNS);
+  const rowCount = Math.ceil(stocksToShow.length / COLUMNS);
   
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -187,8 +229,10 @@ export default function ScreenNDiscover() {
 
   const virtualItems = virtualizer.getVirtualItems();
 
-  // Load more on scroll
+  // Load more on scroll (only for Candidates)
   useEffect(() => {
+    if (activeTab !== 'Candidates') return;
+    
     const [lastItem] = [...virtualItems].reverse();
 
     if (!lastItem) return;
@@ -201,6 +245,7 @@ export default function ScreenNDiscover() {
       fetchNextPage();
     }
   }, [
+    activeTab,
     hasNextPage, 
     fetchNextPage, 
     isFetchingNextPage, 
@@ -213,73 +258,92 @@ export default function ScreenNDiscover() {
 
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col space-y-4 text-white p-2">
-       {/* Filters Header */}
-      <div className="flex flex-col md:flex-row justify-between gap-4 p-2 bg-gray-900 rounded-lg shadow sticky top-0 z-10">
-        <div className="flex flex-wrap gap-2 flex-1">
-          {/* Search */}
-          <input
-            type="text"
-            placeholder="Search symbol..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-500 w-100 md:w-65"
-          />
-
-          {/* Sector Filter */}
-          <select
-            value={sector}
-            onChange={e => setSector(e.target.value)}
-            className="p-2 rounded bg-gray-800 text-white border border-gray-600 w-full md:w-65"
-          >
-            <option value="All">All Sectors</option>
-            {sectorsList.map(sec => (
-              <option key={sec} value={sec}>{sec}</option>
-            ))}
-          </select>
-
-          {/* Sub-Sector Filter */}
-          <select
-            value={subSector}
-            onChange={e => setSubSector(e.target.value)}
-            className="p-2 rounded bg-gray-800 text-white border border-gray-600 w-full md:w-65"
-          >
-            <option value="All">All Sub-Sectors</option>
-            {availableSubSectors.map(sub => (
-              <option key={sub} value={sub}>{sub}</option>
-            ))}
-          </select>
+       {/* Filters & Tabs Header */}
+      <div className="flex flex-col gap-4 p-2 bg-gray-900 rounded-lg shadow stvirtualizer.getVirtualItems()icky top-0 z-10">
           
-          <div className="flex items-center text-sm text-gray-400 px-2">
-             Results: {data?.pages[0]?.total || 0}
-          </div>
+        {/* Tabs */}
+        <div className="flex border-b border-gray-700">
+            {['Invested', 'Candidates'].map(tab => (
+                <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={`px-6 py-2 font-medium text-sm focus:outline-none transition-colors ${
+                        activeTab === tab 
+                            ? 'text-blue-500 border-b-2 border-blue-500' 
+                            : 'text-gray-400 hover:text-white'
+                    }`}
+                >
+                    {tab}
+                </button>
+            ))}
         </div>
 
-        {/* Type Filter Buttons */}
-        <div className="flex gap-2 bg-gray-800 p-1 rounded">
-          {['All', 'Core', 'Accelerator', 'GEM'].map(type => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type as any)}
-              className={`px-3 py-1 rounded text-sm font-semibold transition-colors ${
-                filterType === type
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
+        {/* Filters (Only show for Candidates or if we want to filter Invested too - sticking to Candidates for now as per infinite scroll logic) */}
+        {activeTab === 'Candidates' && (
+            <div className="flex flex-col md:flex-row justify-between gap-4">
+                <div className="flex flex-wrap gap-2 flex-1">
+                <input
+                    type="text"
+                    placeholder="Search symbol..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-500 w-100 md:w-65"
+                />
+
+                <select
+                    value={sector}
+                    onChange={e => setSector(e.target.value)}
+                    className="p-2 rounded bg-gray-800 text-white border border-gray-600 w-full md:w-65"
+                >
+                    <option value="All">All Sectors</option>
+                    {sectorsList.map(sec => (
+                    <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={subSector}
+                    onChange={e => setSubSector(e.target.value)}
+                    className="p-2 rounded bg-gray-800 text-white border border-gray-600 w-full md:w-65"
+                >
+                    <option value="All">All Sub-Sectors</option>
+                    {availableSubSectors.map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                </select>
+                
+                <div className="flex items-center text-sm text-gray-400 px-2">
+                    Results: {data?.pages[0]?.total || 0}
+                </div>
+                </div>
+
+                <div className="flex gap-2 bg-gray-800 p-1 rounded h-fit self-center">
+                {['All', 'Core', 'Accelerator', 'GEM'].map(type => (
+                    <button
+                    key={type}
+                    onClick={() => setFilterType(type as any)}
+                    className={`px-3 py-1 rounded text-sm font-semibold transition-colors ${
+                        filterType === type
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                    >
+                    {type}
+                    </button>
+                ))}
+                </div>
+            </div>
+        )}
       </div>
 
       {/* Content Area */}
       {isLoading ? (
         <div className="flex justify-center items-center h-64 text-blue-400 animate-pulse">
-           Loading data...
+           Loading {activeTab}...
         </div>
       ) : isError ? (
         <div className="text-red-500 text-center p-10">Error loading data. Please check backend connection.</div>
-      ) : allStocks.length === 0 ? (
+      ) : stocksToShow.length === 0 ? (
         <div className="text-gray-400 text-center p-10">No stocks found matching criteria.</div>
       ) : (
         /* Virtual Scroll Container */
@@ -296,7 +360,7 @@ export default function ScreenNDiscover() {
           >
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const startIndex = virtualRow.index * COLUMNS;
-              const rowStocks = allStocks.slice(startIndex, startIndex + COLUMNS);
+              const rowStocks = stocksToShow.slice(startIndex, startIndex + COLUMNS);
 
               return (
                 <div
@@ -317,8 +381,8 @@ export default function ScreenNDiscover() {
             })}
           </div>
           
-          {/* Loading More Spinner */}
-          {isFetchingNextPage && (
+          {/* Loading More Spinner (Candidates Only) */}
+          {activeTab === 'Candidates' && isFetchingNextPage && (
             <div className="text-center py-4 text-gray-500 text-sm animate-pulse">
               Loading more stocks...
             </div>
