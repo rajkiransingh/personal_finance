@@ -27,4 +27,4 @@ COPY . .
 EXPOSE 8000
 
 # Run the app with uvicorn using centralized logging
-CMD [ "python", "start_with_logging.py" ]
+CMD [ "python", "common_logging_startup.py" ]

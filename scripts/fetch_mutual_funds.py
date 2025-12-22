@@ -18,8 +18,8 @@ try:
     mf_data = mfF.get_mutual_fund_rates_bulk(mutualFundFetcher, mutual_funds_list)
 
     if mf_data and mf_data.get("data"):
-        mfF.update_bullion_investments(mutualFundFetcher, db, mf_data)
-        mfF.update_bullion_summary(mutualFundFetcher, db, mf_data)
+        mfF.update_mutual_fund_investments(mutualFundFetcher, db, mf_data)
+        mfF.update_mutual_fund_summary(mutualFundFetcher, db, mf_data)
     else:
         logger.warning("No valid mutual fund data fetched. Skipping updates.")
 

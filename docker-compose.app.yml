@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: .
+    container_name: mera_paisa
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=mysql+pymysql://user:password@db:3306/personal_finance_db
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    networks:
+      - personal_finance_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: personal_finance_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - personal_finance_network
+
+networks:
+  personal_finance_network:
+    external: true

@@ -92,7 +92,7 @@ class MutualFundPriceFetcher(BaseFetcher):
 
         return results
 
-    def update_bullion_investments(self, db: Session, mf_data: Dict) -> Dict:
+    def update_mutual_fund_investments(self, db: Session, mf_data: Dict) -> Dict:
         """Update mutual fund investment records with current NAVs.
 
         Updates all mutual fund investments in the database with current NAV prices,
@@ -175,7 +175,7 @@ class MutualFundPriceFetcher(BaseFetcher):
             self.logger.error(error_msg)
             return {"success": False, "error": error_msg, "updated_count": 0}
 
-    def update_bullion_summary(self, db: Session, mf_data: Dict) -> Dict:
+    def update_mutual_fund_summary(self, db: Session, mf_data: Dict) -> Dict:
         """Update mutual fund summary records with current NAVs.
 
         Updates all mutual fund summary records in the database with current NAV prices,

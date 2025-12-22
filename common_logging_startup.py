@@ -5,8 +5,6 @@ Configure uvicorn logging to use centralized logger.
 Add this to your uvicorn start command or use this script to start the server.
 """
 
-import logging
-import sys
 import uvicorn
 
 # Import centralized config BEFORE starting uvicorn
