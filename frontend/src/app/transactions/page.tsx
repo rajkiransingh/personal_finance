@@ -44,6 +44,7 @@ export default function TransactionsPage() {
       currency: "INR" 
   });
   const [availableBanks, setAvailableBanks] = useState<string[]>([]);
+  const [previewData, setPreviewData] = useState<any[]>([]);
 
   // Map endpoints for investment types -> endpoint
   const investmentEndpointMap: Record<number, string> = {
@@ -823,104 +824,224 @@ function formatAmount(amount: any, currency?: string) {
 
       {/* Import Modal */}
       {showImportModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-[var(--color-card)] p-8 rounded-2xl w-full max-w-lg shadow-2xl relative">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] overflow-y-auto">
+              <div className="bg-[var(--color-card)] p-8 rounded-2xl w-full max-w-4xl shadow-2xl relative my-8">
                   <button 
-                      onClick={() => setShowImportModal(false)}
+                      onClick={() => {
+                          setShowImportModal(false);
+                          setPreviewData([]); // Reset preview on close
+                      }}
                       className="absolute top-4 right-4 text-gray-400 hover:text-white"
                   >
                       ✕
                   </button>
-                  <h2 className="text-2xl font-bold mb-6 text-[var(--color-text-primary)]">Import Transactions</h2>
+                  <h2 className="text-2xl font-bold mb-6 text-[var(--color-text-primary)]">
+                      {previewData.length > 0 ? "Review & Confirm Import" : "Import Transactions"}
+                  </h2>
                   
-                  <div className="space-y-4">
-                      {/* User Select */}
-                      <div>
-                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">User</label>
-                          <select 
-                              value={importForm.user_id} 
-                              onChange={(e) => setImportForm({...importForm, user_id: e.target.value})}
-                              className={selectClass}
-                          >
-                              <option value="">Select User</option>
-                              {users.map(u => <option key={u.user_id} value={u.user_id}>{u.name}</option>)}
-                          </select>
-                      </div>
+                  {!previewData.length ? (
+                      // STEP 1: UPLOAD FORM
+                      <div className="space-y-4 max-w-lg mx-auto">
+                          {/* User Select */}
+                          <div>
+                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">User</label>
+                              <select 
+                                  value={importForm.user_id} 
+                                  onChange={(e) => setImportForm({...importForm, user_id: e.target.value})}
+                                  className={selectClass}
+                              >
+                                  <option value="">Select User</option>
+                                  {users.map(u => <option key={u.user_id} value={u.user_id}>{u.name}</option>)}
+                              </select>
+                          </div>
 
-                      {/* Bank Select */}
-                      <div>
-                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Bank</label>
-                          <select 
-                              value={importForm.bank_name} 
-                              onChange={(e) => setImportForm({...importForm, bank_name: e.target.value})}
-                              className={selectClass}
-                          >
-                              <option value="">Select Bank</option>
-                              {availableBanks.map(bank => (
-                                  <option key={bank} value={bank}>{bank.toUpperCase()}</option>
-                              ))}
-                          </select>
-                      </div>
+                          {/* Bank Select */}
+                          <div>
+                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Bank</label>
+                              <select 
+                                  value={importForm.bank_name} 
+                                  onChange={(e) => setImportForm({...importForm, bank_name: e.target.value})}
+                                  className={selectClass}
+                              >
+                                  <option value="">Select Bank</option>
+                                  {availableBanks.map(bank => (
+                                      <option key={bank} value={bank}>{bank.toUpperCase()}</option>
+                                  ))}
+                              </select>
+                          </div>
 
-                       {/* Currency Select */}
-                       <div>
-                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Currency</label>
-                          <select 
-                              value={importForm.currency} 
-                              onChange={(e) => setImportForm({...importForm, currency: e.target.value})}
-                              className={selectClass}
-                          >
-                              {currencies.map(c => <option key={c.currency_id} value={c.currency_code}>{c.currency_name} ({c.currency_code})</option>)}
-                          </select>
-                      </div>
+                           {/* Currency Select */}
+                           <div>
+                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Currency</label>
+                              <select 
+                                  value={importForm.currency} 
+                                  onChange={(e) => setImportForm({...importForm, currency: e.target.value})}
+                                  className={selectClass}
+                              >
+                                  {currencies.map(c => <option key={c.currency_id} value={c.currency_code}>{c.currency_name} ({c.currency_code})</option>)}
+                              </select>
+                          </div>
 
-                      {/* File Upload */}
-                       <div>
-                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">CSV File</label>
-                          <input 
-                              type="file" 
-                              accept=".csv"
-                              onChange={(e) => setImportForm({...importForm, file: e.target.files?.[0] || null})}
-                              className={`${inputClass} !p-2`}
-                          />
-                      </div>
+                          {/* File Upload */}
+                           <div>
+                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">CSV File</label>
+                              <input 
+                                  type="file" 
+                                  accept=".csv"
+                                  onChange={(e) => setImportForm({...importForm, file: e.target.files?.[0] || null})}
+                                  className={`${inputClass} !p-2`}
+                              />
+                          </div>
 
-                      {/* Submit */}
-                      <div className="pt-4 flex justify-end">
-                          <button 
-                              onClick={async () => {
-                                  if (!importForm.user_id || !importForm.bank_name || !importForm.file) {
-                                      alert("Please fill all fields");
-                                      return;
-                                  }
-                                  
-                                  const formData = new FormData();
-                                  formData.append("user_id", importForm.user_id);
-                                  formData.append("bank_name", importForm.bank_name);
-                                  formData.append("currency", importForm.currency);
-                                  formData.append("file", importForm.file);
-
-                                  try {
-                                      const res = await fetch("http://localhost:8000/import/transactions", {
-                                          method: "POST",
-                                          body: formData
-                                      });
-                                      const data = await res.json();
-                                      if(!res.ok) throw new Error(data.detail || "Import failed");
+                          {/* Preview Button */}
+                          <div className="pt-4 flex justify-end">
+                              <button 
+                                  onClick={async () => {
+                                      if (!importForm.user_id || !importForm.bank_name || !importForm.file) {
+                                          alert("Please fill all fields");
+                                          return;
+                                      }
                                       
-                                      alert(`Imported ${data.processed} transactions successfully!`);
-                                      setShowImportModal(false);
-                                      fetchRecent(); // refresh list
-                                  } catch (err: any) {
-                                      alert("Error: " + err.message);
-                                  }
-                              }}
-                              className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-3 rounded-xl font-bold transition"
-                          >
-                              Upload & Import
-                          </button>
+                                      const formData = new FormData();
+                                      formData.append("bank_name", importForm.bank_name);
+                                      formData.append("currency", importForm.currency);
+                                      formData.append("file", importForm.file);
+
+                                      try {
+                                          const res = await fetch("http://localhost:8000/import/preview", {
+                                              method: "POST",
+                                              body: formData
+                                          });
+                                          const data = await res.json();
+                                          if(!res.ok) throw new Error(data.detail || "Preview failed");
+                                          
+                                          // console.log("Preview Data:", data);
+                                          setPreviewData(data); // Move to Step 2
+                                          
+                                      } catch (err: any) {
+                                          alert("Error: " + err.message);
+                                      }
+                                  }}
+                                  className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-3 rounded-xl font-bold transition"
+                              >
+                                  Preview Transactions
+                              </button>
+                          </div>
                       </div>
-                  </div>
+                  ) : (
+                      // STEP 2: PREVIEW TABLE
+                      <div className="space-y-4">
+                          <div className="overflow-x-auto max-h-[60vh] border rounded-xl border-[var(--color-bg-lighter)]">
+                              <table className="w-full text-sm text-left">
+                                  <thead className="text-xs uppercase bg-[var(--color-bg-lighter)] text-[var(--color-text-secondary)] sticky top-0 z-10">
+                                      <tr>
+                                          <th className="px-4 py-3">Date</th>
+                                          <th className="px-4 py-3">Description</th>
+                                          <th className="px-4 py-3 text-right">Amount</th>
+                                          <th className="px-4 py-3">Type</th>
+                                          <th className="px-4 py-3 w-1/4">Category / Source</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--color-bg-lighter)]">
+                                      {previewData.map((txn, idx) => (
+                                          <tr key={idx} className="hover:bg-[var(--color-bg-lighter)]/50">
+                                              <td className="px-4 py-2">{txn.date}</td>
+                                              <td className="px-4 py-2 truncate max-w-xs" title={txn.description}>{txn.description}</td>
+                                              <td className={`px-4 py-2 text-right font-mono ${txn.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
+                                                  {txn.amount} {txn.currency}
+                                              </td>
+                                              <td className="px-4 py-2">{txn.type}</td>
+                                              <td className="px-4 py-2">
+                                                  {txn.type === 'income' ? (
+                                                      <select 
+                                                          value={txn.source_id || ""} 
+                                                          onChange={(e) => {
+                                                              const newVal = Number(e.target.value);
+                                                              const newData = [...previewData];
+                                                              newData[idx].source_id = newVal;
+                                                              // Auto-learn: Use the description as the keyword to learn
+                                                              // We strip numbers to try and make it more generic? 
+                                                              // No, let's keep it safe: use the first 2 words or full description?
+                                                              // Let's use the full description for safety, user can edit config if needed.
+                                                              // Actually, let's just use the description.
+                                                              newData[idx].learn_keyword = txn.description;
+                                                              setPreviewData(newData);
+                                                          }}
+                                                          className="w-full bg-transparent border border-gray-600 rounded p-1"
+                                                      >
+                                                          {incomeSources.map(s => <option key={s.income_source_id} value={s.income_source_id}>{s.name}</option>)}
+                                                      </select>
+                                                  ) : (
+                                                      <select 
+                                                          value={txn.category_id || ""} 
+                                                          onChange={(e) => {
+                                                              const newVal = Number(e.target.value);
+                                                              const newData = [...previewData];
+                                                              newData[idx].category_id = newVal;
+                                                              // Auto-learn: Use the description as the keyword to learn
+                                                              newData[idx].learn_keyword = txn.description;
+                                                              setPreviewData(newData);
+                                                          }}
+                                                          className="w-full bg-transparent border border-gray-600 rounded p-1"
+                                                      >
+                                                          {expenseCategories.map(c => <option key={c.expense_category_id} value={c.expense_category_id}>{c.name}</option>)}
+                                                      </select>
+                                                  )}
+                                              </td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+                      
+                          <div className="flex justify-between items-center pt-4">
+                              <button 
+                                  onClick={() => setPreviewData([])} // Back to upload
+                                  className="text-[var(--color-text-secondary)] hover:text-white px-4"
+                              >
+                                  &larr; Back
+                              </button>
+                              
+                              <button 
+                                  onClick={async () => {
+                                      setLoading(true);
+                                      try {
+                                          const payload = {
+                                              user_id: Number(importForm.user_id),
+                                              transactions: previewData
+                                          };
+                                          
+                                          const res = await fetch("http://localhost:8000/import/confirm", {
+                                              method: "POST",
+                                              headers: { "Content-Type": "application/json" },
+                                              body: JSON.stringify(payload)
+                                          });
+                                          
+                                          const data = await res.json();
+                                          if(!res.ok) throw new Error(data.detail || "Confirm failed");
+                                          
+                                          alert(`Successfully imported ${data.processed} transactions!`);
+                                          if (data.learned > 0) {
+                                              alert(`Learned ${data.learned} new categorization rules.`);
+                                          }
+                                          
+                                          setShowImportModal(false);
+                                          setPreviewData([]);
+                                          fetchRecent();
+                                      } catch (err: any) {
+                                          alert("Error: " + err.message);
+                                      } finally {
+                                          setLoading(false);
+                                      }
+                                  }}
+                                  disabled={loading}
+                                  className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-8 rounded-xl font-bold transition disabled:opacity-50"
+                              >
+                                  {loading ? "Importing..." : `Confirm & Import (${previewData.length})`}
+                              </button>
+                          </div>
+                      </div>
+                  )}
               </div>
           </div>
       )}
