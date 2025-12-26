@@ -88,9 +88,9 @@ def build_full_description(row: dict, primary_desc_col: str | None) -> str:
 
     for key, value in row.items():
         if (
-            (key.startswith("__extra_") | key.startswith("Benefeciary"))
-            and value
-            and value.strip()
+                (key.startswith("__extra_") | key.startswith("Benefeciary"))
+                and value
+                and value.strip()
         ):
             parts.append(value.strip())
 
@@ -137,9 +137,9 @@ def decode_file(file_content: bytes) -> str:
 
 
 def preview_csv_import(
-    file_content: bytes,
-    bank_name: str,
-    currency: str = "INR",
+        file_content: bytes,
+        bank_name: str,
+        currency: str = "INR",
 ) -> list[dict]:
     """
     Parses CSV and returns a list of potential transactions with proposed categories/sources.
@@ -281,7 +281,6 @@ def update_category_rules_file(updates: list[dict]):
 
         # We need to find the start of the dict, then the key.
         # This is a bit brittle but regex can help.
-        import re
 
         # Regex to find: <id>: [ ... ]
         # We want to match:     12: [ ..., "existing" ],
@@ -294,9 +293,7 @@ def update_category_rules_file(updates: list[dict]):
         # 4. Match ]
 
         # Check if we are inside the correct variable block?
-        # Ideally we only search within the relevant block, but IDs are unique per dict usually in this file?
-        # Actually IDs might collide between Category and Income dicts (1, 2, etc).
-        # So we MUST find the dict block first.
+        # Ideally we only search within the relevant block, but IDs are unique per dict usually
 
         start_idx = content.find(f"{var_name} = {{")
         if start_idx == -1:
@@ -357,9 +354,9 @@ def update_category_rules_file(updates: list[dict]):
 
 
 def confirm_import_and_learn(
-    db: Session,
-    user_id: int,
-    transactions: list[dict],
+        db: Session,
+        user_id: int,
+        transactions: list[dict],
 ):
     """
     Saves confirmed transactions and learns new rules.
