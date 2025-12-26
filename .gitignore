@@ -45,3 +45,4 @@ backend/files/
 
 # Ignore sample csv
 *.csv
+bank_config.py
