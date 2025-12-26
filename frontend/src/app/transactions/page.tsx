@@ -34,6 +34,16 @@ export default function TransactionsPage() {
   const [incomeForm, setIncomeForm] = useState<any>({});
   const [expenseForm, setExpenseForm] = useState<any>({});
   const [investmentForm, setInvestmentForm] = useState<any>({});
+  
+  // Import Modal State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importForm, setImportForm] = useState({
+      user_id: "",
+      bank_name: "",
+      file: null as File | null,
+      currency: "INR" 
+  });
+  const [availableBanks, setAvailableBanks] = useState<string[]>([]);
 
   // Map endpoints for investment types -> endpoint
   const investmentEndpointMap: Record<number, string> = {
@@ -387,12 +397,26 @@ function formatAmount(amount: any, currency?: string) {
             <h1 className="text-3xl font-semibold">Transactions</h1>
             <p className="text-1xl font-semibold">Track your income, expenses, and investments</p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition"
-          >
-            {showForm ? '✕ Close' : '+ New Transaction'}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                  setShowImportModal(true);
+                  fetch("http://localhost:8000/import/banks")
+                      .then(r => r.json())
+                      .then(data => setAvailableBanks(data))
+                      .catch(err => console.error("Failed to fetch banks", err));
+              }}
+              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition"
+            >
+              Import CSV
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition"
+            >
+              {showForm ? '✕ Close' : '+ New Transaction'}
+            </button>
+          </div>
         </div>
 
 
@@ -796,6 +820,110 @@ function formatAmount(amount: any, currency?: string) {
       <button onClick={scrollToForm} className="fixed bottom-8 right-8 bg-[var(--color-accent)] text-black p-4 rounded-full shadow-lg hover:bg-[var(--color-accent-hover)]">
         +
       </button>
+
+      {/* Import Modal */}
+      {showImportModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-[var(--color-card)] p-8 rounded-2xl w-full max-w-lg shadow-2xl relative">
+                  <button 
+                      onClick={() => setShowImportModal(false)}
+                      className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                  >
+                      ✕
+                  </button>
+                  <h2 className="text-2xl font-bold mb-6 text-[var(--color-text-primary)]">Import Transactions</h2>
+                  
+                  <div className="space-y-4">
+                      {/* User Select */}
+                      <div>
+                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">User</label>
+                          <select 
+                              value={importForm.user_id} 
+                              onChange={(e) => setImportForm({...importForm, user_id: e.target.value})}
+                              className={selectClass}
+                          >
+                              <option value="">Select User</option>
+                              {users.map(u => <option key={u.user_id} value={u.user_id}>{u.name}</option>)}
+                          </select>
+                      </div>
+
+                      {/* Bank Select */}
+                      <div>
+                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Bank</label>
+                          <select 
+                              value={importForm.bank_name} 
+                              onChange={(e) => setImportForm({...importForm, bank_name: e.target.value})}
+                              className={selectClass}
+                          >
+                              <option value="">Select Bank</option>
+                              {availableBanks.map(bank => (
+                                  <option key={bank} value={bank}>{bank.toUpperCase()}</option>
+                              ))}
+                          </select>
+                      </div>
+
+                       {/* Currency Select */}
+                       <div>
+                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Currency</label>
+                          <select 
+                              value={importForm.currency} 
+                              onChange={(e) => setImportForm({...importForm, currency: e.target.value})}
+                              className={selectClass}
+                          >
+                              {currencies.map(c => <option key={c.currency_id} value={c.currency_code}>{c.currency_name} ({c.currency_code})</option>)}
+                          </select>
+                      </div>
+
+                      {/* File Upload */}
+                       <div>
+                          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">CSV File</label>
+                          <input 
+                              type="file" 
+                              accept=".csv"
+                              onChange={(e) => setImportForm({...importForm, file: e.target.files?.[0] || null})}
+                              className={`${inputClass} !p-2`}
+                          />
+                      </div>
+
+                      {/* Submit */}
+                      <div className="pt-4 flex justify-end">
+                          <button 
+                              onClick={async () => {
+                                  if (!importForm.user_id || !importForm.bank_name || !importForm.file) {
+                                      alert("Please fill all fields");
+                                      return;
+                                  }
+                                  
+                                  const formData = new FormData();
+                                  formData.append("user_id", importForm.user_id);
+                                  formData.append("bank_name", importForm.bank_name);
+                                  formData.append("currency", importForm.currency);
+                                  formData.append("file", importForm.file);
+
+                                  try {
+                                      const res = await fetch("http://localhost:8000/import/transactions", {
+                                          method: "POST",
+                                          body: formData
+                                      });
+                                      const data = await res.json();
+                                      if(!res.ok) throw new Error(data.detail || "Import failed");
+                                      
+                                      alert(`Imported ${data.processed} transactions successfully!`);
+                                      setShowImportModal(false);
+                                      fetchRecent(); // refresh list
+                                  } catch (err: any) {
+                                      alert("Error: " + err.message);
+                                  }
+                              }}
+                              className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-3 rounded-xl font-bold transition"
+                          >
+                              Upload & Import
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 }
