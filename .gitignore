@@ -42,3 +42,6 @@ backend/files/
 # Ignore ruff
 .ruff_cache/
 .ruff_cache.json
+
+# Ignore sample csv
+*.csv
