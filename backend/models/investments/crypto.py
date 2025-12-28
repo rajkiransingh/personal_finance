@@ -9,8 +9,12 @@ class CryptoInvestment(Base):
     investor = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     currency_id = Column(Integer, ForeignKey("currencies.currency_id"), nullable=False)
     region_id = Column(Integer, ForeignKey("regions.region_id"), nullable=False)
-    investment_type_id = Column(Integer, ForeignKey("investment_category.id"), nullable=False)
-    investment_subcategory_id = Column(Integer, ForeignKey("investment_subcategory.id"), nullable=False)
+    investment_type_id = Column(
+        Integer, ForeignKey("investment_category.id"), nullable=False
+    )
+    investment_subcategory_id = Column(
+        Integer, ForeignKey("investment_subcategory.id"), nullable=False
+    )
     transaction_type = Column(String(10), nullable=False)
     coin_symbol = Column(String(10), nullable=False)
     crypto_name = Column(String(20), nullable=False)

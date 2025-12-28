@@ -2,10 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.schemas.investments.common import InvestmentUpdate
-from backend.schemas.investments.mutual_fund_schema import MutualFundInvestmentResponse, MutualFundInvestmentCreate
+from backend.schemas.investments.mutual_fund_schema import (
+    MutualFundInvestmentResponse,
+    MutualFundInvestmentCreate,
+)
 from backend.services.db_services import get_db
-from backend.services.investments.common import get_all_investments, get_investment_by_user, get_investment_by_id, \
-    update_investment, delete_investment
+from backend.services.investments.common import (
+    get_all_investments,
+    get_investment_by_user,
+    get_investment_by_id,
+    update_investment,
+    delete_investment,
+)
 from backend.services.investments.mutual_fund import create_mutual_fund
 from backend.services.user_services import get_user
 from backend.summarizing import update_mutual_fund_summary
@@ -13,11 +21,13 @@ from backend.summarizing import update_mutual_fund_summary
 router = APIRouter(prefix="/investment/mutual-fund", tags=["Investment"])
 
 
-@router.get("/", response_model=list[MutualFundInvestmentResponse])
+@router.get("", response_model=list[MutualFundInvestmentResponse])
 def read_all_investments(db: Session = Depends(get_db)):
     investments = get_all_investments("mutual fund", db)
     if not investments:
-        raise HTTPException(status_code=404, detail="No investments found for any user on this platform")
+        raise HTTPException(
+            status_code=404, detail="No investments found for any user on this platform"
+        )
     return investments
 
 
@@ -28,7 +38,9 @@ def read_investments_by_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     investment = get_investment_by_user("mutual fund", db, user_id)
     if not investment:
-        raise HTTPException(status_code=404, detail="No investments found for this user")
+        raise HTTPException(
+            status_code=404, detail="No investments found for this user"
+        )
     return investment
 
 
@@ -38,16 +50,22 @@ def read_investment(investment_id: int, db: Session = Depends(get_db)):
     return investment
 
 
-@router.post("/", response_model=MutualFundInvestmentResponse)
-def add_investment_transaction(investment_data: MutualFundInvestmentCreate, db: Session = Depends(get_db)):
+@router.post("", response_model=MutualFundInvestmentResponse)
+def add_investment_transaction(
+    investment_data: MutualFundInvestmentCreate, db: Session = Depends(get_db)
+):
     new_investment = create_mutual_fund(db, investment_data)
     update_mutual_fund_summary.update(db, investment_data)
     return new_investment
 
 
 @router.put("/{investment_id}", response_model=InvestmentUpdate)
-def update_investment_api(investment_id: int, investment_data: InvestmentUpdate, db: Session = Depends(get_db)):
-    updated_investment = update_investment("mutual fund", investment_id, investment_data, db)
+def update_investment_api(
+    investment_id: int, investment_data: InvestmentUpdate, db: Session = Depends(get_db)
+):
+    updated_investment = update_investment(
+        "mutual fund", investment_id, investment_data, db
+    )
     if not updated_investment:
         raise HTTPException(status_code=404, detail="Investment not found")
     return updated_investment

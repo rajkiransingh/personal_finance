@@ -13,10 +13,14 @@ def create_stock(db: Session, stock_data: StockInvestmentCreate):
 
     # If selling, check available holdings
     if stock_data.transaction_type == "SELL":
-        total_holdings = db.query(StockInvestment).filter(
-            StockInvestment.investor == stock_data.investor,
-            StockInvestment.stock_symbol == stock_data.stock_symbol
-        ).all()
+        total_holdings = (
+            db.query(StockInvestment)
+            .filter(
+                StockInvestment.investor == stock_data.investor,
+                StockInvestment.stock_symbol == stock_data.stock_symbol,
+            )
+            .all()
+        )
 
         total_quantity = sum(holding.stock_quantity for holding in total_holdings)
 
@@ -37,7 +41,7 @@ def create_stock(db: Session, stock_data: StockInvestmentCreate):
         total_invested_amount=stock_data.total_invested_amount,
         total_amount_after_sale=stock_data.total_amount_after_sale,
         investment_date=stock_data.investment_date or date.today(),
-        dividend_paying=int(stock_data.dividend_paying)
+        dividend_paying=int(stock_data.dividend_paying),
     )
 
     db.add(new_transaction)

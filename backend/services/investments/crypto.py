@@ -13,11 +13,15 @@ def create_crypto(db: Session, coin_data: CryptoInvestmentCreate):
 
     # If selling, check available holdings
     if coin_data.transaction_type == "SELL":
-        total_holdings = db.query(CryptoInvestment).filter(
-            CryptoInvestment.investor == coin_data.investor,
-            CryptoInvestment.coin_symbol == coin_data.coin_symbol,
-            CryptoInvestment.investment_type_id == coin_data.investment_type_id
-        ).all()
+        total_holdings = (
+            db.query(CryptoInvestment)
+            .filter(
+                CryptoInvestment.investor == coin_data.investor,
+                CryptoInvestment.coin_symbol == coin_data.coin_symbol,
+                CryptoInvestment.investment_type_id == coin_data.investment_type_id,
+            )
+            .all()
+        )
 
         total_quantity = sum(holding.coin_quantity for holding in total_holdings)
 

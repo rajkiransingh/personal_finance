@@ -12,6 +12,6 @@ router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 
 # Get all the data related to mera paisa dashboard
-@router.get("/", response_model=PortfolioResponse)
+@router.get("", response_model=PortfolioResponse)
 async def get_portfolio():
     return bS.run_cycle(balancingScreener)

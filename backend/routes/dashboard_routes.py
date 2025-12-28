@@ -12,6 +12,6 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 # Get all the data related to mera paisa dashboard
-@router.get("/", response_model=DashboardResponse)
+@router.get("", response_model=DashboardResponse)
 async def get_dashboard():
     return ddc.get_investment_data(dashboardDataCalculator)

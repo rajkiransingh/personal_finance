@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime
 from backend.services.db_services import Base
 
+
 class MonthlyFinancialData(Base):
     __tablename__ = "monthly_financial_data"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -12,6 +13,7 @@ class MonthlyFinancialData(Base):
     investment_amount = Column(Float, nullable=False)
     net_worth = Column(Float, nullable=False)
 
+
 class StockTransactions(Base):
     __tablename__ = "stock_transactions"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -21,6 +23,7 @@ class StockTransactions(Base):
     price_per_unit = Column(Float, nullable=False)
     transaction_date = Column(DateTime, nullable=False)
     investor = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+
 
 class MutualFundTransactions(Base):
     __tablename__ = "mutual_fund_transactions"

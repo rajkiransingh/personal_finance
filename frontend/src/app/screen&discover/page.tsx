@@ -139,7 +139,7 @@ export default function ScreenNDiscover() {
   useEffect(() => {
     async function fetchFilters() {
       try {
-        const res = await fetch('http://localhost:8000/analytics/filters');
+        const res = await fetch('/api/analytics/filters');
         if (res.ok) {
           const data = await res.json();
           setFilters(data);
@@ -155,7 +155,7 @@ export default function ScreenNDiscover() {
   useEffect(() => {
       if (activeTab === 'Invested') {
           setInvestedLoading(true);
-          fetch('http://localhost:8000/analytics/invested_scores')
+          fetch('/api/analytics/invested_scores')
              .then(res => res.json())
              .then(data => {
                  setInvestedStocks(data);
@@ -201,7 +201,7 @@ export default function ScreenNDiscover() {
       if (subSector !== 'All') params.append('sub_sector', subSector);
       if (filterType !== 'All') params.append('filter_type', filterType);
 
-      const res = await fetch(`http://localhost:8000/analytics/score?${params.toString()}`);
+      const res = await fetch(`/api/analytics/score?${params.toString()}`);
       if (!res.ok) throw new Error('Network response was not ok');
       return res.json();
     },

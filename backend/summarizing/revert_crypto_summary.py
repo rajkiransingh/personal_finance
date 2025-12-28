@@ -67,9 +67,11 @@ def revert(db: Session, investment: CryptoInvestment):
             user_id=investment.investor,
             source_id=9,
             amount=investment.total_amount_after_sale,
-            earned_date=investment.investment_date.date()
-            if hasattr(investment.investment_date, "date")
-            else investment.investment_date,
+            earned_date=(
+                investment.investment_date.date()
+                if hasattr(investment.investment_date, "date")
+                else investment.investment_date
+            ),
         )
 
     if coin.total_quantity > 0:
