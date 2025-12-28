@@ -13,11 +13,16 @@ def create_bullion(db: Session, bullion_data: BullionInvestmentCreate):
 
     # If selling, check available holdings
     if bullion_data.transaction_type == "SELL":
-        total_holdings = db.query(BullionInvestment).filter(
-            BullionInvestment.investor == bullion_data.investor,
-            BullionInvestment.metal_name == bullion_data.metal_name,
-            BullionInvestment.investment_subcategory_id == bullion_data.investment_subcategory_id
-        ).all()
+        total_holdings = (
+            db.query(BullionInvestment)
+            .filter(
+                BullionInvestment.investor == bullion_data.investor,
+                BullionInvestment.metal_name == bullion_data.metal_name,
+                BullionInvestment.investment_subcategory_id
+                == bullion_data.investment_subcategory_id,
+            )
+            .all()
+        )
 
         total_quantity = sum(holding.quantity_in_grams for holding in total_holdings)
 

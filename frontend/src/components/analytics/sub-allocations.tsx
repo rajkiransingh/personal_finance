@@ -21,4 +21,6 @@ import {
   Radar
 } from 'recharts';
 
-export default function SubAllocationPage() {}
+export default function SubAllocationPage() {
+  return null;
+}

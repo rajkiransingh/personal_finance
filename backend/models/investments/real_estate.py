@@ -9,8 +9,12 @@ class RealEstateInvestment(Base):
     investor = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     currency_id = Column(Integer, ForeignKey("currencies.currency_id"), nullable=False)
     region_id = Column(Integer, ForeignKey("regions.region_id"), nullable=False)
-    investment_type_id = Column(Integer, ForeignKey("investment_category.id"), nullable=False)
-    investment_subcategory_id = Column(Integer, ForeignKey("investment_subcategory.id"), nullable=False)
+    investment_type_id = Column(
+        Integer, ForeignKey("investment_category.id"), nullable=False
+    )
+    investment_subcategory_id = Column(
+        Integer, ForeignKey("investment_subcategory.id"), nullable=False
+    )
     transaction_type = Column(String(10), nullable=False)
     property_name = Column(String(20), nullable=False)
     property_type = Column(String(20), nullable=False)
@@ -31,7 +35,9 @@ class RealEstateSummary(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     investor_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     property_name = Column(String(255), nullable=False)
-    property_type = Column(Integer, ForeignKey("investment_subcategory.id"), nullable=False)
+    property_type = Column(
+        Integer, ForeignKey("investment_subcategory.id"), nullable=False
+    )
     property_location = Column(String(255), nullable=False)
     total_quantity = Column(Float, nullable=False)
     total_cost = Column(Float, nullable=False)

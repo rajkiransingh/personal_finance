@@ -49,9 +49,11 @@ def revert(db: Session, investment: MutualFundInvestment):
             user_id=investment.investor,
             source_id=5,
             amount=investment.total_amount_after_sale,
-            earned_date=investment.investment_date.date()
-            if hasattr(investment.investment_date, "date")
-            else investment.investment_date,
+            earned_date=(
+                investment.investment_date.date()
+                if hasattr(investment.investment_date, "date")
+                else investment.investment_date
+            ),
         )
 
     # Recalculate Average

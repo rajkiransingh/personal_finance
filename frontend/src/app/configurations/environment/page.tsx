@@ -50,7 +50,7 @@ export default function EnvironmentConfigPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:8000/config/environment-config")
+    fetch("/api/config/environment-config")
       .then((res) => res.json())
       .then((data) => setEnvConfig(data));
   }, []);
@@ -64,7 +64,7 @@ export default function EnvironmentConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('http://localhost:8000/config/environment-config', {
+      const res = await fetch('/api/config/environment-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(envConfig),

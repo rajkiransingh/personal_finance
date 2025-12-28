@@ -23,7 +23,9 @@ def revert(db: Session, investment: Dividends):
         user_id=investment.investor,
         source_id=4,
         amount=investment.amount,
-        earned_date=investment.received_date.date()
-        if hasattr(investment.received_date, "date")
-        else investment.received_date,
+        earned_date=(
+            investment.received_date.date()
+            if hasattr(investment.received_date, "date")
+            else investment.received_date
+        ),
     )

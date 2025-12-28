@@ -42,9 +42,11 @@ def revert(db: Session, investment: RealEstateInvestment):
             user_id=investment.investor,
             source_id=10,
             amount=investment.total_amount_after_sale,
-            earned_date=investment.investment_date.date()
-            if hasattr(investment.investment_date, "date")
-            else investment.investment_date,
+            earned_date=(
+                investment.investment_date.date()
+                if hasattr(investment.investment_date, "date")
+                else investment.investment_date
+            ),
         )
 
     if prop.total_quantity > 0:

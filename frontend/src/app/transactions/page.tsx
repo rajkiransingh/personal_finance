@@ -48,11 +48,11 @@ export default function TransactionsPage() {
 
   // Map endpoints for investment types -> endpoint
   const investmentEndpointMap: Record<number, string> = {
-    1: "http://localhost:8000/investment/bullion",       // Bullion
-    9: "http://localhost:8000/investment/crypto",        // Crypto
-    2: "http://localhost:8000/investment/stocks",        // Indian Stock
-    3: "http://localhost:8000/investment/real-estate",   // Land
-    5: "http://localhost:8000/investment/mutual-fund",   // Mutual Fund
+    1: "/api/investment/bullion",       // Bullion
+    9: "/api/investment/crypto",        // Crypto
+    2: "/api/investment/stocks",        // Indian Stock
+    3: "/api/investment/real-estate",   // Land
+    5: "/api/investment/mutual-fund",   // Mutual Fund
   };
 
   // load reference data once
@@ -69,14 +69,14 @@ export default function TransactionsPage() {
           regRes,
           unitRes
         ] = await Promise.all([
-          fetch("http://localhost:8000/categories/users").then(r => r.json()).catch(() => []),
-          fetch("http://localhost:8000/categories/income-sources").then(r => r.json()).catch(() => []),
-          fetch("http://localhost:8000/categories/expense-category").then(r => r.json()).catch(() => []),
-          fetch("http://localhost:8000/categories/investment-category").then(r => r.json()).catch(() => []),
-          fetch("http://localhost:8000/categories/investment-subcategory").then(r => r.json()).catch(() => []),
-          fetch("http://localhost:8000/categories/currencies").then(r => r.json()).catch(() => []),
-          fetch("http://localhost:8000/categories/region").then(r => r.json()).catch(() => []),
-          fetch("http://localhost:8000/categories/units").then(r => r.json()).catch(() => [])
+          fetch("/api/categories/users").then(r => r.json()).catch(() => []),
+          fetch("/api/categories/income-sources").then(r => r.json()).catch(() => []),
+          fetch("/api/categories/expense-category").then(r => r.json()).catch(() => []),
+          fetch("/api/categories/investment-category").then(r => r.json()).catch(() => []),
+          fetch("/api/categories/investment-subcategory").then(r => r.json()).catch(() => []),
+          fetch("/api/categories/currencies").then(r => r.json()).catch(() => []),
+          fetch("/api/categories/region").then(r => r.json()).catch(() => []),
+          fetch("/api/categories/units").then(r => r.json()).catch(() => [])
         ]);
 
         setUsers(usersRes || []);
@@ -106,7 +106,7 @@ async function fetchRecent() {
     let records: any[] = [];
 
     if (activeTab === "expense") {
-      const res = await fetch("http://localhost:8000/expenses");
+      const res = await fetch("/api/expenses");
       const data = await res.json();
       records = Array.isArray(data) ? data : data?.results || [];
     } else if (activeTab === "investment") {
@@ -124,7 +124,7 @@ async function fetchRecent() {
       records = allData.flatMap((d) => (Array.isArray(d) ? d : d?.results || []));
     } else {
       // default = income
-      const res = await fetch("http://localhost:8000/income");
+      const res = await fetch("/api/income");
       const data = await res.json();
       records = Array.isArray(data) ? data : data?.results || [];
     }
@@ -190,7 +190,7 @@ async function fetchRecent() {
         currency: incomeForm.currency || (currencies[0]?.currency_code ?? "INR"),
         earned_date: new Date(incomeForm.earned_date).toISOString()
       };
-      const res = await fetch("http://localhost:8000/income", {
+      const res = await fetch("/api/income", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -218,7 +218,7 @@ async function fetchRecent() {
         currency: expenseForm.currency || (currencies[0]?.currency_code ?? "INR"),
         spent_date: new Date(expenseForm.spent_date).toISOString()
       };
-      const res = await fetch("http://localhost:8000/expenses", {
+      const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -242,7 +242,7 @@ async function fetchRecent() {
 
     try {
       const invType = Number(investmentForm.investment_type_id || investmentForm.investment_type);
-      const endpoint = investmentEndpointMap[invType] ?? "http://localhost:8000/investment/stocks";
+      const endpoint = investmentEndpointMap[invType] ?? "/api/investment/stocks";
 
       // Build payload according to your sample structures.
       // We'll try to fill minimal required fields depending on type.
@@ -402,7 +402,7 @@ function formatAmount(amount: any, currency?: string) {
             <button
               onClick={() => {
                   setShowImportModal(true);
-                  fetch("http://localhost:8000/import/banks")
+                  fetch("/api/import/banks")
                       .then(r => r.json())
                       .then(data => setAvailableBanks(data))
                       .catch(err => console.error("Failed to fetch banks", err));
@@ -908,7 +908,7 @@ function formatAmount(amount: any, currency?: string) {
                                       formData.append("file", importForm.file);
 
                                       try {
-                                          const res = await fetch("http://localhost:8000/import/preview", {
+                                          const res = await fetch("/api/import/preview", {
                                               method: "POST",
                                               body: formData
                                           });
@@ -1011,7 +1011,7 @@ function formatAmount(amount: any, currency?: string) {
                                               transactions: previewData
                                           };
                                           
-                                          const res = await fetch("http://localhost:8000/import/confirm", {
+                                          const res = await fetch("/api/import/confirm", {
                                               method: "POST",
                                               headers: { "Content-Type": "application/json" },
                                               body: JSON.stringify(payload)

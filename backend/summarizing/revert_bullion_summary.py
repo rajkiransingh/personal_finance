@@ -36,9 +36,11 @@ def revert(db: Session, investment: BullionInvestment):
             user_id=investment.investor,
             source_id=11,
             amount=investment.total_amount_after_sale,
-            earned_date=investment.investment_date.date()
-            if hasattr(investment.investment_date, "date")
-            else investment.investment_date,
+            earned_date=(
+                investment.investment_date.date()
+                if hasattr(investment.investment_date, "date")
+                else investment.investment_date
+            ),
         )
 
     if bullion.total_quantity > 0:

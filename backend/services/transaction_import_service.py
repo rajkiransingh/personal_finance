@@ -281,7 +281,6 @@ def update_category_rules_file(updates: list[dict]):
 
         # We need to find the start of the dict, then the key.
         # This is a bit brittle but regex can help.
-        import re
 
         # Regex to find: <id>: [ ... ]
         # We want to match:     12: [ ..., "existing" ],

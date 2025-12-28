@@ -13,10 +13,14 @@ def create_mutual_fund(db: Session, fund_data: MutualFundInvestmentCreate):
 
     # If selling, check available holdings
     if fund_data.transaction_type == "SELL":
-        total_holdings = db.query(MutualFundInvestment).filter(
-            MutualFundInvestment.investor == fund_data.investor,
-            MutualFundInvestment.scheme_code == fund_data.scheme_code
-        ).all()
+        total_holdings = (
+            db.query(MutualFundInvestment)
+            .filter(
+                MutualFundInvestment.investor == fund_data.investor,
+                MutualFundInvestment.scheme_code == fund_data.scheme_code,
+            )
+            .all()
+        )
 
         total_quantity = sum(holding.unit_quantity for holding in total_holdings)
 

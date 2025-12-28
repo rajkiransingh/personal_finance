@@ -13,12 +13,18 @@ def create_property(db: Session, property_data: RealEstateInvestmentCreate):
 
     # If selling, check available holdings
     if property_data.transaction_type == "SELL":
-        total_holdings = db.query(RealEstateInvestment).filter(
-            RealEstateInvestment.investor == property_data.investor,
-            RealEstateInvestment.property_type == property_data.property_type,
-            RealEstateInvestment.property_location == property_data.property_location,
-            RealEstateInvestment.investment_subcategory_id == property_data.investment_subcategory_id
-        ).all()
+        total_holdings = (
+            db.query(RealEstateInvestment)
+            .filter(
+                RealEstateInvestment.investor == property_data.investor,
+                RealEstateInvestment.property_type == property_data.property_type,
+                RealEstateInvestment.property_location
+                == property_data.property_location,
+                RealEstateInvestment.investment_subcategory_id
+                == property_data.investment_subcategory_id,
+            )
+            .all()
+        )
 
         total_quantity = sum(holding.area_in_sqyds for holding in total_holdings)
 
@@ -39,7 +45,7 @@ def create_property(db: Session, property_data: RealEstateInvestmentCreate):
         area_in_sqyds=property_data.area_in_sqyds,
         total_invested_amount=property_data.total_invested_amount,
         total_amount_after_sale=property_data.total_amount_after_sale,
-        investment_date=property_data.investment_date or date.today()
+        investment_date=property_data.investment_date or date.today(),
     )
 
     db.add(new_transaction)

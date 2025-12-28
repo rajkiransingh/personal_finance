@@ -57,9 +57,11 @@ def revert(db: Session, investment: StockInvestment):
             user_id=investment.investor,
             source_id=8,
             amount=investment.total_amount_after_sale,
-            earned_date=investment.investment_date.date()
-            if hasattr(investment.investment_date, "date")
-            else investment.investment_date,
+            earned_date=(
+                investment.investment_date.date()
+                if hasattr(investment.investment_date, "date")
+                else investment.investment_date
+            ),
         )
 
     stock.last_updated = datetime.datetime.utcnow()

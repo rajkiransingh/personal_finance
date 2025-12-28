@@ -36,7 +36,7 @@ export default function PortfolioPage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch('http://localhost:8000/portfolio/', { method: 'GET' });
+        const response = await fetch('/api/portfolio', { method: 'GET' });
 
         if (!response.ok) {
           const txt = await response.text().catch(() => '');

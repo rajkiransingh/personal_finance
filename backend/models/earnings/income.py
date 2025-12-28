@@ -7,7 +7,9 @@ class Income(Base):
     __tablename__ = "income"
     income_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    source_id = Column(Integer, ForeignKey("income_source.income_source_id"), nullable=False)
+    source_id = Column(
+        Integer, ForeignKey("income_source.income_source_id"), nullable=False
+    )
     amount = Column(Float, nullable=False)
     currency = Column(String(255), nullable=False)
     earned_date = Column(DateTime, nullable=False)

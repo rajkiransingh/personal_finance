@@ -7,7 +7,7 @@ export default function StockPickStrategyConfigPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:8000/config/stock-picking-strategy-config")
+    fetch("/api/config/stock-picking-strategy-config")
       .then((res) => res.json())
       .then((data) => setConfig(data));
   }, []);
@@ -109,7 +109,7 @@ export default function StockPickStrategyConfigPage() {
   // ✅ Save + show success popup
   const saveConfig = async () => {
     setSaving(true);
-    const res = await fetch("http://localhost:8000/config/stock-picking-strategy-config", {
+    const res = await fetch("/api/config/stock-picking-strategy-config", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config, null, 2),

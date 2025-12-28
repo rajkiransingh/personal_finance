@@ -49,7 +49,7 @@ export default function SupportingData() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch("http://localhost:8000/categories/investment-category");
+      const res = await fetch("/api/categories/investment-category");
       if (!res.ok) throw new Error("Failed to fetch categories");
       const json = await res.json();
       setInvestmentCategories(json);
@@ -62,7 +62,7 @@ export default function SupportingData() {
 
 const fetchCurrencies = async () => {
   try {
-    const res = await fetch("http://localhost:8000/categories/currencies");
+    const res = await fetch("/api/categories/currencies");
     if (!res.ok) throw new Error("Failed to fetch currencies");
     const json = await res.json();
     setCurrencies(json);
@@ -75,23 +75,23 @@ const fetchCurrencies = async () => {
 
   const fetchData = async (section: string) => {
     try {
-      const res = await fetch(`http://localhost:8000${sections[section]}`);
+      const res = await fetch(`/api${sections[section]}`);
       if (!res.ok) throw new Error(`Failed to fetch ${section}`);
       let json: RowData[] = await res.json();
 
       if (section === "Investment Subcategories") {
         const cats = investmentCategories.length > 0 ? investmentCategories : await fetchCategories();
-        json = json.map((sub) => ({
+        json = json.map((sub: any) => ({
           ...sub,
-          category_name: cats.find((c) => c.id === sub.category_id)?.investment_type || "N/A",  // Use c.id
+          category_name: cats.find((c: any) => c.id === sub.category_id)?.investment_type || "N/A",  // Use c.id
         }));
       }
 
       if (section === "Regions") {
           const curs = currencies.length > 0 ? currencies : await fetchCurrencies();
-          json = json.map((region) => ({
+          json = json.map((region: any) => ({
             ...region,
-            currency_name: curs.find((c) => c.currency_id === region.currency_id)?.currency_name || "N/A",
+            currency_name: curs.find((c: any) => c.currency_id === region.currency_id)?.currency_name || "N/A",
           }));
       }
 
@@ -117,7 +117,7 @@ const fetchCurrencies = async () => {
     if (!confirm("Are you sure you want to delete this item?")) return;
 
     try {
-      const res = await fetch(`http://localhost:8000${sections[section]}/${id}`, {
+      const res = await fetch(`/api${sections[section]}/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -134,8 +134,8 @@ const fetchCurrencies = async () => {
   const handleSubmit = async () => {
     const idKey = idKeyMappings[activeSection];
     const url = editingRow
-      ? `http://localhost:8000${sections[activeSection]}/${editingRow[idKey]}`
-      : `http://localhost:8000${sections[activeSection]}`;
+      ? `/api${sections[activeSection]}/${editingRow[idKey]}`
+      : `/api${sections[activeSection]}`;
 
     try {
       const res = await fetch(url, {
