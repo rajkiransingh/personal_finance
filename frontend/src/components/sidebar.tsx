@@ -115,15 +115,23 @@ export default function Sidebar() {
 
   return (
     <aside className="bg-[var(--color-sidebar)] text-[var(--color-text-primary)] w-72 min-h-screen p-6 flex flex-col shadow-lg border-r border-[var(--color-card)]">
-      {/* Header */}
-      <h1 className="font-playwrite text-2xl mb-6 text-center tracking-wide">
-        <span className="inline-flex flex-col items-center gap-1">
-          <span className="text-[var(--color-accent)] text-sm tracking-widest">▁ ▃ ▄ ▅</span>
-          <span className="text-[var(--color-accent)] font-semibold">Mera Paisa</span>
-        </span>
-      </h1>
-
-      <div className="h-[1px] bg-[var(--color-card)] mb-8 mx-4"></div>
+      {/* Header / Logo */}
+      <div className="mb-10 px-2">
+        <div className="flex items-center gap-3 group">
+          <div className="bg-[var(--color-accent)] p-2.5 rounded-xl text-black shadow-lg transform group-hover:scale-110 transition-transform duration-300">
+            <TrendingUp size={24} strokeWidth={2.5} />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-secondary)] leading-none">
+              MERA
+            </h1>
+            <h1 className="text-xl font-light tracking-[0.2em] text-[var(--color-accent)] leading-none mt-1">
+              PAISA
+            </h1>
+          </div>
+        </div>
+        <div className="h-[2px] w-full bg-gradient-to-r from-[var(--color-accent)] to-transparent mt-6 opacity-20"></div>
+      </div>
 
       {/* Navigation */}
       <nav className="space-y-2 flex-1 text-sm">
@@ -216,10 +224,6 @@ export default function Sidebar() {
           );
         })}
       </nav>
-
-      <div className="mt-auto pt-6 text-xs text-center text-[var(--color-text-secondary)] opacity-60">
-         Mera Paisa ••• Personal Finance Tracker ••• v1.0
-      </div>
     </aside>
   );
 }
