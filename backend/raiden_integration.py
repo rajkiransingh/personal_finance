@@ -1,9 +1,10 @@
-import logging
+import socket
 import threading
 import time
-import requests
-import socket
 from typing import Optional, Dict, Any
+
+import requests
+
 from utilities.common.app_config import config
 
 logger = config.setup_logger("api.raiden")
