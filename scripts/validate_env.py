@@ -133,7 +133,7 @@ def validate_database_url():
         if "@" not in db_url or ":" not in db_url:
             print_warning("DATABASE_URL format may be incorrect")
             print(
-                f"  Expected format: mysql+pymysql://username:password@host:port/database"
+                "Expected format: mysql+pymysql://username:password@host:port/database"
             )
             return
 
