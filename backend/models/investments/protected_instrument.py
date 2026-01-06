@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Float, Date
+
 from backend.services.db_services import Base
 
 
@@ -6,6 +7,7 @@ class ProtectedInstrument(Base):
     __tablename__ = "protected_instruments"
 
     id = Column(Integer, primary_key=True, index=True)
+    policy_number = Column(String(255), nullable=False)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
 
     name = Column(String(255), nullable=False)  # LIC, Sukanya, Insurance

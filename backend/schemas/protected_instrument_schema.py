@@ -1,10 +1,12 @@
-from pydantic import BaseModel
 from datetime import date
 from typing import Optional
+
+from pydantic import BaseModel
 
 
 class ProtectedInstrumentBase(BaseModel):
     user_id: int
+    policy_number: str
     name: str
     provider: Optional[str] = None
     category: str
@@ -21,6 +23,7 @@ class ProtectedInstrumentCreate(ProtectedInstrumentBase):
 
 
 class ProtectedInstrumentUpdate(BaseModel):
+    policy_number: str = None
     name: Optional[str] = None
     provider: Optional[str] = None
     category: Optional[str] = None

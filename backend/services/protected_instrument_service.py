@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+
 from backend.models.investments.protected_instrument import ProtectedInstrument
 from backend.schemas.protected_instrument_schema import (
     ProtectedInstrumentCreate,
@@ -28,6 +29,7 @@ def get_protected_instrument(db: Session, instrument_id: int):
 
 def create_protected_instrument(db: Session, instrument: ProtectedInstrumentCreate):
     db_instrument = ProtectedInstrument(
+        policy_id=instrument.policy_id,
         user_id=instrument.user_id,
         name=instrument.name,
         provider=instrument.provider,
@@ -46,7 +48,7 @@ def create_protected_instrument(db: Session, instrument: ProtectedInstrumentCrea
 
 
 def update_protected_instrument(
-    db: Session, instrument_id: int, instrument_update: ProtectedInstrumentUpdate
+        db: Session, instrument_id: int, instrument_update: ProtectedInstrumentUpdate
 ):
     db_instrument = get_protected_instrument(db, instrument_id)
     if not db_instrument:
