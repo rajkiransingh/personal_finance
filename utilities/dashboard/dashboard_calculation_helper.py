@@ -16,7 +16,7 @@ from backend.models.investments.real_estate import RealEstateInvestment
 from backend.models.investments.stock import StockInvestment
 from backend.models.spendings.expense import Expense, ExpenseCategory
 from backend.services.db_services import get_db
-from utilities.common.base_fetcher import BaseFetcher
+from utilities.common.base_fetcher import BaseFetcher, _build_cache_key
 from utilities.fetch_overall_investment_data import get_portfolio_summary
 
 
@@ -235,7 +235,6 @@ class DashboardDataCalculator(BaseFetcher):
         cached_map = self.get_from_cache(self.cache_key_prefix, [self.summary])
         cached_info = cached_map.get(self.summary)
         if cached_info:
-            self.logger.info("Cache hit :: Dashboard summary loaded from Redis Cache")
             return cached_info
 
         # ----- PORTFOLIO SUMMARY -----
@@ -655,8 +654,9 @@ class DashboardDataCalculator(BaseFetcher):
         }
 
         try:
+
             self.redis_client.setex(
-                self.cache_key_prefix, self.cache_expiry_in_seconds, json.dumps(result)
+                _build_cache_key(self.cache_key_prefix, self.summary), self.cache_expiry_in_seconds, json.dumps(result)
             )
         except Exception as e:
             self.logger.warning(f"Cache write failed for {self.cache_key_prefix}: {e}")

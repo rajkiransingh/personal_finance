@@ -5,6 +5,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+from backend.raiden_integration import raiden_client
 from backend.routes import dashboard_routes, portfolio_routes
 from backend.routes import (
     expense_routes,
@@ -12,7 +13,7 @@ from backend.routes import (
     user_routes,
     income_routes,
 )
-from backend.routes import transaction_import_routes
+from backend.routes import transaction_import_routes, protected_instrument_routes
 from backend.routes.analytics import score_routes
 from backend.routes.categories import category_routes
 from backend.routes.configurations import config_routes
@@ -72,6 +73,9 @@ def safe_float(value, default=0.0):
 def startup_logic():
     logger.info("=" * 60)
     logger.info("Starting application logic...")
+    raiden_client.send_event(
+        "scheduler_started", {"message": "Financer startup logic beginning"}
+    )
     logger.info("=" * 60)
     try:
         db: Session = next(get_db())
@@ -113,7 +117,10 @@ def startup_logic():
         sM.merge_with_ticker_data(stockMerger, db)
         get_stock_score()
 
+        raiden_client.send_event("scheduler_completed", {"status": "success"})
+
     except Exception as e:
+        raiden_client.send_event("scheduler_failed", {"error": str(e)})
         logger.error(f"Error executing startup logic: {e}", exc_info=True)
         # We catch exceptions to prevent app startup failure if logic is buggy
 
@@ -124,8 +131,13 @@ def startup_logic():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Register with Raiden and start heartbeat
+    raiden_client.register()
+    raiden_client.start_heartbeat()
+
     startup_logic()
     yield
+    raiden_client.stop_heartbeat()
     logger.info("Shutting down application...")
 
 
@@ -148,6 +160,7 @@ api_router.include_router(config_routes.router)
 api_router.include_router(category_routes.router)
 api_router.include_router(score_routes.router)
 api_router.include_router(transaction_import_routes.router)
+api_router.include_router(protected_instrument_routes.router)
 
 app.include_router(api_router)
 

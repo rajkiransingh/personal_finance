@@ -134,96 +134,83 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="space-y-2 flex-1 text-sm">
-        {navItems.map((item) => {
-          const active = pathname === item.path;
-          const hasChildren = Array.isArray(item.children);
-
-          if (!hasChildren) {
-            return (
-              <Link
-                key={item.name}
-                href={item.path ?? "#"}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all duration-150 ${
-                  active
-                    ? "bg-[var(--color-accent)] text-black shadow-inner"
-                    : "text-[var(--color-text-secondary)] hover:bg-[var(--color-card)] hover:text-[var(--color-accent)]"
-                }`}
-              >
-                {item.icon} {item.name}
-              </Link>
-            );
-          }
-
-          return (
-            <div key={item.name}>
-              <button
-                onClick={() => toggleMenu(item.name)}
-                className="flex items-center justify-between w-full px-4 py-2 rounded-md font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-card)] hover:text-[var(--color-accent)]"
-              >
-                <span className="flex items-center gap-2">
-                  {item.icon} {item.name}
-                </span>
-                {openMenus[item.name] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              </button>
-
-              {openMenus[item.name] && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {item.children.map((child: any) => (
-                    <div key={child.name}>
-                      {child.children ? (
-                        <>
-                          <button
-                            onClick={() => toggleMenu(child.name)}
-                            className="flex items-center justify-between w-full px-3 py-1.5 rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]"
-                          >
-                            <span className="flex items-center gap-2">
-                              {child.icon} {child.name}
-                            </span>
-                            {openMenus[child.name] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          </button>
-
-                          {openMenus[child.name] && (
-                            <div className="ml-4 mt-1 space-y-1">
-                              {child.children.map((sub: any) => {
-                                const subActive = pathname === sub.path;
-                                return (
-                                  <Link
-                                    key={sub.name}
-                                    href={sub.path}
-                                    className={`block px-3 py-1.5 rounded-md transition-all duration-150 ${
-                                      subActive
-                                        ? "bg-[var(--color-accent)] text-black"
-                                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-lighter)] hover:text-[var(--color-accent)]"
-                                    }`}
-                                  >
-                                    {sub.name}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <Link
-                          href={child.path}
-                          className={`block px-3 py-1.5 rounded-md ${
-                            pathname === child.path
-                              ? "bg-[var(--color-accent)] text-black"
-                              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-lighter)] hover:text-[var(--color-accent)]"
-                          }`}
-                        >
-                          {child.name}
-                        </Link>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <nav className="space-y-1 flex-1 text-sm overflow-y-auto pr-2 custom-scrollbar">
+        {navItems.map((item) => (
+          <SidebarItem key={item.name} item={item} depth={0} pathname={pathname} openMenus={openMenus} toggleMenu={toggleMenu} />
+        ))}
       </nav>
     </aside>
+  );
+}
+
+// Recursive Sidebar Item Component
+function SidebarItem({ item, depth, pathname, openMenus, toggleMenu }: any) {
+  const isOpen = openMenus[item.name];
+  const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+  const isActive = pathname === item.path;
+
+  // Indentation calculation
+  const paddingLeft = `${depth * 12 + 16}px`;
+
+  return (
+    <div className="mb-1">
+      {hasChildren ? (
+        <>
+          <button
+            onClick={() => toggleMenu(item.name)}
+            className={`flex items-center justify-between w-full py-2 rounded-lg font-medium transition-all duration-200 group ${
+              isOpen ? "text-white" : "text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-card)]"
+            }`}
+             style={{ paddingLeft, paddingRight: '12px' }}
+          >
+            <span className="flex items-center gap-3">
+              {item.icon && <span className={`${isOpen ? 'text-[var(--color-accent)]' : 'text-gray-500 group-hover:text-[var(--color-accent)]'}`}>{item.icon}</span>}
+              <span className="tracking-wide">{item.name}</span>
+            </span>
+            <ChevronRight
+              size={16}
+              className={`transition-transform duration-300 ${isOpen ? "rotate-90 text-[var(--color-accent)]" : "text-gray-600"}`}
+            />
+          </button>
+
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out pl-2 border-l border-[var(--color-border)] ml-${depth * 2 + 4}`}
+            style={{
+              maxHeight: isOpen ? "1000px" : "0px",
+              opacity: isOpen ? 1 : 0,
+            }}
+          >
+            <div className="pt-1 pb-2 space-y-1">
+              {item.children.map((child: any) => (
+                <SidebarItem
+                  key={child.name}
+                  item={child}
+                  depth={depth + 1}
+                  pathname={pathname}
+                  openMenus={openMenus}
+                  toggleMenu={toggleMenu}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <Link
+          href={item.path ?? "#"}
+          className={`flex items-center gap-3 py-2 rounded-lg font-medium transition-all duration-150 relative overflow-hidden ${
+            isActive
+              ? "bg-gradient-to-r from-[var(--color-accent)]/10 to-transparent text-[var(--color-accent)]"
+              : "text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-card)]"
+          }`}
+          style={{ paddingLeft, paddingRight: '12px' }}
+        >
+          {isActive && (
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent)] rounded-r-full" />
+          )}
+          {item.icon && <span className={isActive ? "text-[var(--color-accent)]" : "text-gray-500"}>{item.icon}</span>}
+          <span>{item.name}</span>
+        </Link>
+      )}
+    </div>
   );
 }

@@ -13,6 +13,7 @@ services:
       - .:/app
     networks:
       - personal_finance_network
+      - intra_connect
 
   frontend:
     build:
@@ -35,4 +36,6 @@ services:
 
 networks:
   personal_finance_network:
+    external: true
+  intra_connect:
     external: true

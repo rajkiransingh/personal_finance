@@ -42,6 +42,11 @@ class AppConfig:
         self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
         self.LOG_DIR = os.getenv("LOG_DIR", "./logs")
 
+        # Integration Configuration
+        self.RAIDEN_URL = os.getenv("RAIDEN_URL", "http://raiden:8000")
+        self.N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
+        self.SERVICE_NAME = os.getenv("SERVICE_NAME", "Financer")
+
         # Standardized log formats
         # File format: More detailed with function names
         self.FILE_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)-35s | %(funcName)-25s | %(message)s"

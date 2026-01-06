@@ -52,7 +52,7 @@
       }
     },
     "MutualFunds": {
-      "weight": 0.2,
+      "weight": 0.15,
       "sub_allocations": {
         "SundaramLongTerm": 0.1,
         "KotakFlexicap": 0.1,
@@ -83,6 +83,9 @@
       "weight": 0.25
     },
     "Crypto": {
+      "weight": 0.05
+    },
+    "Instruments": {
       "weight": 0.05
     }
   },
