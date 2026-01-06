@@ -14,17 +14,17 @@ type Region = { region_id: number; region_name: string; currency_id: number };
 type Unit = { unit_id: number; unit_name: string };
 
 export default function TransactionsPage() {
-  const [activeTab, setActiveTab] = useState<'income' | 'expense' | 'investment'>('income');
+  const [activeTab, setActiveTab] = useState<'income' | 'expense' | 'investment' | 'dividend' | 'instruments'>('income');
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [incomeSources, setIncomeSources] = useState<any[]>([]);
-  const [expenseCategories, setExpenseCategories] = useState([]);
-  const [investmentCategories, setInvestmentCategories] = useState([]);
-  const [investmentSubcats, setInvestmentSubcats] = useState([]);
-  const [currencies, setCurrencies] = useState([]);
-  const [regions, setRegions] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [recent, setRecent] = useState([]);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
+  const [investmentCategories, setInvestmentCategories] = useState<InvestmentCategory[]>([]);
+  const [investmentSubcats, setInvestmentSubcats] = useState<InvestmentSubcategory[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [recent, setRecent] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -34,6 +34,12 @@ export default function TransactionsPage() {
   const [incomeForm, setIncomeForm] = useState<any>({});
   const [expenseForm, setExpenseForm] = useState<any>({});
   const [investmentForm, setInvestmentForm] = useState<any>({});
+  const [dividendForm, setDividendForm] = useState<any>({});
+  const [instrumentForm, setInstrumentForm] = useState<any>({});
+
+  // Autocomplete Data
+  const [stockSummaries, setStockSummaries] = useState<any[]>([]);
+  const [existingInstruments, setExistingInstruments] = useState<any[]>([]);
   
   // Import Modal State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -45,6 +51,7 @@ export default function TransactionsPage() {
   });
   const [availableBanks, setAvailableBanks] = useState<string[]>([]);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [mutualFundSummary, setMutualFundSummary] = useState<any[]>([]);
 
   // Map endpoints for investment types -> endpoint
   const investmentEndpointMap: Record<number, string> = {
@@ -99,6 +106,18 @@ export default function TransactionsPage() {
 useEffect(() => {
   setCurrentPage(1);
   fetchRecent();
+
+  if (activeTab === 'investment') {
+      fetch("/api/summary/mutual-funds")
+        .then(res => res.json())
+        .then(data => setMutualFundSummary(data))
+        .catch(err => console.error("Failed to fetch mutual fund summary", err));
+  }
+    // Fetch Stock Summaries for Autocomplete
+    fetch("/api/summary/stocks")
+      .then(res => res.json())
+      .then(data => setStockSummaries(data))
+      .catch(err => console.error("Failed to fetch stock summaries", err));
 }, [activeTab]);
 
 async function fetchRecent() {
@@ -121,7 +140,16 @@ async function fetchRecent() {
           .map((r) => r.value.json())
       );
 
-      records = allData.flatMap((d) => (Array.isArray(d) ? d : d?.results || []));
+       records = allData.flatMap((d) => (Array.isArray(d) ? d : d?.results || []));
+    } else if (activeTab === "dividend") {
+      const res = await fetch("/api/dividends");
+      const data = await res.json();
+      records = Array.isArray(data) ? data : data?.results || [];
+    } else if (activeTab === "instruments") {
+         const res = await fetch("/api/protected-instruments");
+         const data = await res.json();
+         records = Array.isArray(data) ? data : data?.results || [];
+         setExistingInstruments(records);
     } else {
       // default = income
       const res = await fetch("/api/income");
@@ -264,7 +292,8 @@ async function fetchRecent() {
           stock_name: investmentForm.stock_name || investmentForm.stock_symbol || "Stock",
           initial_price_per_stock: Number(investmentForm.initial_price_per_stock || investmentForm.price || 0),
           total_invested_amount: Number(investmentForm.total_invested_amount || 0),
-          stock_quantity: Number(investmentForm.stock_quantity || 0)
+          stock_quantity: Number(investmentForm.stock_quantity || 0),
+          dividend_paying: investmentForm.dividend_paying || false
         };
       } else if (invType === 5) {
         // Mutual Fund
@@ -332,6 +361,82 @@ async function fetchRecent() {
     }
   }
 
+  // Dividend submission
+  async function submitDividend(e?: any) {
+    if (e) e.preventDefault();
+    setLoading(true);
+    try {
+      const payload = {
+        investor: Number(dividendForm.investor),
+        region_id: Number(dividendForm.region_id),
+        currency_id: Number(dividendForm.currency_id),
+        stock_symbol: dividendForm.stock_symbol,
+        stock_name: dividendForm.stock_name,
+        amount: Number(dividendForm.amount),
+        received_date: dividendForm.received_date ? new Date(dividendForm.received_date).toISOString() : new Date().toISOString()
+      };
+
+      const res = await fetch("/api/dividends", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+         const txt = await res.text().catch(() => "");
+         throw new Error(`Dividend POST failed: ${res.status} ${txt}`);
+      }
+      alert("Dividend saved");
+      //setDividendForm({});
+      await fetchRecent();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to save dividend: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
+
+    // Instrument submission
+  async function submitInstrument(e?: any) {
+    if (e) e.preventDefault();
+    setLoading(true);
+    try {
+      const payload = {
+        user_id: Number(instrumentForm.user_id),
+        name: instrumentForm.name,
+        provider: instrumentForm.provider,
+        category: instrumentForm.category,
+        frequency: instrumentForm.frequency, // Optional
+        contribution: Number(instrumentForm.contribution),
+        start_date: instrumentForm.start_date ? new Date(instrumentForm.start_date).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        maturity_date: instrumentForm.maturity_date ? new Date(instrumentForm.maturity_date).toISOString().substring(0, 10) : null,
+        guaranteed_amount: instrumentForm.guaranteed_amount ? Number(instrumentForm.guaranteed_amount) : null,
+        notes: instrumentForm.notes
+      };
+
+      const res = await fetch("/api/protected-instruments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+         const txt = await res.text().catch(() => "");
+         throw new Error(`Instrument POST failed: ${res.status} ${txt}`);
+      }
+      alert("Instrument saved");
+      //setInstrumentForm({});
+      await fetchRecent();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to save instrument: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
   // Filtered subcategories when investment type changes
   const filteredInvestmentSubcats = (typeId?: number) =>
     investmentSubcats.filter(s => s.category_id === Number(typeId));
@@ -356,7 +461,8 @@ function formatAmount(amount: any, currency?: string) {
   };
 
   // Normalize currency to uppercase in case API sends lowercase
-  const symbol = symbolMap[currency?.toUpperCase?.()] || '';
+  const currencyKey = (currency || '').toUpperCase();
+  const symbol = symbolMap[currencyKey] || '';
 
   // Format number using locale
   const formatted = num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -423,7 +529,7 @@ function formatAmount(amount: any, currency?: string) {
 
         {/* Tabs - Full Width */}
         <div className="flex rounded-2xl p-1.5 shadow-md mb-8" style={{ backgroundColor: 'var(--color-card)' }}>
-          {(['income', 'expense', 'investment'] as const).map(tab => (
+          {(['income', 'expense', 'investment', 'dividend', 'instruments'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -480,21 +586,22 @@ function formatAmount(amount: any, currency?: string) {
                       </div>
 
                       {/* Date calendar */}
-                      <div className="flex flex-col">
-                        <DatePicker className="react-datepicker"
-                          selected={incomeForm.earned_date ? new Date(incomeForm.earned_date) : null}
-                          onChange={(date) =>
-                            setIncomeForm({
-                              ...incomeForm,
-                              earned_date: date ? date.toISOString().split("T")[0] : "",
-                            })
-                          }
-                          dateFormat="yyyy-MM-dd"
-                          className={`${inputClass} w-full`}
-                          placeholderText="Select date"
-                          showPopperArrow={false}
-                          calendarClassName="rounded-2xl shadow-lg border border-gray-200"
-                        />
+                      <div>
+                          <input type="date"
+                            value={incomeForm.earned_date ? new Date(incomeForm.earned_date).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10)}
+                            onChange={(e) =>
+                              setIncomeForm({ ...incomeForm, earned_date: e.target.value })
+                            }
+                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
+                            style={{
+                              backgroundColor: 'var(--color-bg)',
+                              borderColor: 'var(--color-bg-lighter)',
+                              color: 'var(--color-text-primary)',
+                              colorScheme: 'dark',
+                              padding: '0.6rem 0.8rem',
+                              borderRadius: '0.75rem',
+                            }}
+                          />
                       </div>
 
                       {/* Checkboxes for recurring entries and auto learn */}
@@ -559,9 +666,9 @@ function formatAmount(amount: any, currency?: string) {
                       {/* Date calendar */}
                       <div>
                           <input type="date"
-                            value={incomeForm.earned_date ?? ""}
+                            value={expenseForm.spent_date ?? new Date().toISOString().substring(0, 10)}
                             onChange={(e) =>
-                              setIncomeForm({ ...incomeForm, earned_date: e.target.value })
+                              setExpenseForm({ ...expenseForm, spent_date: e.target.value })
                             }
                             className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
                             style={{
@@ -646,9 +753,9 @@ function formatAmount(amount: any, currency?: string) {
                       {/* Date calendar */}
                       <div>
                           <input type="date"
-                            value={incomeForm.earned_date ?? ""}
+                            value={investmentForm.investment_date ?? new Date().toISOString().substring(0, 10)}
                             onChange={(e) =>
-                              setIncomeForm({ ...incomeForm, earned_date: e.target.value })
+                              setInvestmentForm({ ...investmentForm, investment_date: e.target.value })
                             }
                             className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
                             style={{
@@ -666,18 +773,65 @@ function formatAmount(amount: any, currency?: string) {
                       {/* Type-specific helper fields (stock example) */}
                       {Number(investmentForm.investment_type_id) === 2 && (
                           <>
-                           <input placeholder="Stock symbol" value={investmentForm.stock_symbol ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, stock_symbol: e.target.value})} className={inputClass} />
-                           <input placeholder="Stock name" value={investmentForm.stock_name ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, stock_name: e.target.value})} className={inputClass} />
+                           <input list="stock-symbols" placeholder="Stock symbol" value={investmentForm.stock_symbol ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, stock_symbol: e.target.value})} className={inputClass} />
+                           <input list="stock-names" placeholder="Stock name" value={investmentForm.stock_name ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, stock_name: e.target.value})} className={inputClass} />
                            <input type="number" step="0.01" placeholder="Price per stock" value={investmentForm.initial_price_per_stock ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, initial_price_per_stock: e.target.value})} className={inputClass} />
                            <input type="number" step="0.0001" placeholder="Quantity" value={investmentForm.stock_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, stock_quantity: e.target.value})} className={inputClass} />
+                           {/* Dividend Paying Checkbox */}
+                           <div className="flex items-center gap-2 px-1">
+                              <input 
+                                type="checkbox" 
+                                id="dividend_paying"
+                                checked={!!investmentForm.dividend_paying} 
+                                onChange={(e) => setInvestmentForm({...investmentForm, dividend_paying: e.target.checked})} 
+                                className="w-4 h-4 rounded border-gray-600 text-[var(--color-accent)] focus:ring-[var(--color-accent)] bg-[var(--color-bg)]"
+                              />
+                              <label htmlFor="dividend_paying" className="text-sm text-[var(--color-text-secondary)]">
+                                Dividend Paying Stock
+                              </label>
+                           </div>
                           </>
                       )}
 
                       {/* Mutual Fund fields */}
                       {Number(investmentForm.investment_type_id) === 5 && (
                           <>
-                            <input placeholder="Scheme code" value={investmentForm.scheme_code ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, scheme_code: e.target.value})} className={inputClass} />
-                            <input placeholder="Fund name" value={investmentForm.fund_name ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, fund_name: e.target.value})} className={inputClass} />
+                            <input 
+                                list="scheme-codes" 
+                                placeholder="Scheme code" 
+                                value={investmentForm.scheme_code ?? ""} 
+                                onChange={(e) => setInvestmentForm({...investmentForm, scheme_code: e.target.value})} 
+                                className={inputClass} 
+                            />
+                            <datalist id="scheme-codes">
+                                {mutualFundSummary.map((mf) => (
+                                    <option key={`${mf.scheme_code}-${mf.fund_name}`} value={mf.scheme_code}>
+                                        {mf.fund_name}
+                                    </option>
+                                ))}
+                            </datalist>
+
+                            <input 
+                                list="fund-names" 
+                                placeholder="Fund name" 
+                                value={investmentForm.fund_name ?? ""} 
+                                onChange={(e) => {
+                                    const selectedName = e.target.value;
+                                    const match = mutualFundSummary.find(mf => mf.fund_name === selectedName);
+                                    setInvestmentForm({
+                                        ...investmentForm, 
+                                        fund_name: selectedName,
+                                        scheme_code: match ? match.scheme_code : investmentForm.scheme_code
+                                    });
+                                }} 
+                                className={inputClass} 
+                            />
+                            <datalist id="fund-names">
+                                {mutualFundSummary.map((mf) => (
+                                    <option key={`${mf.scheme_code}-${mf.fund_name}-name`} value={mf.fund_name} />
+                                ))}
+                            </datalist>
+
                             <input type="number" placeholder="Unit quantity" value={investmentForm.unit_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, unit_quantity: e.target.value})} className={inputClass} />
                             <input type="number" placeholder="Price per unit" value={investmentForm.initial_price_per_unit ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, initial_price_per_unit: e.target.value})} className={inputClass} />
                           </>
@@ -697,7 +851,21 @@ function formatAmount(amount: any, currency?: string) {
                         <>
                           <input placeholder="Coin symbol" value={investmentForm.coin_symbol ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, coin_symbol: e.target.value})} className={inputClass} />
                           <input placeholder="Crypto name" value={investmentForm.crypto_name ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, crypto_name: e.target.value})} className={inputClass} />
-                          <input type="number" placeholder="Quantity" value={investmentForm.coin_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, coin_quantity: e.target.value})} className={inputClass} />
+                          <input type="number" step="0.00000001" placeholder="Price per coin" value={investmentForm.initial_price_per_coin ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, initial_price_per_coin: e.target.value})} className={inputClass} />
+                          <input type="number" step="0.00000001" placeholder="Quantity" value={investmentForm.coin_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, coin_quantity: e.target.value})} className={inputClass} />
+                        </>
+                      )}
+
+                      {/* Real Estate fields */}
+                      {Number(investmentForm.investment_type_id) === 3 && (
+                        <>
+                          <input placeholder="Property Name" value={investmentForm.property_name ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, property_name: e.target.value})} className={inputClass} />
+                          <input placeholder="Property Type (Plot/Apt/House)" value={investmentForm.property_type ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, property_type: e.target.value})} className={inputClass} />
+                          <input placeholder="Location" value={investmentForm.property_location ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, property_location: e.target.value})} className={inputClass} />
+                          <div className="grid grid-cols-2 gap-2">
+                             <input type="number" step="0.01" placeholder="Area (Sq.Yds)" value={investmentForm.area_in_sqyds ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, area_in_sqyds: e.target.value})} className={inputClass} />
+                             <input type="number" step="0.01" placeholder="Price per Sq.Yd" value={investmentForm.initial_price_per_sqyds ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, initial_price_per_sqyds: e.target.value})} className={inputClass} />
+                          </div>
                         </>
                       )}
 
@@ -712,6 +880,205 @@ function formatAmount(amount: any, currency?: string) {
 
                   </form>
               )}
+
+              {/* Dividend Form */}
+              {activeTab === "dividend" && (
+                  <form onSubmit={submitDividend} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      {/* select investor dropdown */}
+                      <div>
+                        <select value={dividendForm.investor ?? ""} onChange={(e) => setDividendForm({...dividendForm, investor: e.target.value})} className={selectClass}>
+                          <option value="">Select Investor</option>
+                            {users.map(u => <option key={u.user_id} value={u.user_id}>{u.name}</option>)}
+                        </select>
+                      </div>
+
+                      {/* select region dropdown */}
+                      <div>
+                        <select value={dividendForm.region_id ?? ""} onChange={(e) => setDividendForm({...dividendForm, region_id: e.target.value})} className={selectClass}>
+                            <option value="">Select Region</option>
+                            {regions.map((r: any) => <option key={r.region_id} value={r.region_id}>{r.region_name}</option>)}
+                        </select>
+                      </div>
+
+                      {/* select currency dropdown */}
+                      <div>
+                        <select value={dividendForm.currency_id ?? ""} onChange={(e) => setDividendForm({...dividendForm, currency_id: e.target.value})} className={selectClass}>
+                            <option value="">Currency</option>
+                            {currencies.map(c => <option key={c.currency_id} value={c.currency_id}>{c.currency_name} ({c.currency_code})</option>)}
+                        </select>
+                      </div>
+
+                      {/* Stock Symbol with Autocomplete */}
+                      <div>
+                        <input list="stock-symbols" placeholder="Stock Symbol" value={dividendForm.stock_symbol ?? ""} onChange={(e) => setDividendForm({...dividendForm, stock_symbol: e.target.value})} className={inputClass} />
+                        <datalist id="stock-symbols">
+                            {stockSummaries.map((s, i) => <option key={i} value={s.stock_symbol} />)}
+                        </datalist>
+                      </div>
+
+                      {/* Stock Name with Autocomplete */}
+                      <div>
+                        <input list="stock-names" placeholder="Stock Name" value={dividendForm.stock_name ?? ""} onChange={(e) => setDividendForm({...dividendForm, stock_name: e.target.value})} className={inputClass} />
+                         <datalist id="stock-names">
+                            {stockSummaries.map((s, i) => <option key={i} value={s.stock_name} />)}
+                        </datalist>
+                      </div>
+
+                      {/* Amount */}
+                      <div>
+                        <input type="number" step="0.01" placeholder="Amount" value={dividendForm.amount ?? ""} onChange={(e) => setDividendForm({...dividendForm, amount: e.target.value})} className={inputClass} />
+                      </div>
+
+                      {/* Date */}
+                      <div>
+                          <input type="date"
+                            value={dividendForm.received_date ?? new Date().toISOString().substring(0, 10)}
+                            onChange={(e) =>
+                              setDividendForm({ ...dividendForm, received_date: e.target.value })
+                            }
+                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
+                            style={{
+                              backgroundColor: 'var(--color-bg)',
+                              borderColor: 'var(--color-bg-lighter)',
+                              color: 'var(--color-text-primary)',
+                              colorScheme: 'dark',
+                              padding: '0.6rem 0.8rem',
+                              borderRadius: '0.75rem',
+                            }}
+                          />
+                      </div>
+
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-medium disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-pie)' }}>
+                      {loading ? "Saving..." : "Save Dividend"}
+                      </button>
+                    </div>
+                  </form>
+              )}
+
+            {/* Instruments Form */}
+              {activeTab === "instruments" && (
+                  <form onSubmit={submitInstrument} className="space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+                       {/* User */}
+                       <div>
+                        <select value={instrumentForm.user_id ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, user_id: e.target.value})} className={selectClass}>
+                          <option value="">Select User</option>
+                            {users.map(u => <option key={u.user_id} value={u.user_id}>{u.name}</option>)}
+                        </select>
+                      </div>
+
+                       {/* Name with Autocomplete */}
+                       <div>
+                         <input list="instrument-names" placeholder="Instrument Name (e.g. LIC)" value={instrumentForm.name ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, name: e.target.value})} className={inputClass} />
+                         <datalist id="instrument-names">
+                             {Array.from(new Set(existingInstruments.map(i => i.name))).map((n: any, idx) => <option key={idx} value={n} />)}
+                         </datalist>
+                       </div>
+
+                       {/* Provider with Autocomplete */}
+                       <div>
+                         <input list="instrument-providers" placeholder="Provider (e.g. HDFC)" value={instrumentForm.provider ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, provider: e.target.value})} className={inputClass} />
+                         <datalist id="instrument-providers">
+                             {Array.from(new Set(existingInstruments.map(i => i.provider))).map((p: any, idx) => <option key={idx} value={p} />)}
+                         </datalist>
+                       </div>
+
+                        {/* Category */}
+                      <div>
+                        <select value={instrumentForm.category ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, category: e.target.value})} className={selectClass}>
+                            <option value="">Category</option>
+                            <option value="insurance">Insurance</option>
+                            <option value="savings">Savings</option>
+                            <option value="pension">Pension</option>
+                            <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      {/* Frequency */}
+                      <div>
+                          <select value={instrumentForm.frequency ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, frequency: e.target.value})} className={selectClass}>
+                              <option value="">Frequency</option>
+                              <option value="Monthly">Monthly</option>
+                              <option value="Quarterly">Quarterly</option>
+                              <option value="Half Yearly">Half Yearly</option>
+                              <option value="Yearly">Yearly</option>
+                              <option value="One Time">One Time</option>
+                          </select>
+                      </div>
+
+                       {/* Contribution */}
+                      <div>
+                        <input type="number" placeholder="Contribution Amount" value={instrumentForm.contribution ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, contribution: e.target.value})} className={inputClass} />
+                      </div>
+
+                      {/* Guaranteed Amount */}
+                      <div>
+                        <input type="number" placeholder="Guaranteed Amt (Optional)" value={instrumentForm.guaranteed_amount ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, guaranteed_amount: e.target.value})} className={inputClass} />
+                      </div>
+
+                      {/* Notes - Spanning row 2 and 3 in the last column */}
+                      <div className="md:col-start-4 md:row-start-2 md:row-span-2">
+                        <textarea 
+                          placeholder="Notes" 
+                          value={instrumentForm.notes ?? ""} 
+                          onChange={(e) => setInstrumentForm({...instrumentForm, notes: e.target.value})} 
+                          className={`${inputClass} h-full min-h-[100px] resize-none`}
+                        />
+                      </div>
+
+                       {/* Start Date */}
+                      <div className="md:row-start-3">
+                          <label className="text-xs ml-1 mb-1 block opacity-70">Start Date</label>
+                          <input type="date"
+                            value={instrumentForm.start_date ?? new Date().toISOString().substring(0, 10)}
+                            onChange={(e) =>
+                              setInstrumentForm({ ...instrumentForm, start_date: e.target.value })
+                            }
+                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
+                            style={{
+                              backgroundColor: 'var(--color-bg)',
+                              borderColor: 'var(--color-bg-lighter)',
+                              color: 'var(--color-text-primary)',
+                              colorScheme: 'dark',
+                              padding: '0.6rem 0.8rem',
+                              borderRadius: '0.75rem',
+                            }}
+                          />
+                      </div>
+
+                       {/* Maturity Date */}
+                      <div>
+                          <label className="text-xs ml-1 mb-1 block opacity-70">Maturity Date</label>
+                          <input type="date"
+                            value={instrumentForm.maturity_date ?? ""}
+                            onChange={(e) =>
+                              setInstrumentForm({ ...instrumentForm, maturity_date: e.target.value })
+                            }
+                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
+                            style={{
+                              backgroundColor: 'var(--color-bg)',
+                              borderColor: 'var(--color-bg-lighter)',
+                              color: 'var(--color-text-primary)',
+                              colorScheme: 'dark',
+                              padding: '0.6rem 0.8rem',
+                              borderRadius: '0.75rem',
+                            }}
+                          />
+                      </div>
+
+                     </div>
+                     <div className="flex justify-end pt-2">
+                      <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-medium disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-pie)' }}>
+                      {loading ? "Saving..." : "Save Instrument"}
+                      </button>
+                    </div>
+                  </form>
+              )}
             </div>
         )}
 
@@ -721,9 +1088,8 @@ function formatAmount(amount: any, currency?: string) {
                 <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-secondary)' }}>Recent {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}s</h3>
               </div>
 
-              <div className="divide-y" style={{ borderColor: 'var(--color-bg-lighter)' }}>
-                {console.log("This is the pagination data: ", {paginatedData})}
-                {paginatedData.map((item: any, idx) => (
+                <div className="divide-y" style={{ borderColor: 'var(--color-bg-lighter)' }}>
+                  {paginatedData.map((item: any, idx) => (
                   <div key={idx} className="p-6 transition-colors hover:opacity-90" style={{ backgroundColor: idx % 2 === 0 ? 'var(--color-card)' : 'var(--color-bg-lighter)' }}>
                     <div className="flex items-center justify-between">
                       <div className="flex-1">

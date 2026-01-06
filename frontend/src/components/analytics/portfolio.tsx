@@ -167,8 +167,8 @@ export default function PortfolioPage() {
           ))}
         </div>
 
-        {/* Charts Grid */}
-        <div className="card grid grid-cols-1 lg:grid-cols-2 bg-[var(--color-card)] p-4 rounded-lg h-[550px] mb-4">
+        {/* Charts Grid - Dynamic Height for Sub Allocations */}
+        <div className={`card bg-[var(--color-card)] p-4 rounded-lg mb-4 ${activeChart === 'Sub Allocations' ? 'min-h-[550px] h-auto' : 'h-[550px] grid grid-cols-1 lg:grid-cols-2'}`}>
 
           {/* Current vs Target Allocation */}
           {activeChart === 'allocation' && (
@@ -227,20 +227,25 @@ export default function PortfolioPage() {
 
           {/* Sub Allocations */}
           {activeChart === 'Sub Allocations' && (
-            <div className="col-span-2">
+            <div className="w-full">
                 <h2 className="text-xl font-semibold text-white mb-4">Subcategories: Current vs Target</h2>
-                <ResponsiveContainer width="100%" height={Object.keys(data.categories).length * 80}>
-                  <ComposedChart
-                    layout="vertical"
-                    data={Object.entries(data.categories).flatMap(([catKey, catValue]) =>
+                {(() => {
+                  const flattenedData = Object.entries(data.categories).flatMap(([catKey, catValue]) =>
                       Object.entries(catValue.sub_allocations || {}).map(([subKey, subValue]: [string, any]) => ({
                         name: `${catKey} - ${subKey}`,
                         current: subValue.current_value,
                         target: subValue.ideal_value,
                       }))
-                    )}
-                    margin={{ top: 10, right: 10, left: 100, bottom: 0 }}
-                  >
+                    );
+                  const dynamicHeight = Math.max(500, flattenedData.length * 60); // 60px per item or min 500
+                  
+                  return (
+                  <ResponsiveContainer width="100%" height={dynamicHeight}>
+                    <ComposedChart
+                      layout="vertical"
+                      data={flattenedData}
+                      margin={{ top: 10, right: 10, left: 150, bottom: 0 }}
+                    >
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis type="number" stroke="#9ca3af" tickFormatter={(v) => formatCurrency(v)} />
                     <YAxis
@@ -255,7 +260,10 @@ export default function PortfolioPage() {
                     <Bar dataKey="current" fill="#3b82f6" name="Current" barSize={14} radius={[0, 8, 8, 0]} />
                     <Bar dataKey="target" fill="#10b981" name="Target" barSize={14} radius={[0, 8, 8, 0]} />
                   </ComposedChart>
+
                 </ResponsiveContainer>
+                  );
+                })()}
             </div>
           )}
 

@@ -7,10 +7,10 @@ import pandas as pd
 from rapidfuzz import process, fuzz
 from sqlalchemy.orm import Session
 
-from utilities.common.base_fetcher import BaseFetcher
 from backend.models.investments.analytics import StocksValuableData, StockList
 from backend.services.db_services import get_db
 from utilities.analytics.sector_mapping import SECTOR_MAP
+from utilities.common.base_fetcher import BaseFetcher
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 FILE_LOCATION = ROOT_DIR / "backend" / "files" / "stocks"
@@ -168,7 +168,7 @@ class StockMerger(BaseFetcher):
         mod_time = os.path.getmtime(file_path)
         self.logger.info("✅ Last modified: %s", datetime.fromtimestamp(mod_time))
         return (
-            datetime.now() - datetime.fromtimestamp(mod_time)
+                datetime.now() - datetime.fromtimestamp(mod_time)
         ).total_seconds() < hours * 3600
 
     def _load_and_normalize_data(self):
@@ -182,7 +182,7 @@ class StockMerger(BaseFetcher):
         """
         self.logger.info("🔄 Reading Ticker & Top 500 Stocks CSV files...")
         merged_list = pd.read_csv(OUTPUT_CSV)
-        ticker_data = pd.read_csv(TICKER_TAPE_CSV)
+        ticker_data = pd.read_csv(TICKER_TAPE_CSV, sep="\t", thousands=",", na_values=["-", "—", ""], engine="python")
 
         # Normalize column names
         merged_list.columns = merged_list.columns.str.strip().str.lower()
@@ -240,7 +240,7 @@ class StockMerger(BaseFetcher):
                     best_name, score, _ = match
                     ticker_row = ticker_data[
                         ticker_data["normalized_name"] == best_name
-                    ].iloc[0]
+                        ].iloc[0]
                     for col in ticker_data.columns:
                         if col != "normalized_name" and col in final_df.columns:
                             final_df.loc[idx, col] = ticker_row[col]
@@ -414,8 +414,8 @@ class StockMerger(BaseFetcher):
         """Merge All_stocks_list and 500_stocks_list to create final 500 stock symbol-name mapping."""
         # Check modification timestamps
         if not (
-            self.is_recently_modified(ALL_STOCKS_CSV)
-            or self.is_recently_modified(NIFTY_500_CSV)
+                self.is_recently_modified(ALL_STOCKS_CSV)
+                or self.is_recently_modified(NIFTY_500_CSV)
         ):
             self.logger.info(
                 "⚙️  No changes in top 500 stock list or base stocks list. Skipping merge."
@@ -451,8 +451,8 @@ class StockMerger(BaseFetcher):
 
         # Check modification timestamps
         if not (
-            self.is_recently_modified(TICKER_TAPE_CSV)
-            or self.is_recently_modified(OUTPUT_CSV)
+                self.is_recently_modified(TICKER_TAPE_CSV)
+                or self.is_recently_modified(OUTPUT_CSV)
         ):
             self.logger.info(
                 "⚙️  No changes in Ticker & Top 500 stocks CSVs. Skipping merge."
