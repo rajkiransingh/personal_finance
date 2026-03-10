@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from backend.models.investments.stock import DividendSummary, Dividends
 from backend.summarizing.revert_utils import delete_related_income
+from decimal import Decimal
 
 
 def revert(db: Session, investment: Dividends):
@@ -14,8 +15,9 @@ def revert(db: Session, investment: Dividends):
     )
 
     if summary:
-        summary.total_amount -= float(investment.amount)
-        # If total goes to < 0 (unlikely unless data error), we leave it.
+        summary.total_amount = float(
+            Decimal(str(summary.total_amount)) - Decimal(str(investment.amount))
+        )
 
     # Revert Income (Source ID 4 for Dividend)
     delete_related_income(

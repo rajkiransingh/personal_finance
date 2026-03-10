@@ -1,5 +1,8 @@
 import sys
 
+# Add the app root directory to Python path
+sys.path.insert(0, "/app")
+
 from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db
@@ -9,9 +12,6 @@ from utilities.fetch_overall_investment_data import (
 )
 from utilities.stock_price_fetcher import StockPriceFetcher as sPF, stockFetcher
 from utilities.common.app_config import config
-
-# Add the app root directory to Python path
-sys.path.insert(0, "/app")
 
 logger = config.setup_logger("scripts.fetch_stocks")
 db: Session = next(get_db())

@@ -182,7 +182,21 @@ class StockMerger(BaseFetcher):
         """
         self.logger.info("🔄 Reading Ticker & Top 500 Stocks CSV files...")
         merged_list = pd.read_csv(OUTPUT_CSV)
-        ticker_data = pd.read_csv(TICKER_TAPE_CSV, sep="\t", thousands=",", na_values=["-", "—", ""], engine="python")
+        # ticker_data = pd.read_csv(TICKER_TAPE_CSV, sep="\t", thousands=",", na_values=["-", "—", ""], engine="python")
+        ticker_data = pd.read_csv(
+            TICKER_TAPE_CSV,
+            sep=None,  # 👈 AUTO-detect delimiter
+            engine="python",
+            encoding="utf-8-sig",
+            thousands=",",
+            na_values=["-", "—", ""],
+        )
+
+        # Hard fail if parsing still failed
+        if len(ticker_data.columns) == 1:
+            raise ValueError(
+                f"CSV parsing failed — single column detected: {ticker_data.columns[0][:120]}..."
+            )
 
         # Normalize column names
         merged_list.columns = merged_list.columns.str.strip().str.lower()

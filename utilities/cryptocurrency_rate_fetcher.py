@@ -1,14 +1,15 @@
 import json
 import os
 from datetime import datetime, timezone, UTC
+from decimal import Decimal
 from typing import Dict
 
 import requests
 from sqlalchemy.orm import Session
 
+from backend.models.investments.crypto import CryptoInvestment, CryptoSummary
 from utilities.common.base_fetcher import BaseFetcher
 from utilities.common.financial_utils import FinancialCalculator
-from backend.models.investments.crypto import CryptoInvestment, CryptoSummary
 
 
 class CryptoCurrencyRateFetcher(BaseFetcher):
@@ -203,7 +204,7 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                     symbol = investment.coin_symbol.upper()
                     self.logger.info(f"Updating cryptocurrency data for {symbol}")
                     if symbol in crypto_data["data"]:
-                        current_price = crypto_data["data"][symbol]["price"]
+                        current_price = Decimal(crypto_data["data"][symbol]["price"])
                         self.logger.info(
                             f"Current price for {symbol}: {currency_symbol}{current_price}"
                         )
@@ -211,8 +212,8 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                         invested_currency = self.currency_map.get(
                             investment.currency_id, "INR"
                         )
-                        conversion_rate = self.get_conversion_rate_from_usd(
-                            invested_currency
+                        conversion_rate = Decimal(
+                            self.get_conversion_rate_from_usd(invested_currency)
                         )
 
                         current_value = (
@@ -287,13 +288,14 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                     self.logger.info(
                         f"Updating cryptocurrency summary data for {symbol}"
                     )
-                    conversion_rate = round(
-                        float(json.loads(self.redis_forex_key_usd_inr)["rate"]), 2
+                    conversion_rate = Decimal(
+                        str(self.get_conversion_rate_against_inr("USD"))
                     )
 
                     if symbol in crypto_data["data"]:
                         current_price_inr = (
-                            crypto_data["data"][symbol]["price"] * conversion_rate
+                            Decimal(str(crypto_data["data"][symbol]["price"]))
+                            * conversion_rate
                         )
                         self.logger.info(
                             f"Current price for {symbol} in INR: {currency_symbol}{current_price_inr}"
@@ -313,14 +315,17 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                             inv for inv in investments if inv.coin_symbol == symbol
                         ]
 
-                        if relevant_investments:
+                        if relevant_investments and initial_investment > 0:
                             total_weighted_xirr = sum(
-                                (investment.total_invested_amount / initial_investment)
-                                * investment.xirr
+                                (
+                                    Decimal(str(investment.total_invested_amount))
+                                    / Decimal(str(initial_investment))
+                                )
+                                * Decimal(str(investment.XIRR or 0))
                                 for investment in relevant_investments
                             )
                             self.logger.info(
-                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%"
+                                f"Total weighted xirr calculated is: {round(float(total_weighted_xirr), 2)}%"
                             )
                         else:
                             total_weighted_xirr = 0.0
@@ -330,7 +335,7 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
                         summary.current_value = current_value
                         summary.roi = roi_value
                         summary.xirr = total_weighted_xirr
-                        summary.last_updated = datetime.utcnow()
+                        summary.last_updated = datetime.now(UTC)
 
                         updated_count += 1
                         self.logger.info(

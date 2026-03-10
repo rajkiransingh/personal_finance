@@ -355,7 +355,13 @@ class StockPriceFetcher(BaseFetcher):
                     )
                     continue
 
-                price = Decimal(raw_price)
+                price = Decimal(str(raw_price))
+                source_currency = data.get("currency", "INR")
+                conversion_rate = Decimal(
+                    str(self.get_conversion_rate_against_inr(source_currency))
+                )
+
+                price_inr = price * conversion_rate
 
                 stock_investments = (
                     db.query(StockInvestment)
@@ -375,14 +381,15 @@ class StockPriceFetcher(BaseFetcher):
                             f"Updating Stock investment data for {stock_name}"
                         )
                         self.logger.info(
-                            f"Current price for stock: {symbol} in INR is: {currency_symbol}{price}"
+                            f"Current price for stock: {symbol} in INR is: {currency_symbol}{price_inr}"
                         )
 
                         current_value = (
-                            float(price * investment.stock_quantity) + dividend_amount
+                            float(price_inr * Decimal(str(investment.stock_quantity)))
+                            + dividend_amount
                         )
                         self.logger.info(
-                            f"We got the current value {current_value} for stock: {symbol} by adding: {float(price * investment.stock_quantity)} and dividend: {dividend_amount}"
+                            f"We got the current value {current_value} for stock: {symbol} by adding: {float(price_inr * Decimal(str(investment.stock_quantity)))} and dividend: {dividend_amount}"
                         )
                         initial_investment = investment.total_invested_amount
                         # Calculate financial metrics using shared utility
@@ -398,13 +405,13 @@ class StockPriceFetcher(BaseFetcher):
                         )
 
                         # Updating the investment table
-                        investment.current_price_per_stock = price
+                        investment.current_price_per_stock = float(price_inr)
                         investment.current_total_value = current_value
                         investment.return_on_investment = roi_value
 
                         updated_count += 1
                         self.logger.debug(
-                            f"Updated {stock_name} with price: {currency_symbol}{price}"
+                            f"Updated {stock_name} with price: {currency_symbol}{price_inr}"
                         )
 
                     except Exception as e:
@@ -470,7 +477,13 @@ class StockPriceFetcher(BaseFetcher):
                     )
                     continue
 
-                price = float(raw_price)
+                price = Decimal(str(raw_price))
+                source_currency = data.get("currency", "INR")
+                conversion_rate = Decimal(
+                    str(self.get_conversion_rate_against_inr(source_currency))
+                )
+
+                price_inr = price * conversion_rate
 
                 mf_summaries = (
                     db.query(StockSummary)
@@ -492,14 +505,14 @@ class StockPriceFetcher(BaseFetcher):
                             f"Updating Stock Summary data for {stock_name}"
                         )
                         self.logger.info(
-                            f"Current price for stock: {symbol} in INR is: {currency_symbol}{price}"
+                            f"Current price for stock: {symbol} in INR is: {currency_symbol}{price_inr}"
                         )
 
                         current_value = (
-                            round((price * summary.total_quantity), 2) + dividend_amount
-                        )
+                            price_inr * Decimal(str(summary.total_quantity))
+                        ) + Decimal(str(dividend_amount))
                         self.logger.info(
-                            f"We got the current value {current_value} for stock: {symbol} by adding: {float(price * summary.total_quantity)} and dividend: {dividend_amount}"
+                            f"We got the current value {current_value} for stock: {symbol} by adding: {float(price_inr * summary.total_quantity)} and dividend: {dividend_amount}"
                         )
 
                         initial_investment = summary.total_cost
@@ -507,25 +520,28 @@ class StockPriceFetcher(BaseFetcher):
                             current_value, initial_investment
                         )
 
-                        # Weighted average XIRR calculation from Bullion Investment
+                        # Weighted average XIRR calculation from StockInvestment
                         relevant_investments = [
                             inv for inv in investments if inv.stock_symbol == symbol
                         ]
 
-                        if relevant_investments:
+                        if relevant_investments and initial_investment > 0:
                             total_weighted_xirr = sum(
-                                (investment.total_invested_amount / initial_investment)
-                                * investment.xirr
+                                (
+                                    Decimal(str(investment.total_invested_amount))
+                                    / Decimal(str(initial_investment))
+                                )
+                                * Decimal(str(investment.xirr or 0))
                                 for investment in relevant_investments
                             )
                             self.logger.info(
-                                f"Total weighted xirr calculated is: {round(total_weighted_xirr, 2)}%"
+                                f"Total weighted xirr calculated is: {round(float(total_weighted_xirr), 2)}%"
                             )
                         else:
                             total_weighted_xirr = 0.0
 
                         # Update Summary table
-                        summary.current_price_per_unit = price
+                        summary.current_price_per_unit = price_inr
                         summary.current_value = current_value
                         summary.roi = roi_value
                         summary.xirr = total_weighted_xirr
@@ -533,7 +549,7 @@ class StockPriceFetcher(BaseFetcher):
 
                         updated_count += 1
                         self.logger.info(
-                            f"Updated {stock_name} investment summary with price: {currency_symbol}{price}"
+                            f"Updated {stock_name} investment summary with price: {currency_symbol}{price_inr}"
                         )
 
                     except Exception as e:

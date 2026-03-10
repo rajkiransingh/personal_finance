@@ -5,6 +5,8 @@ from backend.models.investments.real_estate import (
 )
 from backend.summarizing.revert_utils import delete_related_income
 import datetime
+from decimal import Decimal
+from datetime import UTC
 
 
 def revert(db: Session, investment: RealEstateInvestment):
@@ -15,7 +17,6 @@ def revert(db: Session, investment: RealEstateInvestment):
             RealEstateSummary.property_type == investment.investment_subcategory_id,
             RealEstateSummary.property_name == investment.property_name,
             RealEstateSummary.property_location == investment.property_location,
-            RealEstateSummary.property_type == investment.property_type,
         )
         .first()
     )
@@ -23,18 +24,19 @@ def revert(db: Session, investment: RealEstateInvestment):
     if not prop:
         return
 
-    qty = float(investment.area_in_sqyds)
+    qty = Decimal(str(investment.area_in_sqyds))
+    avg_price = Decimal(str(prop.average_price_per_unit))
 
     if investment.transaction_type == "BUY":
-        prop.total_quantity -= qty
-        prop.total_cost -= float(investment.total_invested_amount)
+        cost_to_remove = qty * avg_price
+        prop.total_quantity = float(Decimal(str(prop.total_quantity)) - qty)
+        prop.total_cost = float(Decimal(str(prop.total_cost)) - cost_to_remove)
 
     elif investment.transaction_type == "SELL":
-        avg_price = prop.average_price_per_unit
         cost_to_add = qty * avg_price
 
-        prop.total_quantity += qty
-        prop.total_cost += cost_to_add
+        prop.total_quantity = float(Decimal(str(prop.total_quantity)) + qty)
+        prop.total_cost = float(Decimal(str(prop.total_cost)) + cost_to_add)
 
         # Revert Income (Source ID 10 for Real Estate)
         delete_related_income(
@@ -49,9 +51,12 @@ def revert(db: Session, investment: RealEstateInvestment):
             ),
         )
 
-    if prop.total_quantity > 0:
-        prop.average_price_per_unit = prop.total_cost / prop.total_quantity
+    if Decimal(str(prop.total_quantity)) > 0:
+        prop.average_price_per_unit = float(
+            Decimal(str(prop.total_cost)) / Decimal(str(prop.total_quantity))
+        )
     else:
         prop.average_price_per_unit = 0.0
+        prop.total_cost = 0.0
 
-    prop.last_updated = datetime.datetime.utcnow()
+    prop.last_updated = datetime.datetime.now(UTC)

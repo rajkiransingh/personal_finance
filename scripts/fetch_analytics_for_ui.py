@@ -1,5 +1,8 @@
 import sys
 
+# Add the app root directory to Python path
+sys.path.insert(0, "/app")
+
 from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db
@@ -8,8 +11,6 @@ from utilities.analytics.stock_analyzer import get_stock_score
 from utilities.analytics.stock_merger import StockMerger as sM, stockMerger
 from utilities.common.app_config import config
 from utilities.dashboard.dashboard_calculation_helper import DashboardDataCalculator as dDC, dashboardDataCalculator
-
-sys.path.insert(0, "/app")
 
 logger = config.setup_logger("scripts.fetch_analytics_for_ui")
 db: Session = next(get_db())

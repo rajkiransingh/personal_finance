@@ -58,7 +58,7 @@ def get_ytd_sum(db, model, converted_amount, date_field, year_start, today):
 
 
 def get_last_year_sum(
-        db, model, converted_amount, date_field, last_year_start, last_year_today
+    db, model, converted_amount, date_field, last_year_start, last_year_today
 ):
     """Get last year same period sum with currency conversion."""
     col = _resolve_converted_column(model, converted_amount)
@@ -96,7 +96,7 @@ def _first_day_n_months_ago(ref_date: date, n: int) -> date:
 
 
 def get_monthly_totals(
-        db: Session, Model, converted_amount: Union[str, Any], date_field: str
+    db: Session, Model, converted_amount: Union[str, Any], date_field: str
 ):
     """
     Returns totals grouped by YYYY-MM for any model.
@@ -163,7 +163,7 @@ class DashboardDataCalculator(BaseFetcher):
         self.logger.debug("Dashboard calculator initialized")
 
     def get_converted_amount(
-            self, model, amount_field, currency_field, is_currency_id=False
+        self, model, amount_field, currency_field, is_currency_id=False
     ):
         """Helper to create currency conversion case statement.
 
@@ -189,8 +189,8 @@ class DashboardDataCalculator(BaseFetcher):
         # Currency ID to code mapping (if using currency_id)
         currency_id_map = {
             1: "INR",
-            2: "USD",
-            3: "PLN",
+            2: "PLN",
+            3: "USD",
         }
 
         if is_currency_id:
@@ -471,54 +471,54 @@ class DashboardDataCalculator(BaseFetcher):
 
         try:
             total_invested_till_today = (
-                    get_ytd_sum(
-                        self.db,
-                        StockInvestment,
-                        stock_investment_converted_amount,
-                        "investment_date",
-                        date(1970, 1, 1),
-                        today,
-                    )
-                    + get_ytd_sum(
-                self.db,
-                BullionInvestment,
-                bullion_investment_converted_amount,
-                "investment_date",
-                date(1970, 1, 1),
-                today,
-            )
-                    + get_ytd_sum(
-                self.db,
-                MutualFundInvestment,
-                mutual_fund_converted_amount,
-                "investment_date",
-                date(1970, 1, 1),
-                today,
-            )
-                    + get_ytd_sum(
-                self.db,
-                CryptoInvestment,
-                crypto_converted_amount,
-                "investment_date",
-                date(1970, 1, 1),
-                today,
-            )
-                    + get_ytd_sum(
-                self.db,
-                RealEstateInvestment,
-                real_estate_converted_amount,
-                "investment_date",
-                date(1970, 1, 1),
-                today,
-            )
+                get_ytd_sum(
+                    self.db,
+                    StockInvestment,
+                    stock_investment_converted_amount,
+                    "investment_date",
+                    date(1970, 1, 1),
+                    today,
+                )
+                + get_ytd_sum(
+                    self.db,
+                    BullionInvestment,
+                    bullion_investment_converted_amount,
+                    "investment_date",
+                    date(1970, 1, 1),
+                    today,
+                )
+                + get_ytd_sum(
+                    self.db,
+                    MutualFundInvestment,
+                    mutual_fund_converted_amount,
+                    "investment_date",
+                    date(1970, 1, 1),
+                    today,
+                )
+                + get_ytd_sum(
+                    self.db,
+                    CryptoInvestment,
+                    crypto_converted_amount,
+                    "investment_date",
+                    date(1970, 1, 1),
+                    today,
+                )
+                + get_ytd_sum(
+                    self.db,
+                    RealEstateInvestment,
+                    real_estate_converted_amount,
+                    "investment_date",
+                    date(1970, 1, 1),
+                    today,
+                )
             )
         except Exception:
             total_invested_till_today = 0
 
         cash_balance = (
-                total_income_till_today
-                - total_expenses_till_today
-                - total_invested_till_today
+            total_income_till_today
+            - total_expenses_till_today
+            - total_invested_till_today
         )
 
         # ========== EMERGENCY FUND ==========
@@ -654,9 +654,10 @@ class DashboardDataCalculator(BaseFetcher):
         }
 
         try:
-
             self.redis_client.setex(
-                _build_cache_key(self.cache_key_prefix, self.summary), self.cache_expiry_in_seconds, json.dumps(result)
+                _build_cache_key(self.cache_key_prefix, self.summary),
+                self.cache_expiry_in_seconds,
+                json.dumps(result),
             )
         except Exception as e:
             self.logger.warning(f"Cache write failed for {self.cache_key_prefix}: {e}")
