@@ -6,6 +6,7 @@ from backend.models.investments.mutual_fund import (
 from backend.summarizing.revert_utils import delete_related_income
 import datetime
 from decimal import Decimal
+from datetime import UTC
 
 
 def revert(db: Session, investment: MutualFundInvestment):
@@ -22,26 +23,22 @@ def revert(db: Session, investment: MutualFundInvestment):
     if not fund:
         return
 
-    # Use Decimal as per MF convention
     qty = Decimal(str(investment.unit_quantity))
+    avg_price = Decimal(str(fund.average_price_per_unit))
 
     if investment.transaction_type == "BUY":
-        # Revert Buy: Remove qty and cost.
-        # MF update uses: fund.total_cost += investment.total_invested_amount
-        # So we subtract exactly that.
-        invested_amt = Decimal(str(investment.total_invested_amount))
+        # Revert Buy: Remove qty and cost using average price for stability
+        cost_to_remove = qty * avg_price
 
-        fund.total_quantity = Decimal(str(fund.total_quantity)) - qty
-        fund.total_cost = Decimal(str(fund.total_cost)) - invested_amt
+        fund.total_quantity = float(Decimal(str(fund.total_quantity)) - qty)
+        fund.total_cost = float(Decimal(str(fund.total_cost)) - cost_to_remove)
 
     elif investment.transaction_type == "SELL":
-        # Revert Sell: Add back qty.
-        # Add back Cost using (Qty * Current Avg).
-        avg_price = Decimal(str(fund.average_price_per_unit))
+        # Revert Sell: Add back qty and cost
         cost_to_add = qty * avg_price
 
-        fund.total_quantity = Decimal(str(fund.total_quantity)) + qty
-        fund.total_cost = Decimal(str(fund.total_cost)) + cost_to_add
+        fund.total_quantity = float(Decimal(str(fund.total_quantity)) + qty)
+        fund.total_cost = float(Decimal(str(fund.total_cost)) + cost_to_add)
 
         # Revert Income (Source ID 5 for Mutual Fund)
         delete_related_income(
@@ -64,5 +61,6 @@ def revert(db: Session, investment: MutualFundInvestment):
         fund.average_price_per_unit = float(total_c / total_q)
     else:
         fund.average_price_per_unit = 0.0
+        fund.total_cost = 0.0
 
-    fund.last_updated = datetime.datetime.utcnow()
+    fund.last_updated = datetime.datetime.now(UTC)

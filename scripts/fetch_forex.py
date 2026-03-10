@@ -1,12 +1,13 @@
 import sys
 
+# Add the app root directory to Python path
+sys.path.insert(0, "/app")
+
 from utilities.forex_exchange_rate_fetcher import (
     ForexExchangeRateFetcher as fEx,
     forexFetcher,
 )
 from utilities.common.app_config import config
-
-sys.path.insert(0, "/app")
 
 logger = config.setup_logger("scripts.fetch_forex")
 

@@ -1,3 +1,8 @@
+import sys
+
+# Add the app root directory to Python path
+sys.path.insert(0, "/app")
+
 from sqlalchemy.orm import Session
 
 from backend.services.db_services import get_db

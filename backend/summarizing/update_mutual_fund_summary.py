@@ -6,18 +6,10 @@ import datetime
 from backend.models.earnings.income import Income
 from backend.models.investments.mutual_fund import MutualFundSummary
 from backend.schemas.investments.mutual_fund_schema import MutualFundInvestmentCreate
+from backend.summarizing.currency_util import get_conversion_rate_to_inr
 
 
 def update(db: Session, investment: MutualFundInvestmentCreate):
-
-    # investment_type_to_income_source = {
-    #     2: 8,  # Stock → Stock Profit
-    #     5: 5,  # Mutual Fund → Mutual Fund Profit
-    #     9: 9,  # Crypto → Crypto Profit
-    #     1: 11, # Bullion → Bullion Profit
-    #     3: 10  # Real Estate → Real Estate Profit
-    # }
-
     currency_map = {1: "INR", 2: "PLN", 3: "USD"}
 
     fund = (
@@ -30,18 +22,23 @@ def update(db: Session, investment: MutualFundInvestmentCreate):
         .first()
     )
 
+    # Get conversion rate to INR
+    conversion_rate = get_conversion_rate_to_inr(investment.currency_id)
+
     if fund:
         if investment.transaction_type == "BUY":
             fund.total_quantity = Decimal(str(fund.total_quantity)) + Decimal(
                 str(investment.unit_quantity)
             )
-            fund.total_cost = Decimal(str(fund.total_cost)) + Decimal(
-                str(investment.total_invested_amount)
+            # Add cost in INR
+            fund.total_cost = Decimal(str(fund.total_cost)) + (
+                Decimal(str(investment.total_invested_amount)) * conversion_rate
             )
         elif investment.transaction_type == "SELL":
             fund.total_quantity = Decimal(str(fund.total_quantity)) - Decimal(
                 str(investment.unit_quantity)
             )
+            # When selling, we remove the proportional cost at current average price
             fund.total_cost = Decimal(str(fund.total_cost)) - (
                 Decimal(str(investment.unit_quantity))
                 * Decimal(str(fund.average_price_per_unit))
@@ -65,14 +62,19 @@ def update(db: Session, investment: MutualFundInvestmentCreate):
         )
         fund.last_updated = datetime.datetime.utcnow()
     else:
+        # Adding new fund
+        total_quantity = Decimal(str(investment.unit_quantity))
+        total_cost_inr = (
+            Decimal(str(investment.total_invested_amount)) * conversion_rate
+        )
+
         new_fund = MutualFundSummary(
             investor_id=investment.investor,
             scheme_code=investment.scheme_code,
             fund_name=investment.fund_name,
-            total_quantity=investment.unit_quantity,
-            total_cost=investment.total_invested_amount,
-            average_price_per_unit=float(investment.total_invested_amount)
-            / float(investment.unit_quantity),
+            total_quantity=float(total_quantity),
+            total_cost=float(total_cost_inr),
+            average_price_per_unit=float(total_cost_inr / total_quantity),
             last_updated=datetime.datetime.utcnow(),
         )
         db.add(new_fund)

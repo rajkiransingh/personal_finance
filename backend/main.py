@@ -37,6 +37,9 @@ from utilities.analytics.balancing_screener import BalancingScreener, balancingS
 from utilities.analytics.stock_analyzer import get_stock_score
 from utilities.analytics.stock_merger import StockMerger as sM, stockMerger
 from utilities.common.app_config import config
+from utilities.cryptocurrency_rate_fetcher import (
+    CryptoCurrencyRateFetcher as crF,
+    CryptoFetcher)
 from utilities.dashboard.dashboard_calculation_helper import DashboardDataCalculator
 from utilities.dashboard.dashboard_calculation_helper import dashboardDataCalculator
 from utilities.fetch_overall_investment_data import (
@@ -106,6 +109,21 @@ def startup_logic():
         }
         mRF.update_bullion_investments(bullionFetcher, db, bullion_data)
         mRF.update_bullion_summary(bullionFetcher, db, bullion_data)
+
+        crypto_coin_list = all_investment_data["crypto"]
+
+        try:
+            cryData = crF.fetch_cryptocurrency_data_in_usd(CryptoFetcher, crypto_coin_list)
+
+            if cryData and cryData.get("data"):
+                crF.update_crypto_investments(CryptoFetcher, db, cryData)
+                crF.update_crypto_summary(CryptoFetcher, db, cryData)
+            else:
+                logger.warning("No valid crypto data fetched. Skipping updates.")
+
+        except Exception as e:
+            logger.error(f"Critical error in fetch_crypto script: {e}", exc_info=True)
+
         DashboardDataCalculator.get_investment_data(dashboardDataCalculator)
         out = BalancingScreener.run_cycle(balancingScreener)
         logger.info("Portfolio Rebalancing Plan:")

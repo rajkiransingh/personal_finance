@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from backend.models.investments.stock import StockSummary, StockInvestment
 from backend.summarizing.revert_utils import delete_related_income
 import datetime
+from decimal import Decimal
+from datetime import UTC
 
 
 def revert(db: Session, investment: StockInvestment):
@@ -15,41 +17,30 @@ def revert(db: Session, investment: StockInvestment):
     )
 
     if not stock:
-        # If summary doesn't exist, we can't revert anything.
-        # This could happen if summary was manually deleted?
         return
 
+    qty = Decimal(str(investment.stock_quantity))
+    avg_price = Decimal(str(stock.average_price_per_unit))
+
     if investment.transaction_type == "BUY":
-        # Logic: Reduce quantity and cost
-        # If we remove the only transaction, summary might go to 0/0.
+        # For stocks, we attempt to remove the actual invested amount if stored in INR
+        # But for consistency across currencies, using average price rollback is safer if conversion rates change.
+        # However, stock.total_cost is stored in INR.
+        # Let's check update_stock_summary. It uses conversion_rate.
+        # If we remove specific BUY, we should ideally remove the converted cost.
+        # But we don't store the conversion rate.
+        # So using average price for rollback is the most stable approach.
 
-        stock.total_quantity -= float(investment.stock_quantity)
-        stock.total_cost -= float(investment.total_invested_amount)
+        cost_to_remove = qty * avg_price
 
-        # Recalculate Average
-        if stock.total_quantity > 0:
-            stock.average_price_per_unit = stock.total_cost / stock.total_quantity
-        else:
-            stock.average_price_per_unit = 0.0
-            # Optional: If qty is 0, should we delete summary?
-            # Keeping it is safer for history, but cost/qty 0 is fine.
+        stock.total_quantity = float(Decimal(str(stock.total_quantity)) - qty)
+        stock.total_cost = float(Decimal(str(stock.total_cost)) - cost_to_remove)
 
     elif investment.transaction_type == "SELL":
-        # Logic: Add back quantity.
-        # Add back Cost.
-        # Issue: We don't know exact cost basis removed.
-        # Approximation: Use Current Average Price * Quantity.
-        # This assumes the "un-sold" shares have the same cost profile as current holdings.
+        cost_to_add = qty * avg_price
 
-        cost_to_add = float(investment.stock_quantity) * stock.average_price_per_unit
-
-        stock.total_quantity += float(investment.stock_quantity)
-        stock.total_cost += cost_to_add
-
-        # Average Price should technically remain same (x/y = (x+c)/(y+q) if c/q = x/y)
-        # So no need to update average_price_per_unit, but updating it won't hurt to be precise.
-        if stock.total_quantity > 0:
-            stock.average_price_per_unit = stock.total_cost / stock.total_quantity
+        stock.total_quantity = float(Decimal(str(stock.total_quantity)) + qty)
+        stock.total_cost = float(Decimal(str(stock.total_cost)) + cost_to_add)
 
         # Revert Income (Source ID 8 for Stock)
         delete_related_income(
@@ -64,4 +55,12 @@ def revert(db: Session, investment: StockInvestment):
             ),
         )
 
-    stock.last_updated = datetime.datetime.utcnow()
+    if Decimal(str(stock.total_quantity)) > 0:
+        stock.average_price_per_unit = float(
+            Decimal(str(stock.total_cost)) / Decimal(str(stock.total_quantity))
+        )
+    else:
+        stock.average_price_per_unit = 0.0
+        stock.total_cost = 0.0
+
+    stock.last_updated = datetime.datetime.now(UTC)

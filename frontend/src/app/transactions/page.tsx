@@ -404,6 +404,7 @@ async function fetchRecent() {
     setLoading(true);
     try {
       const payload = {
+          policy_number: instrumentForm.policy_number,
         user_id: Number(instrumentForm.user_id),
         name: instrumentForm.name,
         provider: instrumentForm.provider,
@@ -465,7 +466,9 @@ function formatAmount(amount: any, currency?: string) {
   const symbol = symbolMap[currencyKey] || '';
 
   // Format number using locale
-  const formatted = num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  // For crypto (investment_type 9), we want more precision
+  const maxDigits = activeTab === 'investment' ? 8 : 2;
+  const formatted = num.toLocaleString('en-IN', { maximumFractionDigits: maxDigits });
 
   return `${symbol}${formatted}`;
 }
@@ -832,7 +835,7 @@ function formatAmount(amount: any, currency?: string) {
                                 ))}
                             </datalist>
 
-                            <input type="number" placeholder="Unit quantity" value={investmentForm.unit_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, unit_quantity: e.target.value})} className={inputClass} />
+                            <input type="number" step="0.0001" placeholder="Unit quantity" value={investmentForm.unit_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, unit_quantity: e.target.value})} className={inputClass} />
                             <input type="number" placeholder="Price per unit" value={investmentForm.initial_price_per_unit ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, initial_price_per_unit: e.target.value})} className={inputClass} />
                           </>
                       )}
@@ -999,6 +1002,14 @@ function formatAmount(amount: any, currency?: string) {
                         </select>
                       </div>
 
+                        {/* Policy Number with Autocomplete */}
+                       <div>
+                         <input list="instrument-policy-number" placeholder="Instrument policy number (e.g. AXA12345)" value={instrumentForm.policy_number ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, policy_number: e.target.value})} className={inputClass} />
+                         <datalist id="instrument-policy-number">
+                             {Array.from(new Set(existingInstruments.map(i => i.policy_number))).map((n: any, idx) => <option key={idx} value={n} />)}
+                         </datalist>
+                       </div>
+
                       {/* Frequency */}
                       <div>
                           <select value={instrumentForm.frequency ?? ""} onChange={(e) => setInstrumentForm({...instrumentForm, frequency: e.target.value})} className={selectClass}>
@@ -1032,7 +1043,7 @@ function formatAmount(amount: any, currency?: string) {
                       </div>
 
                        {/* Start Date */}
-                      <div className="md:row-start-3">
+                      <div className="md:col-start-2 md:row-start-3">
                           <label className="text-xs ml-1 mb-1 block opacity-70">Start Date</label>
                           <input type="date"
                             value={instrumentForm.start_date ?? new Date().toISOString().substring(0, 10)}
