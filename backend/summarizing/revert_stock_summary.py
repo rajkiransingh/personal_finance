@@ -1,9 +1,11 @@
+import datetime
+from datetime import UTC
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
+
 from backend.models.investments.stock import StockSummary, StockInvestment
 from backend.summarizing.revert_utils import delete_related_income
-import datetime
-from decimal import Decimal
-from datetime import UTC
 
 
 def revert(db: Session, investment: StockInvestment):
@@ -23,14 +25,6 @@ def revert(db: Session, investment: StockInvestment):
     avg_price = Decimal(str(stock.average_price_per_unit))
 
     if investment.transaction_type == "BUY":
-        # For stocks, we attempt to remove the actual invested amount if stored in INR
-        # But for consistency across currencies, using average price rollback is safer if conversion rates change.
-        # However, stock.total_cost is stored in INR.
-        # Let's check update_stock_summary. It uses conversion_rate.
-        # If we remove specific BUY, we should ideally remove the converted cost.
-        # But we don't store the conversion rate.
-        # So using average price for rollback is the most stable approach.
-
         cost_to_remove = qty * avg_price
 
         stock.total_quantity = float(Decimal(str(stock.total_quantity)) - qty)
