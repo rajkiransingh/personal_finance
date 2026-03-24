@@ -1,6 +1,7 @@
 import csv
 import io
 import logging
+import re
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -140,9 +141,10 @@ def preview_csv_import(
         file_content: bytes,
         bank_name: str,
         currency: str = "INR",
+        file_name: str = "",
 ) -> list[dict]:
     """
-    Parses CSV and returns a list of potential transactions with proposed categories/sources.
+    Parses CSV or TXT and returns a list of potential transactions with proposed categories/sources.
     Does NOT save to DB.
     """
     bank_name = bank_name.lower()
@@ -153,6 +155,13 @@ def preview_csv_import(
 
     # 1. Decode & Normalize
     decoded_file = decode_file(file_content)
+
+    if file_name.lower().endswith(".txt"):
+        if bank_name == "hdfc":
+            return parse_hdfc_txt(decoded_file, currency)
+        else:
+            raise ValueError(f"TXT parsing for bank '{bank_name}' not supported.")
+
     first_line = decoded_file.split("\n")[0]
     delimiter = (
         ";"
@@ -189,16 +198,16 @@ def preview_csv_import(
                 debit_str = row.get(mapping["debit"], "").replace(",", "").strip()
                 credit_str = row.get(mapping["credit"], "").replace(",", "").strip()
                 if debit_str:
-                    amount = float(debit_str)
+                    amount = abs(float(debit_str))
                     is_credit = False
                 elif credit_str:
-                    amount = float(credit_str)
+                    amount = abs(float(credit_str))
                     is_credit = True
 
             elif "amount" in mapping and "type" in mapping:
                 amt_str = row.get(mapping["amount"], "").replace(",", "").strip()
                 type_str = row.get(mapping["type"], "").lower()
-                amount = float(amt_str)
+                amount = abs(float(amt_str))
                 is_credit = "cr" in type_str
 
             elif "amount" in mapping:
@@ -241,6 +250,70 @@ def preview_csv_import(
         except Exception as e:
             logger.error(f"Error parsing row for preview: {e}")
             continue
+
+    return preview_data
+
+
+def parse_hdfc_txt(decoded_file: str, currency: str) -> list[dict]:
+    lines = decoded_file.splitlines()
+    preview_data = []
+    current_txn = None
+    date_pattern = re.compile(r"^\d{2}/\d{2}/\d{2}\s")
+
+    for line in lines:
+        if "********" in line or "STATEMENT SUMMARY" in line or "End Of Statement" in line:
+            break
+            
+        if date_pattern.match(line):
+            if current_txn:
+                preview_data.append(current_txn)
+                
+            date_str = line[0:8].strip()
+            narration = line[10:52].strip()
+            withdrawal = line[80:100].strip().replace(",", "")
+            deposit = line[100:120].strip().replace(",", "")
+            
+            amt = 0.0
+            is_credit = False
+            if deposit:
+                amt = abs(float(deposit))
+                is_credit = True
+            elif withdrawal:
+                amt = abs(float(withdrawal))
+                is_credit = False
+                
+            try:
+                txn_date = datetime.strptime(date_str, "%d/%m/%y")
+            except ValueError:
+                txn_date = datetime.now()
+                
+            current_txn = {
+                "_date_obj": txn_date,
+                "date": txn_date.strftime("%Y-%m-%d"),
+                "description": narration,
+                "amount": amt,
+                "currency": currency,
+                "type": "income" if is_credit else "expense",
+                "original_row": {"raw_line": line.strip()},
+            }
+        elif current_txn and len(line) > 10 and line[10:52].strip():
+            extra_narration = line[10:52].strip()
+            if extra_narration:
+                current_txn["description"] += " " + extra_narration
+                current_txn["original_row"]["raw_line"] += " " + extra_narration
+                
+    if current_txn:
+        preview_data.append(current_txn)
+        
+    for txn in preview_data:
+        full_description = txn["description"]
+        if txn["type"] == "income":
+            txn["source_id"] = determine_income_source(full_description)
+            txn["category_id"] = None
+        else:
+            txn["category_id"] = determine_category(full_description)
+            txn["source_id"] = None
+        del txn["_date_obj"]
 
     return preview_data
 
@@ -366,7 +439,7 @@ def confirm_import_and_learn(
     updates_to_learn = []
 
     for txn in transactions:
-        amount = float(txn["amount"])
+        amount = abs(float(txn["amount"]))
         currency = txn.get("currency", "INR")
         # Parse date if it's string
         t_date = txn["date"]

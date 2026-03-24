@@ -21,15 +21,15 @@ def get_supported_banks():
 async def preview_transactions(
         bank_name: str = Form(...), currency: str = Form(...), file: UploadFile = File(...)
 ):
-    if not file.filename.endswith(".csv"):
+    if not (file.filename.endswith(".csv") or file.filename.endswith(".txt")):
         raise HTTPException(
-            status_code=400, detail="Invalid file type. Please upload a CSV file."
+            status_code=400, detail="Invalid file type. Please upload a CSV or TXT file."
         )
 
     content = await file.read()
     try:
         # Returns List[Dict]
-        result = preview_csv_import(content, bank_name, currency)
+        result = preview_csv_import(content, bank_name, currency, file.filename)
         return result
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
