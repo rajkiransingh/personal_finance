@@ -518,7 +518,7 @@ function formatAmount(amount: any, currency?: string) {
               }}
               className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition"
             >
-              Import CSV
+              Import File
             </button>
             <button
               onClick={() => setShowForm(!showForm)}
@@ -1261,10 +1261,10 @@ function formatAmount(amount: any, currency?: string) {
 
                           {/* File Upload */}
                            <div>
-                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">CSV File</label>
+                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">CSV / TXT File</label>
                               <input 
                                   type="file" 
-                                  accept=".csv"
+                                  accept=".csv,.txt"
                                   onChange={(e) => setImportForm({...importForm, file: e.target.files?.[0] || null})}
                                   className={`${inputClass} !p-2`}
                               />
@@ -1317,21 +1317,23 @@ function formatAmount(amount: any, currency?: string) {
                                           <th className="px-4 py-3 text-right">Amount</th>
                                           <th className="px-4 py-3">Type</th>
                                           <th className="px-4 py-3 w-1/4">Category / Source</th>
+                                          <th className="px-4 py-3 text-center">Action</th>
                                       </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[var(--color-bg-lighter)]">
                                       {previewData.map((txn, idx) => (
-                                          <tr key={idx} className="hover:bg-[var(--color-bg-lighter)]/50">
+                                          <tr key={idx} className={`hover:bg-[var(--color-bg-lighter)]/50 ${txn.ignore ? 'opacity-40' : ''}`}>
                                               <td className="px-4 py-2">{txn.date}</td>
                                               <td className="px-4 py-2 truncate max-w-xs" title={txn.description}>{txn.description}</td>
                                               <td className={`px-4 py-2 text-right font-mono ${txn.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
                                                   {txn.amount} {txn.currency}
                                               </td>
-                                              <td className="px-4 py-2">{txn.type}</td>
+                                              <td className="px-4 py-2 capitalize">{txn.type}</td>
                                               <td className="px-4 py-2">
                                                   {txn.type === 'income' ? (
                                                       <select 
                                                           value={txn.source_id || ""} 
+                                                          disabled={txn.ignore}
                                                           onChange={(e) => {
                                                               const newVal = Number(e.target.value);
                                                               const newData = [...previewData];
@@ -1351,6 +1353,7 @@ function formatAmount(amount: any, currency?: string) {
                                                   ) : (
                                                       <select 
                                                           value={txn.category_id || ""} 
+                                                          disabled={txn.ignore}
                                                           onChange={(e) => {
                                                               const newVal = Number(e.target.value);
                                                               const newData = [...previewData];
@@ -1364,6 +1367,19 @@ function formatAmount(amount: any, currency?: string) {
                                                           {expenseCategories.map(c => <option key={c.expense_category_id} value={c.expense_category_id}>{c.name}</option>)}
                                                       </select>
                                                   )}
+                                              </td>
+                                              <td className="px-4 py-2 text-center">
+                                                  <button 
+                                                      title={txn.ignore ? "Include this transaction" : "Ignore this transaction"}
+                                                      onClick={() => {
+                                                          const newData = [...previewData];
+                                                          newData[idx].ignore = !newData[idx].ignore;
+                                                          setPreviewData(newData);
+                                                      }}
+                                                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${txn.ignore ? 'bg-green-500/20 text-green-500 hover:bg-green-500/30' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
+                                                  >
+                                                      {txn.ignore ? "Include" : "Ignore"}
+                                                  </button>
                                               </td>
                                           </tr>
                                       ))}
@@ -1383,9 +1399,16 @@ function formatAmount(amount: any, currency?: string) {
                                   onClick={async () => {
                                       setLoading(true);
                                       try {
+                                          const finalTransactions = previewData.filter(t => !t.ignore);
+                                          if (finalTransactions.length === 0) {
+                                              alert("No transactions to import!");
+                                              setLoading(false);
+                                              return;
+                                          }
+                                          
                                           const payload = {
                                               user_id: Number(importForm.user_id),
-                                              transactions: previewData
+                                              transactions: finalTransactions
                                           };
                                           
                                           const res = await fetch("/api/import/confirm", {
@@ -1414,7 +1437,7 @@ function formatAmount(amount: any, currency?: string) {
                                   disabled={loading}
                                   className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-8 rounded-xl font-bold transition disabled:opacity-50"
                               >
-                                  {loading ? "Importing..." : `Confirm & Import (${previewData.length})`}
+                                  {loading ? "Importing..." : `Confirm & Import (${previewData.filter(t => !t.ignore).length})`}
                               </button>
                           </div>
                       </div>
