@@ -4,11 +4,11 @@ services:
     container_name: mera_paisa
     restart: unless-stopped
     environment:
-      - DATABASE_URL=mysql+pymysql://user:password@db:3306/personal_finance_db
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-mysql+pymysql://${MYSQL_USER:-user}:${MYSQL_PASSWORD:-password}@db:3306/${MYSQL_DATABASE:-personal_finance_db}}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - PYTHONPATH=/app
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - .:/app
     networks:
@@ -30,7 +30,7 @@ services:
       - NEXT_PUBLIC_API_URL=http://backend:8000
       - SKIP_TYPE_CHECK=true
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     networks:
       - personal_finance_network
 
@@ -38,4 +38,4 @@ networks:
   personal_finance_network:
     external: true
   intra_connect:
-    external: true
+    name: intra_connect

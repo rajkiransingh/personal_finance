@@ -15,6 +15,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN mkdir -p /app/public
 
 # Pass build args
 ARG SKIP_TYPE_CHECK=true
