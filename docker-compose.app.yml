@@ -4,8 +4,8 @@ services:
     container_name: mera_paisa
     restart: unless-stopped
     environment:
-      - DATABASE_URL=mysql+pymysql://user:password@db:3306/personal_finance_db
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
       - PYTHONPATH=/app
     ports:
       - "8000:8000"
@@ -38,4 +38,5 @@ networks:
   personal_finance_network:
     external: true
   intra_connect:
+    name: intra_connect
     external: true

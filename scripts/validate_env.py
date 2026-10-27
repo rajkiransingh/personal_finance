@@ -104,6 +104,10 @@ def validate_optional_vars():
         "LOG_LEVEL": ("INFO", "Logging level"),
         "LOG_DIR": ("./logs", "Log directory"),
         "NSE_WEBSITE_URL": ("https://www.nseindia.com", "NSE website URL"),
+        "FRONTEND_PORT": ("3000", "Host port for Next.js frontend"),
+        "BACKEND_PORT": ("8000", "Host port for FastAPI backend"),
+        "DB_PORT": ("3399", "Host port for MySQL database"),
+        "REDIS_HOST_PORT": ("6379", "Host port for Redis"),
     }
 
     print(f"\n{Color.BOLD}Optional Variables (using defaults if not set):{Color.END}")
@@ -155,6 +159,38 @@ def check_api_keys():
             print(f"  {var}: {url}")
 
 
+def validate_deployment_readiness():
+    """Check database backups and local configurations"""
+    print(f"\n{Color.BOLD}Deployment & Migration Readiness:{Color.END}")
+
+    # 1. Check db_backups
+    backup_dir = os.path.join("backup_config", "db_backups")
+    if os.path.isdir(backup_dir):
+        backups = [f for f in os.listdir(backup_dir) if f.endswith(".sql.gz") or f.endswith(".sql")]
+        if backups:
+            print_success(f"Found {len(backups)} database backup(s) in {backup_dir}")
+            golden = [f for f in backups if "GOLDEN" in f]
+            recent = [f for f in backups if "GOLDEN" not in f]
+            if recent:
+                print(f"  Latest timestamped backup: {sorted(recent)[-1]}")
+            if golden:
+                print(f"  Latest golden image backup: {sorted(golden)[-1]}")
+        else:
+            print_warning(f"No .sql or .sql.gz backup files found in {backup_dir}. Database will initialize empty.")
+    else:
+        print_warning(f"{backup_dir} directory does not exist yet. It will be created on startup.")
+
+    # 2. Check bank_config
+    bank_config = os.path.join("backend", "configurations", "bank_config.py")
+    example_config = os.path.join("backend", "configurations", "bank_config.py.example")
+    if os.path.exists(bank_config):
+        print_success(f"Bank config found at {bank_config}")
+    elif os.path.exists(example_config):
+        print_success(f"Bank config template found at {example_config} (will auto-initialize)")
+    else:
+        print_warning(f"Missing bank config and template in backend/configurations/")
+
+
 def main():
     """Main validation function"""
     print_header("Personal Finance App - Environment Validation")
@@ -176,6 +212,9 @@ def main():
     # Validate DATABASE_URL format
     print(f"\n{Color.BOLD}Database URL Validation:{Color.END}")
     validate_database_url()
+
+    # Validate deployment readiness
+    validate_deployment_readiness()
 
     # Show API key info if needed
     if invalid:
