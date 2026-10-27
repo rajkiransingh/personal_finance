@@ -10,14 +10,14 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "${DB_PORT:-3399}:3306"
+      - "3399:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backup_config/db_backups:/backups
       - ./backup_config/backup.sh:/backup.sh
       - ./backup_config/cleanup-entrypoint.sh:/cleanup-entrypoint.sh
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,7 +35,7 @@ services:
     container_name: redis
     restart: unless-stopped
     ports:
-      - "${REDIS_HOST_PORT:-6379}:6379"
+      - "6379:6379"
     volumes:
       - redis_data:/data
     command: [ "redis-server", "--appendonly", "yes", "--save", "60", "1" ]

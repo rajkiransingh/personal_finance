@@ -22,11 +22,15 @@ Stop Docker Containers
     Detect Docker Compose
     Log To Console    Stopping App containers...
     ${result_app}=    Run Process    ${DOCKER_COMPOSE_CMD} -f "${DOCKER_COMPOSE_APP}" down    shell=True
-    Log To Console    App Stop Result: ${result_app.stdout}
+    Log To Console    App Exit Code: ${result_app.rc}
+    Log To Console    App STDOUT: ${result_app.stdout}
+    Log To Console    App STDERR: ${result_app.stderr}
     
     Log To Console    Stopping Infra containers...
     ${result_infra}=    Run Process    ${DOCKER_COMPOSE_CMD} -f "${DOCKER_COMPOSE_INFRA}" down    shell=True
-    Log To Console    Infra Stop Result: ${result_infra.stdout}
+    Log To Console    Infra Exit Code: ${result_infra.rc}
+    Log To Console    Infra STDOUT: ${result_infra.stdout}
+    Log To Console    Infra STDERR: ${result_infra.stderr}
     
     Run Keyword If    ${result_app.rc} != 0 or ${result_infra.rc} != 0    Fail    Failed to stop Docker containers
     Log To Console    All containers stopped successfully
