@@ -47,56 +47,84 @@ class BaseFetcher:
 
     @property
     def redis_forex_key_usd_inr(self):
-        """Lazy-load USD-INR forex rate from Redis"""
-        if self._redis_forex_key_usd_inr is None:
-            self._redis_forex_key_usd_inr = self.redis_client.get("forex::USD-INR")
-        return self._redis_forex_key_usd_inr
+        """Fetch USD-INR forex rate payload from Redis"""
+        return self.redis_client.get("forex::USD-INR")
 
     @property
     def redis_forex_key_usd_pln(self):
-        """Lazy-load USD-PLN forex rate from Redis"""
-        if self._redis_forex_key_usd_pln is None:
-            self._redis_forex_key_usd_pln = self.redis_client.get("forex::USD-PLN")
-        return self._redis_forex_key_usd_pln
+        """Fetch USD-PLN forex rate payload from Redis"""
+        return self.redis_client.get("forex::USD-PLN")
 
     @property
     def redis_forex_key_pln_inr(self):
-        """Lazy-load PLN-INR forex rate from Redis"""
-        if self._redis_forex_key_pln_inr is None:
-            self._redis_forex_key_pln_inr = self.redis_client.get("forex::PLN-INR")
-        return self._redis_forex_key_pln_inr
+        """Fetch PLN-INR forex rate payload from Redis"""
+        return self.redis_client.get("forex::PLN-INR")
 
     def get_conversion_rate_from_usd(self, currency_code: str) -> float:
-        try:
-            if currency_code == "INR":
-                return round(float(json.loads(self.redis_forex_key_usd_inr)["rate"]), 2)
-            elif currency_code == "PLN":
-                return round(float(json.loads(self.redis_forex_key_usd_pln)["rate"]), 2)
-            elif currency_code == "USD":
-                return 1.0
-            else:
-                raise ValueError(f"Unsupported currency type: {currency_code}")
-        except (TypeError, ValueError):
-            self.logger.warning(
-                f"Missing forex rate for {currency_code}, defaulting to 1.0"
-            )
+        if currency_code == "USD":
             return 1.0
 
-    def get_conversion_rate_against_inr(self, currency_code: str) -> float:
+        # Try Redis first
         try:
             if currency_code == "INR":
-                return 1.0
+                raw = self.redis_forex_key_usd_inr
+                if raw:
+                    return round(float(json.loads(raw)["rate"]), 2)
             elif currency_code == "PLN":
-                return round(float(json.loads(self.redis_forex_key_pln_inr)["rate"]), 2)
-            elif currency_code == "USD":
-                return round(float(json.loads(self.redis_forex_key_usd_inr)["rate"]), 2)
-            else:
-                raise ValueError(f"Unsupported currency type: {currency_code}")
-        except (TypeError, ValueError):
+                raw = self.redis_forex_key_usd_pln
+                if raw:
+                    return round(float(json.loads(raw)["rate"]), 2)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+        # Cache miss or expired: fetch on-demand using ForexExchangeRateFetcher
+        try:
+            from utilities.forex_exchange_rate_fetcher import forexFetcher
+            rate = forexFetcher.get_exchange_rates("USD", currency_code)
+            if rate and rate > 0:
+                return round(float(rate), 2)
+        except Exception as e:
             self.logger.warning(
-                f"Missing forex rate for {currency_code}, defaulting to 1.0"
+                f"Failed to fetch on-demand forex rate for USD->{currency_code}: {e}"
             )
+
+        self.logger.warning(
+            f"Missing forex rate for {currency_code}, defaulting to 1.0"
+        )
+        return 1.0
+
+    def get_conversion_rate_against_inr(self, currency_code: str) -> float:
+        if currency_code == "INR":
             return 1.0
+
+        # Try Redis first
+        try:
+            if currency_code == "PLN":
+                raw = self.redis_forex_key_pln_inr
+                if raw:
+                    return round(float(json.loads(raw)["rate"]), 2)
+            elif currency_code == "USD":
+                raw = self.redis_forex_key_usd_inr
+                if raw:
+                    return round(float(json.loads(raw)["rate"]), 2)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+        # Cache miss or expired: fetch on-demand using ForexExchangeRateFetcher
+        try:
+            from utilities.forex_exchange_rate_fetcher import forexFetcher
+            rate = forexFetcher.get_exchange_rates(currency_code, "INR")
+            if rate and rate > 0:
+                return round(float(rate), 2)
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to fetch on-demand forex rate for {currency_code}->INR: {e}"
+            )
+
+        self.logger.warning(
+            f"Missing forex rate for {currency_code}, defaulting to 1.0"
+        )
+        return 1.0
 
     def set_cache(
         self, prefix: str, data: Dict[str, dict], expiry: Optional[int] = None

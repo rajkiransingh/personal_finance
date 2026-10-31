@@ -31,13 +31,19 @@ class StockPriceFetcher(BaseFetcher):
         )
         self.logger.debug("Stock fetcher initialized")
 
-    def get_stock_prices_in_bulk(self, stock_symbol_list: list):
+    def get_stock_prices_in_bulk(
+        self, stock_symbol_list: list, force_refresh: bool = False
+    ):
         """
         Fetch stock data for multiple symbols using Yahoo Finance API with Redis caching.
         Reuses standard cache helpers for consistency.
         """
-        cached_map = self.get_from_cache(self.cache_key_prefix, stock_symbol_list)
-        missing_symbols = [sym for sym, val in cached_map.items() if val is None]
+        if force_refresh:
+            cached_map = {}
+            missing_symbols = list(stock_symbol_list)
+        else:
+            cached_map = self.get_from_cache(self.cache_key_prefix, stock_symbol_list)
+            missing_symbols = [sym for sym, val in cached_map.items() if val is None]
         fetched = {}
         errors = {}
 

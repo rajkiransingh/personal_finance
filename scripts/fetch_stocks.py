@@ -24,10 +24,12 @@ common_stock_list = all_investment_data.get("common_stocks", {})
 dividend_stock_list = all_investment_data.get("stocks_with_dividends", {})
 
 try:
-    # Get the latest stock prices
-    common_stock_prices = sPF.get_stock_prices_in_bulk(stockFetcher, common_stock_list)
+    # Get the latest stock prices (forcing fresh fetch from Yahoo Finance)
+    common_stock_prices = sPF.get_stock_prices_in_bulk(
+        stockFetcher, common_stock_list, force_refresh=True
+    )
     dividend_stock_prices = sPF.get_stock_prices_in_bulk(
-        stockFetcher, dividend_stock_list
+        stockFetcher, dividend_stock_list, force_refresh=True
     )
 
     # update the investment and summary
@@ -45,3 +47,5 @@ try:
 
 except Exception as e:
     logger.error(f"Critical error in fetch_stocks script: {e}", exc_info=True)
+finally:
+    db.close()

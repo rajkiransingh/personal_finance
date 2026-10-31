@@ -14,8 +14,8 @@ db: Session = next(get_db())
 
 try:
     bullion_data = {
-        "Gold": mRF.get_gold_rate(bullionFetcher),
-        "Silver": mRF.get_silver_rate(bullionFetcher),
+        "Gold": mRF.get_gold_rate(bullionFetcher, force_refresh=True),
+        "Silver": mRF.get_silver_rate(bullionFetcher, force_refresh=True),
     }
 
     # Filter out None values to prevent crashes in updaters
@@ -29,3 +29,5 @@ try:
 
 except Exception as e:
     logger.error(f"Critical error in fetch_metals script: {e}", exc_info=True)
+finally:
+    db.close()

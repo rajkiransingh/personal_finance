@@ -34,11 +34,17 @@ class MutualFundPriceFetcher(BaseFetcher):
         )
         self.logger.debug("Mutual fund fetcher initialized")
 
-    def get_mutual_fund_rates_bulk(self, scheme_code_list: list):
+    def get_mutual_fund_rates_bulk(
+        self, scheme_code_list: list, force_refresh: bool = False
+    ):
         """Fetch Mutual Fund NAVs for multiple scheme codes with caching"""
         results = {}
-        cached_map = self.get_from_cache(self.cache_key_prefix, scheme_code_list)
-        missing_schemes = [scheme for scheme, val in cached_map.items() if val is None]
+        if force_refresh:
+            cached_map = {}
+            missing_schemes = list(scheme_code_list)
+        else:
+            cached_map = self.get_from_cache(self.cache_key_prefix, scheme_code_list)
+            missing_schemes = [scheme for scheme, val in cached_map.items() if val is None]
 
         if missing_schemes:
             self.logger.info(
@@ -134,8 +140,8 @@ class MutualFundPriceFetcher(BaseFetcher):
                             f"Current price for scheme code: {scheme_code} in INR is: {currency_symbol}{nav}"
                         )
 
-                        current_value = float(nav * investment.unit_quantity)
-                        initial_investment = investment.total_invested_amount
+                        current_value = round(float(nav) * float(investment.unit_quantity), 2)
+                        initial_investment = float(investment.total_invested_amount)
                         roi_value = FinancialCalculator.calculate_roi(
                             current_value, initial_investment
                         )
@@ -221,7 +227,7 @@ class MutualFundPriceFetcher(BaseFetcher):
 
                         current_value = round((nav * summary.total_quantity), 2)
 
-                        initial_investment = summary.total_cost
+                        initial_investment = float(summary.total_cost)
                         roi_value = FinancialCalculator.calculate_roi(
                             current_value, initial_investment
                         )
@@ -231,10 +237,10 @@ class MutualFundPriceFetcher(BaseFetcher):
                             inv for inv in investments if inv.scheme_code == scheme_code
                         ]
 
-                        if relevant_investments:
+                        if relevant_investments and initial_investment > 0:
                             total_weighted_xirr = sum(
-                                (investment.total_invested_amount / initial_investment)
-                                * investment.xirr
+                                (float(investment.total_invested_amount) / initial_investment)
+                                * float(investment.xirr or 0)
                                 for investment in relevant_investments
                             )
                             self.logger.info(

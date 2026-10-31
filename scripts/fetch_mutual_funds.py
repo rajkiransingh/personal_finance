@@ -20,9 +20,11 @@ all_investment_data = get_investments_symbols(db)
 mutual_funds_list = all_investment_data["mutual_funds"]
 
 try:
-    mf_data = mfF.get_mutual_fund_rates_bulk(mutualFundFetcher, mutual_funds_list)
+    mf_data = mfF.get_mutual_fund_rates_bulk(
+        mutualFundFetcher, mutual_funds_list, force_refresh=True
+    )
 
-    if mf_data and mf_data.get("data"):
+    if mf_data and any(v for v in mf_data.values() if v is not None):
         mfF.update_mutual_fund_investments(mutualFundFetcher, db, mf_data)
         mfF.update_mutual_fund_summary(mutualFundFetcher, db, mf_data)
     else:
@@ -30,3 +32,5 @@ try:
 
 except Exception as e:
     logger.error(f"Critical error in fetch_mutual_funds script: {e}", exc_info=True)
+finally:
+    db.close()

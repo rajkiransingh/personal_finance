@@ -16,8 +16,8 @@ class ForexExchangeRateFetcher(BaseFetcher):
         Sets up the fetcher with a 24-hour cache expiry for forex rates
         and initializes the base fetcher with forex-specific configuration.
         """
-        # Load config data from environment
-        self.cache_expiry_in_seconds = 86400
+        # Load config data from environment: default 48-hour TTL so daily runs don't expire prematurely
+        self.cache_expiry_in_seconds = 86400 * 2
         self.cache_key_prefix = "forex"
 
         super().__init__(
@@ -27,24 +27,27 @@ class ForexExchangeRateFetcher(BaseFetcher):
         )
         self.logger.debug("Forex fetcher initialized")
 
-    def get_exchange_rates(self, from_currency: str, to_currency: str):
+    def get_exchange_rates(
+        self, from_currency: str, to_currency: str, force_refresh: bool = False
+    ):
         """Fetch exchange rate with caching"""
         cache_key = f"{self.cache_key_prefix}"
         currency_pair = f"{from_currency.upper()}-{to_currency.upper()}"
 
-        # --- Try cache first ---
-        cached_map = self.get_from_cache(cache_key, [currency_pair])
-        cached_info = cached_map.get(currency_pair)
+        # --- Try cache first (unless force_refresh is requested) ---
+        if not force_refresh:
+            cached_map = self.get_from_cache(cache_key, [currency_pair])
+            cached_info = cached_map.get(currency_pair)
 
-        if cached_info:
-            try:
-                rate = Decimal(str(cached_info["rate"]))
-                self.logger.info(f"Cache hit: {from_currency}->{to_currency} = {rate}")
-                return rate
-            except (KeyError, ValueError, TypeError) as e:
-                self.logger.warning(
-                    f"Invalid cached rate for {from_currency}->{to_currency}, refetching: {e}"
-                )
+            if cached_info:
+                try:
+                    rate = Decimal(str(cached_info["rate"]))
+                    self.logger.info(f"Cache hit: {from_currency}->{to_currency} = {rate}")
+                    return rate
+                except (KeyError, ValueError, TypeError) as e:
+                    self.logger.warning(
+                        f"Invalid cached rate for {from_currency}->{to_currency}, refetching: {e}"
+                    )
 
         # --- Cache miss: fetch from API ---
         url = f"{self.open_exchange_url}{self.open_exchange_api_key}/pair/{from_currency.upper()}/{to_currency.upper()}"

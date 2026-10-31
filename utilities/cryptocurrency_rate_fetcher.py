@@ -30,7 +30,7 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
 
         self.logger.debug("Cryptocurrency fetcher initialized")
 
-    def fetch_coin_data(self, symbols: list):
+    def fetch_coin_data(self, symbols: list, force_refresh: bool = False):
         """Fetch coin data from CoinMarketCap API with caching support.
 
         Attempts to retrieve data from cache first. For cache misses, fetches
@@ -39,20 +39,26 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
 
         Args:
             symbols: List of cryptocurrency symbols to fetch (e.g., ['BTC', 'ETH'])
+            force_refresh: Whether to bypass cache and fetch fresh data
 
         Returns:
             Dict with two keys:
                 - 'data': Dict mapping symbols to their coin data (or None if failed)
                 - 'errors': Dict mapping symbols to error messages for failed fetches
         """
-        cached_map = self.get_from_cache(self.cache_key_prefix, symbols)
-        missing_symbols = [sym for sym, val in cached_map.items() if val is None]
+        if force_refresh:
+            cached_map = {}
+            missing_symbols = list(symbols)
+        else:
+            cached_map = self.get_from_cache(self.cache_key_prefix, symbols)
+            missing_symbols = [sym for sym, val in cached_map.items() if val is None]
+
+            if not missing_symbols:
+                self.logger.info("Cache hit for all symbols — using cached data only")
+                return {"data": cached_map, "errors": {}}
+
         fetched = {}
         errors = {}
-
-        if not missing_symbols:
-            self.logger.info("Cache hit for all symbols — using cached data only")
-            return {"data": cached_map, "errors": {}}
 
         url = os.getenv("COIN_MARKET_URL")
         api_key = os.getenv("COIN_MARKET_CAP_API_KEY")
@@ -124,7 +130,10 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
         return {"data": final_map, "errors": errors}
 
     def fetch_cryptocurrency_data_in_usd(
-        self, coin_symbol_list: list, use_cache: bool = True
+        self,
+        coin_symbol_list: list,
+        use_cache: bool = True,
+        force_refresh: bool = False,
     ):
         """
         Fetch cryptocurrency data using CoinMarketCap API with Redis caching
@@ -132,9 +141,11 @@ class CryptoCurrencyRateFetcher(BaseFetcher):
         Args:
             coin_symbol_list: List of cryptocurrency symbols to fetch
             use_cache: Whether to use Redis cache (default: True)
+            force_refresh: Whether to bypass cache and fetch fresh data
         """
         currency_symbol = self.currency.get(3)
-        response = self.fetch_coin_data(coin_symbol_list)
+        should_force = force_refresh or not use_cache
+        response = self.fetch_coin_data(coin_symbol_list, force_refresh=should_force)
 
         if "error" in response and response["error"]:
             self.logger.error(
