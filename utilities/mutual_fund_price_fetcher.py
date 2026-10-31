@@ -225,7 +225,7 @@ class MutualFundPriceFetcher(BaseFetcher):
                             f"Current price for scheme code: {scheme_code} in INR is: {currency_symbol}{nav}"
                         )
 
-                        current_value = round((nav * summary.total_quantity), 2)
+                        current_value = round((nav * float(summary.total_quantity)), 2)
 
                         initial_investment = float(summary.total_cost)
                         roi_value = FinancialCalculator.calculate_roi(
