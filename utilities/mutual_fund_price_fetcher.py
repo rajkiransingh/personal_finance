@@ -35,7 +35,7 @@ class MutualFundPriceFetcher(BaseFetcher):
         self.logger.debug("Mutual fund fetcher initialized")
 
     def get_mutual_fund_rates_bulk(
-        self, scheme_code_list: list, force_refresh: bool = False
+            self, scheme_code_list: list, force_refresh: bool = False
     ):
         """Fetch Mutual Fund NAVs for multiple scheme codes with caching"""
         results = {}
@@ -147,7 +147,7 @@ class MutualFundPriceFetcher(BaseFetcher):
                         )
 
                         # Calculate XIRR using shared utility
-                        investment.xirr = FinancialCalculator.calculate_xirr(
+                        investment.XIRR = FinancialCalculator.calculate_xirr(
                             current_value,
                             initial_investment,
                             investment.investment_date,
@@ -240,7 +240,7 @@ class MutualFundPriceFetcher(BaseFetcher):
                         if relevant_investments and initial_investment > 0:
                             total_weighted_xirr = sum(
                                 (float(investment.total_invested_amount) / initial_investment)
-                                * float(investment.xirr or 0)
+                                * float(investment.XIRR or 0)
                                 for investment in relevant_investments
                             )
                             self.logger.info(
