@@ -5,6 +5,8 @@ Configure uvicorn logging to use centralized logger.
 Add this to your uvicorn start command or use this script to start the server.
 """
 
+import os
+
 import uvicorn
 
 # Import centralized config BEFORE starting uvicorn
@@ -13,9 +15,17 @@ from utilities.common.app_config import config
 
 # Configure uvicorn's loggers to use our centralized logger
 def configure_uvicorn_logging():
-    """Configure uvicorn and FastAPI loggers to use centralized logging"""
+    """Configure uvicorn and FastAPI loggers to use centralized logging.
 
-    # Get our centralized logger configuration
+    Uvicorn logs are routed to logs/backend/api.log — the same file used by
+    all api.* and backend.* loggers so all backend activity is in one place.
+    """
+
+    # Uvicorn writes to the backend/api category log
+    backend_log_dir = os.path.join(config.LOG_DIR, "backend")
+    os.makedirs(backend_log_dir, exist_ok=True)
+    api_log_path = os.path.join(backend_log_dir, "api.log")
+
     log_config = {
         "version": 1,
         "disable_existing_loggers": False,
@@ -43,7 +53,7 @@ def configure_uvicorn_logging():
             "file": {
                 "formatter": "default",
                 "class": "logging.handlers.TimedRotatingFileHandler",
-                "filename": f"{config.LOG_DIR}/application.log",
+                "filename": api_log_path,
                 "when": "midnight",
                 "interval": 30,
                 "backupCount": 12,

@@ -7,10 +7,15 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - PYTHONPATH=/app
+      # All logs land in /app/logs (host: ./logs/) — absolute path prevents
+      # log files scattering across sub-directories on different CWDs.
+      - LOG_DIR=/app/logs
     ports:
       - "8000:8000"
     volumes:
       - .:/app
+      # Explicitly mount logs dir so it's always writable by the container user
+      - ./logs:/app/logs
     networks:
       - personal_finance_network
       - intra_connect
