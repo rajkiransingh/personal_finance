@@ -17,8 +17,9 @@ from backend.schemas.expense_schema import ExpenseCreate
 from backend.schemas.income_schema import IncomeCreate
 from backend.services.expense_services import create_expense
 from backend.services.income_services import create_income
+from utilities.common.app_config import config
 
-logger = logging.getLogger(__name__)
+logger = config.setup_logger("backend.services.transaction_import")
 
 
 def normalize_headers(decoded_file: str, delimiter: str):

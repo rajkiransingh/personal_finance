@@ -10,6 +10,38 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Logger name prefix → log category (subdirectory/basename) mapping.
+# A logger whose name *starts with* a key is routed to that category's files.
+# Evaluated in order; the first match wins.
+# ---------------------------------------------------------------------------
+_LOG_CATEGORIES = [
+    # API / backend routes
+    ("api.",                                "backend/api"),
+    ("backend.",                            "backend/api"),
+    # Scheduled fetcher scripts
+    ("scripts.",                            "scheduler/scheduler"),
+    # Individual data fetchers
+    ("utilities.forex_fetcher",             "fetchers/fetchers"),
+    ("utilities.stock_fetcher",             "fetchers/fetchers"),
+    ("utilities.crypto_fetcher",            "fetchers/fetchers"),
+    ("utilities.metal_fetcher",             "fetchers/fetchers"),
+    ("utilities.mutual_fund_fetcher",       "fetchers/fetchers"),
+    # Analytics & dashboard
+    ("utilities.dashboard",                 "analytics/analytics"),
+    ("utilities.analytics",                 "analytics/analytics"),
+    # Fallback — anything unmatched goes to backend/api
+    ("",                                    "backend/api"),
+]
+
+
+def _resolve_log_category(name: str) -> str:
+    """Return the log category path (relative to LOG_DIR) for a logger name."""
+    for prefix, category in _LOG_CATEGORIES:
+        if name.startswith(prefix):
+            return category
+    return "backend/api"
+
 
 class AppConfig:
     """Centralized configuration for the application"""
@@ -40,7 +72,11 @@ class AppConfig:
 
         # Logging configuration
         self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-        self.LOG_DIR = os.getenv("LOG_DIR", "./logs")
+        # Use an absolute path so logs always land in the same place regardless
+        # of which process or working directory calls setup_logger().
+        # Inside Docker the default is /app/logs (mounted to ./logs/ on host).
+        # Override with LOG_DIR env var for local dev or tests.
+        self.LOG_DIR = os.getenv("LOG_DIR", "/app/logs")
 
         # Integration Configuration
         self.RAIDEN_URL = os.getenv("RAIDEN_URL", "http://raiden:8000")
@@ -56,7 +92,7 @@ class AppConfig:
         )
         self.DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-        # Create logs directory
+        # Create base logs directory (subdirectories are created in setup_logger)
         os.makedirs(self.LOG_DIR, exist_ok=True)
 
         # Initialize Redis client (lazy loading)
@@ -79,14 +115,27 @@ class AppConfig:
 
     def setup_logger(self, name: str, level: str = None) -> logging.Logger:
         """
-        Set up a logger with console and file handlers (dual output).
+        Set up a category-aware logger with console and file handlers.
 
-        Logs go to:
-        1. Console (stdout) - INFO+ for Docker logs
-        2. application.log - All levels (DEBUG+)
-        3. error.log - Errors only (ERROR+)
+        Each logger is routed to a dedicated subdirectory under LOG_DIR based
+        on its name prefix (see _LOG_CATEGORIES at the top of this module):
 
-        Files rotate monthly and keep 12 months of history.
+            logs/
+            ├── backend/
+            │   ├── api.log          ← api.*, backend.* loggers
+            │   └── api.error.log    ← ERROR+ from API
+            ├── scheduler/
+            │   ├── scheduler.log    ← scripts.* loggers
+            │   └── scheduler.error.log
+            ├── fetchers/
+            │   ├── fetchers.log     ← utilities.*_fetcher loggers
+            │   └── fetchers.error.log
+            ├── analytics/
+            │   ├── analytics.log    ← utilities.dashboard.*, utilities.analytics.*
+            │   └── analytics.error.log
+            └── app.error.log        ← Master: ALL errors from ALL loggers (ELK feed)
+
+        Files rotate monthly (30-day interval) and keep 12 months of history.
 
         Args:
             name: Logger name (e.g., "api.routes.user", "utilities.stock_fetcher")
@@ -109,44 +158,47 @@ class AppConfig:
         logger.setLevel(level or self.LOG_LEVEL)
         logger.propagate = False  # Don't propagate to root logger
 
-        # 1. Console Handler (for Docker logs)
+        # Resolve the category subdirectory/basename for this logger
+        category = _resolve_log_category(name)  # e.g. "backend/api"
+        category_dir = os.path.join(self.LOG_DIR, os.path.dirname(category))
+        category_base = os.path.basename(category)  # e.g. "api"
+        os.makedirs(category_dir, exist_ok=True)
+
+        # Shared formatter helper
+        file_fmt = logging.Formatter(self.FILE_FORMAT, self.DATE_FORMAT)
+
+        def _make_rotating_handler(filepath: str, min_level: int) -> TimedRotatingFileHandler:
+            h = TimedRotatingFileHandler(
+                filename=filepath,
+                when="midnight",
+                interval=30,   # Rotate every 30 days (monthly)
+                backupCount=12,  # Keep 12 months of archives
+                encoding="utf-8",
+            )
+            h.setFormatter(file_fmt)
+            h.setLevel(min_level)
+            h.suffix = "%Y-%m"  # Archive naming: api.log.2025-01
+            return h
+
+        # 1. Console handler — INFO+ for Docker logs / stdout
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(
             logging.Formatter(self.CONSOLE_FORMAT, self.DATE_FORMAT)
         )
-        console_handler.setLevel(logging.INFO)  # Only INFO+ to console
+        console_handler.setLevel(logging.INFO)
         logger.addHandler(console_handler)
 
-        os.makedirs(self.LOG_DIR, exist_ok=True)
-        # 2. Application Log File Handler (all levels)
-        app_file_handler = TimedRotatingFileHandler(
-            filename=os.path.join(self.LOG_DIR, "application.log"),
-            when="midnight",
-            interval=30,  # Rotate every 30 days (monthly)
-            backupCount=12,  # Keep 12 months
-            encoding="utf-8",
-        )
-        app_file_handler.setFormatter(
-            logging.Formatter(self.FILE_FORMAT, self.DATE_FORMAT)
-        )
-        app_file_handler.setLevel(logging.DEBUG)  # All levels to application.log
-        app_file_handler.suffix = "%Y-%m"  # Archive naming: application.log.2025-01
-        logger.addHandler(app_file_handler)
+        # 2. Category application log — all levels (DEBUG+)
+        category_log = os.path.join(category_dir, f"{category_base}.log")
+        logger.addHandler(_make_rotating_handler(category_log, logging.DEBUG))
 
-        # 3. Error Log File Handler (errors only)
-        error_file_handler = TimedRotatingFileHandler(
-            filename=os.path.join(self.LOG_DIR, "error.log"),
-            when="midnight",
-            interval=30,  # Rotate every 30 days (monthly)
-            backupCount=12,  # Keep 12 months
-            encoding="utf-8",
-        )
-        error_file_handler.setFormatter(
-            logging.Formatter(self.FILE_FORMAT, self.DATE_FORMAT)
-        )
-        error_file_handler.setLevel(logging.ERROR)  # Only ERROR+ to error.log
-        error_file_handler.suffix = "%Y-%m"  # Archive naming: error.log.2025-01
-        logger.addHandler(error_file_handler)
+        # 3. Category error log — ERROR+ only, per-category
+        category_err = os.path.join(category_dir, f"{category_base}.error.log")
+        logger.addHandler(_make_rotating_handler(category_err, logging.ERROR))
+
+        # 4. Master error log — ERROR+ from ALL loggers, one file for ELK ingest
+        master_err = os.path.join(self.LOG_DIR, "app.error.log")
+        logger.addHandler(_make_rotating_handler(master_err, logging.ERROR))
 
         # Cache the configured logger
         self._loggers[name] = logger
