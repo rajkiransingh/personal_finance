@@ -16,7 +16,7 @@ logger = config.setup_logger("scripts.fetch_analytics_for_ui")
 db: Session = next(get_db())
 
 try:
-    # Get Dashboard data
+    # Get Dashboard data (recalculate only if cache is stale or missing)
     test_dashboard = dDC.get_investment_data(
         dashboardDataCalculator
     )
@@ -29,3 +29,5 @@ try:
 
 except Exception as e:
     logger.error(f"Critical error in fetch analytics for UI script: {e}", exc_info=True)
+finally:
+    db.close()

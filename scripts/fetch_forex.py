@@ -12,7 +12,7 @@ from utilities.common.app_config import config
 logger = config.setup_logger("scripts.fetch_forex")
 
 try:
-    # Get Forex Data
+    # Fetch Forex Data (checks Redis first; only calls API if key is missing or expired)
     fEx.get_exchange_rates(forexFetcher, "USD", "INR")
     fEx.get_exchange_rates(forexFetcher, "PLN", "INR")
     fEx.get_exchange_rates(forexFetcher, "USD", "PLN")

@@ -13,13 +13,13 @@ def get_conversion_rate_to_inr(currency_id: int) -> Decimal:
 
     redis_client = config.redis_client()
 
-    # Map currency_id to Redis forex keys
-    if currency_id == 2:  # PLN
-        key = "forex::PLN-INR"
-    elif currency_id == 3:  # USD
-        key = "forex::USD-INR"
-    else:
+    # Map currency_id to Redis forex keys and currency codes
+    currency_map = {2: "PLN", 3: "USD"}
+    currency_code = currency_map.get(currency_id)
+    if not currency_code:
         return Decimal("1.0")
+
+    key = f"forex::{currency_code}-INR"
 
     try:
         data = redis_client.get(key)
@@ -30,7 +30,17 @@ def get_conversion_rate_to_inr(currency_id: int) -> Decimal:
                     Decimal("0.00000001"), rounding=ROUND_HALF_UP
                 )
     except Exception:
-        # Fallback to 1.0 if Redis fails or key missing
+        pass
+
+    # On cache miss or expiration, fetch on-demand using ForexExchangeRateFetcher
+    try:
+        from utilities.forex_exchange_rate_fetcher import forexFetcher
+        rate = forexFetcher.get_exchange_rates(currency_code, "INR")
+        if rate and rate > Decimal("0"):
+            return Decimal(str(rate)).quantize(
+                Decimal("0.00000001"), rounding=ROUND_HALF_UP
+            )
+    except Exception:
         pass
 
     return Decimal("1.0")

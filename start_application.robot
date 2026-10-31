@@ -218,8 +218,11 @@ Restore Target Backup
 
 Check Scheduler
     [Documentation]    Check if the scheduler is running correctly
-    Sleep    10s
+    # Restart scheduler after app container is up to ensure target container resolution
+    Run Process    docker restart ${SCHEDULER_CONTAINER}    shell=True
+    Sleep    5s
     ${result}=    Run Process    docker logs ${SCHEDULER_CONTAINER}    shell=True
+    Log To Console    Scheduler logs: ${result.stdout}
     Log To Console    Scheduler started successfully
 
 Check Backup Script

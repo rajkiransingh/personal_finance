@@ -57,17 +57,13 @@ services:
   scheduler:
     image: mcuadros/ofelia:latest
     container_name: scheduler
+    command: daemon --config=/etc/ofelia/config.ini
     volumes:
       - ./backup_config/config.ini:/etc/ofelia/config.ini
+      - ./backup_config/config.ini:/etc/ofelia.conf
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backup_config/backup.sh:/backup.sh
-      - ./scripts/fetch_stocks.py:/scripts/fetch_stocks.py
-      - ./scripts/fetch_metals.py:/scripts/fetch_metals.py
-      - ./scripts/fetch_crypto.py:/scripts/fetch_crypto.py
-      - ./scripts/fetch_mutual_funds.py:/scripts/fetch_mutual_funds.py
     restart: unless-stopped
-    environment:
-      - OFELIA_CONFIG=/etc/ofelia/config.ini
     networks:
       - personal_finance_network
 

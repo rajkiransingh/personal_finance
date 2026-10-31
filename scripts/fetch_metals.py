@@ -29,3 +29,5 @@ try:
 
 except Exception as e:
     logger.error(f"Critical error in fetch_metals script: {e}", exc_info=True)
+finally:
+    db.close()

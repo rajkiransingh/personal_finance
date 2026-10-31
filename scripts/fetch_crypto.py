@@ -21,7 +21,9 @@ all_investment_data = get_investments_symbols(db)
 crypto_coin_list = all_investment_data["crypto"]
 
 try:
-    cryData = crF.fetch_cryptocurrency_data_in_usd(CryptoFetcher, crypto_coin_list)
+    cryData = crF.fetch_cryptocurrency_data_in_usd(
+        CryptoFetcher, crypto_coin_list
+    )
 
     if cryData and cryData.get("data"):
         crF.update_crypto_investments(CryptoFetcher, db, cryData)
@@ -31,3 +33,5 @@ try:
 
 except Exception as e:
     logger.error(f"Critical error in fetch_crypto script: {e}", exc_info=True)
+finally:
+    db.close()

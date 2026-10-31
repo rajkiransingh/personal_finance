@@ -35,33 +35,49 @@ class MetalRateFetcher(BaseFetcher):
     DEFAULT_CITY = os.getenv("CITY")
     DEFAULT_PURITY = "24k"
 
-    def get_gold_rate(self, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY):
+    def get_gold_rate(
+        self,
+        city: str = DEFAULT_CITY,
+        purity: str = DEFAULT_PURITY,
+        force_refresh: bool = False,
+    ):
         """Fetch current gold rate for specified city and purity.
 
         Args:
             city: City name for which to fetch gold rate (default from env)
             purity: Gold purity level (default: '24k')
+            force_refresh: Whether to bypass cache and fetch fresh data
 
         Returns:
             Current gold rate per gram as integer, or None if fetch fails
         """
-        return self.get_current_metal_rates("gold", city, purity)
+        return self.get_current_metal_rates("gold", city, purity, force_refresh=force_refresh)
 
-    def get_silver_rate(self, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY):
+    def get_silver_rate(
+        self,
+        city: str = DEFAULT_CITY,
+        purity: str = DEFAULT_PURITY,
+        force_refresh: bool = False,
+    ):
         """Fetch current silver rate for specified city and purity.
 
         Args:
             city: City name for which to fetch silver rate (default from env)
             purity: Silver purity level (default: '24k')
+            force_refresh: Whether to bypass cache and fetch fresh data
 
         Returns:
             Current silver rate per gram as integer, or None if fetch fails
         """
         # self.redis_client.delete(f"{self.cache_key_prefix}:{purity}:{city.lower()}")
-        return self.get_current_metal_rates("silver", city, purity)
+        return self.get_current_metal_rates("silver", city, purity, force_refresh=force_refresh)
 
     def get_current_metal_rates(
-        self, metal: str, city: str = DEFAULT_CITY, purity: str = DEFAULT_PURITY
+        self,
+        metal: str,
+        city: str = DEFAULT_CITY,
+        purity: str = DEFAULT_PURITY,
+        force_refresh: bool = False,
     ):
         """Fetch current metal rates with caching.
 
@@ -72,6 +88,7 @@ class MetalRateFetcher(BaseFetcher):
             metal: Metal type ('gold' or 'silver')
             city: City name for which to fetch rate (default from env)
             purity: Metal purity level (default: '24k')
+            force_refresh: Whether to bypass cache and fetch fresh data
 
         Returns:
             Current metal rate per gram as integer, or None if fetch fails
@@ -82,21 +99,22 @@ class MetalRateFetcher(BaseFetcher):
         cache_key = f"{self.cache_key_prefix}:{city.lower()}"
         metal = metal.lower()
 
-        # Check Redis cache first
-        cached_results = self.get_from_cache(cache_key, [metal])
-        cached_info = cached_results.get(metal)
+        # Check Redis cache first (unless force_refresh is requested)
+        if not force_refresh:
+            cached_results = self.get_from_cache(cache_key, [metal])
+            cached_info = cached_results.get(metal)
 
-        if cached_info:
-            try:
-                rate = float(cached_info["rate"])
-                self.logger.info(
-                    f"Cache hit: Using cached {metal} rate for {city}: {rate}"
-                )
-                return rate
-            except (KeyError, ValueError, TypeError) as e:
-                self.logger.warning(
-                    f"Invalid cached data for {metal} {city}, refetching: {e}"
-                )
+            if cached_info:
+                try:
+                    rate = float(cached_info["rate"])
+                    self.logger.info(
+                        f"Cache hit: Using cached {metal} rate for {city}: {rate}"
+                    )
+                    return rate
+                except (KeyError, ValueError, TypeError) as e:
+                    self.logger.warning(
+                        f"Invalid cached data for {metal} {city}, refetching: {e}"
+                    )
 
         # --- Cache Miss: Fetch Fresh ---
         if not self.rapid_api_key:
@@ -236,8 +254,10 @@ class MetalRateFetcher(BaseFetcher):
                             f"Current price for {metal} in INR: {currency_symbol}{current_price}"
                         )
 
-                        current_value = current_price * investment.quantity_in_grams
-                        initial_investment = investment.total_invested_amount
+                        current_value = round(
+                            float(current_price) * float(investment.quantity_in_grams), 2
+                        )
+                        initial_investment = float(investment.total_invested_amount)
 
                         # Update current price and calculated fields
                         investment.current_price_per_gram = current_price
@@ -325,10 +345,10 @@ class MetalRateFetcher(BaseFetcher):
                         )
 
                         current_value = round(
-                            (current_price * summary.total_quantity), 2
+                            (float(current_price) * float(summary.total_quantity)), 2
                         )
 
-                        initial_investment = summary.total_cost
+                        initial_investment = float(summary.total_cost)
                         roi_value = FinancialCalculator.calculate_roi(
                             current_value, initial_investment
                         )
@@ -338,10 +358,10 @@ class MetalRateFetcher(BaseFetcher):
                             inv for inv in investments if inv.metal_name == metal
                         ]
 
-                        if relevant_investments:
+                        if relevant_investments and initial_investment > 0:
                             total_weighted_xirr = sum(
-                                (investment.total_invested_amount / initial_investment)
-                                * investment.xirr
+                                (float(investment.total_invested_amount) / initial_investment)
+                                * float(investment.xirr or 0)
                                 for investment in relevant_investments
                             )
                             self.logger.info(

@@ -218,7 +218,7 @@ class DashboardDataCalculator(BaseFetcher):
                 else_=getattr(model, amount_field),
             )
 
-    def get_investment_data(self) -> dict:
+    def get_investment_data(self, force_refresh: bool = False) -> dict:
         """
         Extended full dashboard analytics including:
         - YTD & YoY income/expense/investment
@@ -231,11 +231,12 @@ class DashboardDataCalculator(BaseFetcher):
         - Monthly trends
         """
 
-        # --- Try cache first ---
-        cached_map = self.get_from_cache(self.cache_key_prefix, [self.summary])
-        cached_info = cached_map.get(self.summary)
-        if cached_info:
-            return cached_info
+        # --- Try cache first (unless force_refresh is requested) ---
+        if not force_refresh:
+            cached_map = self.get_from_cache(self.cache_key_prefix, [self.summary])
+            cached_info = cached_map.get(self.summary)
+            if cached_info:
+                return cached_info
 
         # ----- PORTFOLIO SUMMARY -----
         summary = get_portfolio_summary(self.db)
