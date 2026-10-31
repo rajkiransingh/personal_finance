@@ -14,8 +14,8 @@ db: Session = next(get_db())
 
 try:
     bullion_data = {
-        "Gold": mRF.get_gold_rate(bullionFetcher, force_refresh=True),
-        "Silver": mRF.get_silver_rate(bullionFetcher, force_refresh=True),
+        "Gold": mRF.get_gold_rate(bullionFetcher),
+        "Silver": mRF.get_silver_rate(bullionFetcher),
     }
 
     # Filter out None values to prevent crashes in updaters

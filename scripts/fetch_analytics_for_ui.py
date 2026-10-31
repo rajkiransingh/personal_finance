@@ -16,9 +16,9 @@ logger = config.setup_logger("scripts.fetch_analytics_for_ui")
 db: Session = next(get_db())
 
 try:
-    # Get Dashboard data (force recalculation and cache update)
+    # Get Dashboard data (recalculate only if cache is stale or missing)
     test_dashboard = dDC.get_investment_data(
-        dashboardDataCalculator, force_refresh=True
+        dashboardDataCalculator
     )
 
     bS.run_cycle(balancingScreener)

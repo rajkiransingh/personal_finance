@@ -12,10 +12,10 @@ from utilities.common.app_config import config
 logger = config.setup_logger("scripts.fetch_forex")
 
 try:
-    # Force refresh Forex Data from open exchange API
-    fEx.get_exchange_rates(forexFetcher, "USD", "INR", force_refresh=True)
-    fEx.get_exchange_rates(forexFetcher, "PLN", "INR", force_refresh=True)
-    fEx.get_exchange_rates(forexFetcher, "USD", "PLN", force_refresh=True)
+    # Fetch Forex Data (checks Redis first; only calls API if key is missing or expired)
+    fEx.get_exchange_rates(forexFetcher, "USD", "INR")
+    fEx.get_exchange_rates(forexFetcher, "PLN", "INR")
+    fEx.get_exchange_rates(forexFetcher, "USD", "PLN")
 
 except Exception as e:
     logger.error(f"Critical error in fetch_forex script: {e}", exc_info=True)

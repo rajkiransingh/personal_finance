@@ -22,7 +22,7 @@ crypto_coin_list = all_investment_data["crypto"]
 
 try:
     cryData = crF.fetch_cryptocurrency_data_in_usd(
-        CryptoFetcher, crypto_coin_list, force_refresh=True
+        CryptoFetcher, crypto_coin_list
     )
 
     if cryData and cryData.get("data"):
