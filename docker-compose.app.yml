@@ -6,6 +6,11 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
+      # Explicit host/port so app_config.py can build its own Redis connection.
+      # These must match the service name and port in docker-compose.infra.yml.
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_DB=${REDIS_DB:-0}
       - PYTHONPATH=/app
       # All logs land in /app/logs (host: ./logs/) — absolute path prevents
       # log files scattering across sub-directories on different CWDs.

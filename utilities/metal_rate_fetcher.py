@@ -96,13 +96,16 @@ class MetalRateFetcher(BaseFetcher):
         Raises:
             ValueError: If RAPID_API_KEY is not configured
         """
-        cache_key = f"{self.cache_key_prefix}:{city.lower()}"
         metal = metal.lower()
+        # Symbol encodes both metal and city so each combination gets its own
+        # cache slot while still living under the shared "bullion" prefix.
+        # _build_cache_key("bullion", "gold_mumbai") → "bullion::GOLD_MUMBAI"
+        cache_symbol = f"{metal}_{city.lower()}"
 
         # Check Redis cache first (unless force_refresh is requested)
         if not force_refresh:
-            cached_results = self.get_from_cache(cache_key, [metal])
-            cached_info = cached_results.get(metal)
+            cached_results = self.get_from_cache(self.cache_key_prefix, [cache_symbol])
+            cached_info = cached_results.get(cache_symbol)
 
             if cached_info:
                 try:
@@ -154,7 +157,7 @@ class MetalRateFetcher(BaseFetcher):
 
             try:
                 self.set_cache(
-                    cache_key, {metal: cache_data}, expiry=self.cache_expiry_in_seconds
+                    self.cache_key_prefix, {cache_symbol: cache_data}, expiry=self.cache_expiry_in_seconds
                 )
                 self.logger.info(f"Cached {metal} rate in Redis for {city}: {rate}")
             except Exception as e:

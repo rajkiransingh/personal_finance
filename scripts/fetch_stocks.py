@@ -15,6 +15,26 @@ from utilities.common.app_config import config
 
 logger = config.setup_logger("scripts.fetch_stocks")
 db: Session = next(get_db())
+
+# ---------------------------------------------------------------------------
+# Pre-flight: ensure forex rates are in Redis before running stock updates.
+# Stock prices may be quoted in USD or PLN; without valid forex rates the INR
+# conversion silently falls back to 1.0, corrupting current_total_value and ROI.
+# ---------------------------------------------------------------------------
+_REQUIRED_FOREX_KEYS = ["forex::USD-INR", "forex::PLN-INR", "forex::USD-PLN"]
+_redis = config.redis_client()
+_missing_forex = [k for k in _REQUIRED_FOREX_KEYS if not _redis.exists(k)]
+if _missing_forex:
+    logger.warning(
+        f"⚠️  Forex cache keys missing: {_missing_forex}. "
+        "Triggering on-demand forex fetch before stock updates to avoid 1.0 fallback."
+    )
+    from utilities.forex_exchange_rate_fetcher import ForexExchangeRateFetcher as fEx, forexFetcher
+    fEx.get_exchange_rates(forexFetcher, "USD", "INR")
+    fEx.get_exchange_rates(forexFetcher, "PLN", "INR")
+    fEx.get_exchange_rates(forexFetcher, "USD", "PLN")
+    logger.info("✅ Forex rates fetched and cached. Proceeding with stock updates.")
+
 # Get all investment data and stock prices upfront
 all_investment_data = get_investments_symbols(db)
 dividends_data = get_dividends_data(db)
