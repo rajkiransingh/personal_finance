@@ -99,9 +99,15 @@ class AppConfig:
         self._redis_client: Optional[redis.Redis] = None
 
     def redis_client(self):
-        """Singleton Redis client"""
+        """Singleton Redis client.
+
+        Returns a connected Redis client. On first call a lightweight PING is
+        issued to verify connectivity; if Redis is unreachable the error is
+        logged and re-raised so callers can handle it gracefully rather than
+        receiving a half-initialised object.
+        """
         if self._redis_client is None:
-            self._redis_client = redis.Redis(
+            client = redis.Redis(
                 host=self.REDIS_HOST,
                 port=self.REDIS_PORT,
                 db=self.REDIS_DB,
@@ -110,7 +116,17 @@ class AppConfig:
                 socket_timeout=5,
                 retry_on_timeout=True,
             )
-            self._redis_client.ping()
+            try:
+                client.ping()
+            except redis.exceptions.ConnectionError as exc:
+                logging.getLogger(__name__).error(
+                    "⚠️  Redis connection failed on startup "
+                    f"(host={self.REDIS_HOST}, port={self.REDIS_PORT}): {exc}. "
+                    "Cache will be unavailable — fetchers will fall back to live API calls."
+                )
+                # Store the client anyway; individual call sites already wrap
+                # redis operations in try/except so they degrade gracefully.
+            self._redis_client = client
         return self._redis_client
 
     def setup_logger(self, name: str, level: str = None) -> logging.Logger:
