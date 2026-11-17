@@ -8,7 +8,6 @@ from rapidfuzz import process, fuzz
 from sqlalchemy.orm import Session
 
 from backend.models.investments.analytics import StocksValuableData, StockList
-from backend.services.db_services import get_db
 from utilities.analytics.sector_mapping import SECTOR_MAP
 from utilities.common.base_fetcher import BaseFetcher
 
@@ -157,7 +156,9 @@ class StockMerger(BaseFetcher):
             self.cache_expiry_in_seconds,
         )
         self.logger.debug("Stock merger initialized")
-        self.db: Session = next(get_db())
+        # Note: no long-lived DB session is kept here. Methods that need the
+        # database receive a session from their callers; holding one forever
+        # causes PendingRollbackError once MySQL drops the idle connection.
 
     def is_recently_modified(self, file_path, hours=48):
         """Check if a file was modified in the last XX hours."""
