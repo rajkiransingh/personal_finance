@@ -2,10 +2,8 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Tuple, Dict, Any
 
-from sqlalchemy.orm import Session
-
 from utilities.common.base_fetcher import BaseFetcher
-from backend.services.db_services import get_db
+from backend.services.db_services import SessionLocal
 from utilities.common.config_loader_util import load_config, save_config
 from utilities.common.value_extractor_util import (
     round2,
@@ -17,12 +15,15 @@ from utilities.fetch_overall_investment_data import get_investments_with_sub_all
 
 class BalancingScreener(BaseFetcher):
     def __init__(self):
-        """Initialize balancing screener with database and cache configuration.
+        """Initialize balancing screener with cache configuration.
 
-        Sets up the screener with database session, cache configuration for
-        rebalancing calculations, and initializes the base fetcher.
+        Sets up the screener with cache configuration for rebalancing
+        calculations, and initializes the base fetcher.
+
+        Note: no long-lived DB session is kept here. A fresh session is
+        created per run_cycle() call; holding one forever causes
+        PendingRollbackError once MySQL drops the idle connection.
         """
-        self.db: Session = next(get_db())
         self.cache_key_prefix = "rebalancing_screener"
         self.cache_expiry_in_seconds = 86400
         super().__init__(
@@ -261,9 +262,15 @@ class BalancingScreener(BaseFetcher):
         config_path = base_dir / "frontend" / "portfolio-config.json"
 
         portfolio_config = load_config(str(config_path))
-        portfolio_data = portfolio_data or get_investments_with_sub_allocations(self.db)
-
-        total, cats = self.get_total_and_categories(portfolio_config, portfolio_data)
+        db = SessionLocal()
+        try:
+            portfolio_data = portfolio_data or get_investments_with_sub_allocations(db)
+            total, cats = self.get_total_and_categories(portfolio_config, portfolio_data)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
         self.apply_step_up_if_due(str(config_path))
         return self.compute_allocation_suggestion(portfolio_config, total, cats)
 

@@ -15,7 +15,7 @@ from backend.models.investments.mutual_fund import MutualFundInvestment
 from backend.models.investments.real_estate import RealEstateInvestment
 from backend.models.investments.stock import StockInvestment, Dividends
 from backend.models.spendings.expense import Expense, ExpenseCategory, Liabilities, LiabilityValue
-from backend.services.db_services import get_db
+from backend.services.db_services import SessionLocal
 from utilities.common.base_fetcher import BaseFetcher, _build_cache_key
 from utilities.fetch_overall_investment_data import get_portfolio_summary
 
@@ -245,7 +245,9 @@ def get_spending_by_category(
 
 class DashboardDataCalculator(BaseFetcher):
     def __init__(self):
-        self.db: Session = next(get_db())
+        # Note: no long-lived DB session is kept here. A fresh session is
+        # created per get_investment_data() call; holding one forever causes
+        # PendingRollbackError once MySQL drops the idle connection.
         self.cache_key_prefix = "dashboard"
         self.summary = "summary"
         self.cache_expiry_in_seconds = 86400
@@ -314,6 +316,22 @@ class DashboardDataCalculator(BaseFetcher):
             )
 
     def get_investment_data(self, force_refresh: bool = False) -> dict:
+        """Run the dashboard computation with a fresh, short-lived DB session.
+
+        Opens a new session per call and always closes it, so the connection
+        is returned to the pool (with pool_pre_ping active) instead of being
+        held open with an uncommitted transaction until MySQL kills it.
+        """
+        self.db = SessionLocal()
+        try:
+            return self._compute_investment_data(force_refresh)
+        except Exception:
+            self.db.rollback()
+            raise
+        finally:
+            self.db.close()
+
+    def _compute_investment_data(self, force_refresh: bool = False) -> dict:
         """
         Extended full dashboard analytics including:
         - YTD & YoY income/expense/investment
@@ -333,8 +351,7 @@ class DashboardDataCalculator(BaseFetcher):
             if cached_info:
                 return cached_info
 
-        # This calculator is a long-lived singleton. Close any open transaction
-        # so the next queries see rows added since the previous calculation.
+        # Start from a clean transaction so every query sees committed data.
         self.db.rollback()
 
         # ----- PORTFOLIO SUMMARY -----

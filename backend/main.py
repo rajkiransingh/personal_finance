@@ -145,6 +145,11 @@ def startup_logic():
         raiden_client.send_event("scheduler_failed", {"error": str(e)})
         logger.error(f"Error executing startup logic: {e}", exc_info=True)
         # We catch exceptions to prevent app startup failure if logic is buggy
+    finally:
+        # Always release the startup session so its connection returns to the
+        # pool (with pool_pre_ping active) instead of lingering open.
+        if "db" in locals() and db is not None:
+            db.close()
 
     logger.info("=" * 60)
     logger.info("Startup logic completed successfully")

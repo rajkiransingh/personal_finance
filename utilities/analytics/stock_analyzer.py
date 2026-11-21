@@ -3,10 +3,9 @@ import os
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy.orm import Session
 
 from utilities.common.base_fetcher import BaseFetcher
-from backend.services.db_services import get_db
+from backend.services.db_services import engine
 
 METRIC_NAME_MAP = {
     "market_cap": "MarketCap",
@@ -194,7 +193,6 @@ class StockAnalysis(BaseFetcher):
         self.logger.debug("Stock analyzer initialized")
 
         self.strategy_file = os.path.join(FILE_LOCATION, "stock-score-config.json")
-        self.db: Session = next(get_db())
 
     def fetch_data_from_cache(self, stock_score_key: list):
         """Retrieve stock scores from cache.
@@ -234,7 +232,9 @@ class StockAnalysis(BaseFetcher):
             WHERE rn = 1
         """)
 
-        df = pd.read_sql(query, self.db.bind)
+        # Use the shared engine (pool_pre_ping/pool_recycle configured) so a
+        # stale idle connection can never poison this read.
+        df = pd.read_sql(query, engine)
 
         # Prepare list to hold processed rows
         rows = []
