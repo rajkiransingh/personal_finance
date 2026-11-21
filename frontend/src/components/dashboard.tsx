@@ -360,7 +360,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <section className="card flex flex-col justify-between">
-          <div className="flex flex-1 flex-col justify-center p-5">
+          <div className="flex flex-1 flex-col p-5">
             <div className="card-head-plain">
               <h2 className="section-title flex items-center gap-2">
                 <Calendar size={17} aria-hidden="true" className="text-[var(--color-primary)]" />
@@ -369,7 +369,8 @@ export default function DashboardPage() {
               <span className="card-note">Based on monthly averages</span>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="flex flex-1 flex-col justify-center">
+              <div className="space-y-2.5">
               {[
                 { label: "Expected inflow", value: data.forecast?.inflow ?? 0, badge: "badge-positive", tag: "Income" },
                 { label: "Expected outflow", value: data.forecast?.outflow ?? 0, badge: "badge-negative", tag: "Expenses" },
@@ -385,6 +386,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
+            </div>
             </div>
           </div>
 
