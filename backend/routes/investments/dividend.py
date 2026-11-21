@@ -7,6 +7,7 @@ from backend.schemas.investments.dividend_schema import (
     DividendCreate,
     DividendUpdate,
     DividendResponse,
+    DividendAnalyticsResponse,
 )
 from backend.services.db_services import get_db
 from backend.services.investments.dividend import (
@@ -19,8 +20,11 @@ from backend.services.investments.dividend import (
 )
 from backend.services.user_services import get_user
 from backend.summarizing import update_dividend_summary
+from utilities.common.base_fetcher import BaseFetcher
 
 router = APIRouter(prefix="/dividends", tags=["Income"])
+converter = BaseFetcher("dividends.routes", "dividends")
+CURRENCY_CODES = {1: "INR", 2: "PLN", 3: "USD"}
 
 
 @router.get("", response_model=List[DividendResponse])
@@ -38,6 +42,28 @@ def read_dividends_by_user(user_id: int, db: Session = Depends(get_db)):
     if not dividends:
         raise HTTPException(status_code=404, detail="No dividends found for this user")
     return dividends
+
+
+@router.get("/analytics", response_model=List[DividendAnalyticsResponse])
+def read_dividend_analytics(db: Session = Depends(get_db)):
+    """All dividend entries with their INR equivalent for the detail screen."""
+    rows = get_all_dividends(db)
+    result = []
+    for row in rows:
+        code = CURRENCY_CODES.get(row.currency_id, "INR")
+        rate = converter.get_conversion_rate_against_inr(code)
+        result.append(
+            {
+                "id": row.id,
+                "stock_symbol": row.stock_symbol,
+                "stock_name": row.stock_name,
+                "amount": row.amount,
+                "currency_code": code,
+                "date": row.received_date,
+                "value_inr": round(float(row.amount or 0) * rate, 2),
+            }
+        )
+    return result
 
 
 @router.get("/{dividend_id}", response_model=DividendResponse)

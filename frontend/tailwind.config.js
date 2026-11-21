@@ -1,6 +1,4 @@
 /** @type {import('tailwindcss').Config} */
-const { theme } = require("./src/styles/theme");
-
 export default {
   content: [
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -8,17 +6,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "rgb(var(--color-gb) / <alpha-value>)",
-        sidebar: "rgb(var(--color-sidebar) / <alpha-value>)",
-        card: "rgb(var(--color-card) / <alpha-value>)",
-        accent: "rgb(var(--color-accent) / <alpha-value>)",
-        accentHover: "rgb(var(--color-accent-hover) / <alpha-value>)",
-        textPrimary: "rgb(var(--color-text-primary) / <alpha-value>)",
-        textSecondary: "rgb(var(--color-text-secondary) / <alpha-value>)",
-        },
+        background: "var(--color-bg)",
+        sidebar: "var(--color-sidebar)",
+        card: "var(--color-card)",
+        accent: "var(--color-accent)",
+        accentHover: "var(--color-accent-hover)",
+        textPrimary: "var(--color-text-primary)",
+        textSecondary: "var(--color-text-secondary)",
+      },
       fontFamily: {
-        header: ['var(--font-header)', 'system-ui', 'sans-serif'],
-        body: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'system-ui', '-apple-system', 'sans-serif'],
       },
     },
   },

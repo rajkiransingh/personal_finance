@@ -1,87 +1,697 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: custom · redesign: adopted-pulse
+ * idea: "a friendly personal money app that makes numbers feel alive" · vibe: bright, clear, energetic
+ * paper: oklch(97.2% 0.006 280) · accent: oklch(53% 0.19 281) · display: Plus Jakarta Sans · body: Plus Jakarta Sans
+ * nav: kept, restyled into a white rail with indigo pills · signature: kept, the gradient balance hero
+ * states: default hover focus active disabled loading empty error · modes: light+dark
+ * axes: light/round-sans/cool · posture: Committed (white rail) · contrast: pass · v3.0.0 */
+/* Hallmark · pre-emit critique: P5 H4 E4 S4 R4 V4 · weakest: E, ten dense screens share one card recipe, so every surface class is defined once and reused rather than retyped per page */
+/* Hallmark · answered F24 · the brief asks for a visible border and a shadow on every card */
 
 @import "tailwindcss";
+@import "./tokens.css";
+@import "./base.css" layer(base);
 
-:root {
-  --color-bg: #4C514C;
-  --color-bg-lighter: #484C48;
-  --color-sidebar: #323432;
-  --color-card: #3C403C;
-  --color-accent: #EED4B7;
-  --color-accent-hover: #EEE6DC;
-  --color-text-primary: #C9C3C0;
-  --color-text-secondary: #EED4B7;
-  --color-text-pie: #474437;
+@theme inline {
+  --color-canvas: var(--color-paper);
+  --color-surface: var(--color-paper-2);
+  --color-well: var(--color-paper-3);
+  --color-line: var(--color-rule);
+  --color-edge: var(--color-rule-strong);
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
 }
 
+/* ---------- Page furniture ---------- */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-bottom: var(--space-sm);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.greeting {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  color: var(--color-primary);
 }
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: var(--tracking-display);
+  color: var(--color-ink);
+}
+
+.page-sub {
+  margin-top: var(--space-2xs);
+  max-width: 62ch;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: var(--text-section);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.section-note {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-muted);
+}
+
+.lede {
+  max-width: 62ch;
+  font-size: var(--text-lead);
+  color: var(--color-ink-2);
+  text-wrap: pretty;
+}
+
+.rule {
+  border: 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+/* ---------- Card: a soft white panel with a quiet edge and a real shadow ---------- */
 
 .card {
-  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  background-color: var(--color-surface);
+  background-image: linear-gradient(
+    155deg,
+    color-mix(in oklab, var(--color-surface) 99%, var(--color-brand-2)),
+    color-mix(in oklab, var(--color-surface) 94%, var(--color-brand-2))
+  );
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  color: var(--color-ink);
 }
-.card:hover {
+
+.card-flush {
+  box-shadow: none;
+}
+
+.card-body {
+  padding: var(--space-lg);
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.card-head-plain {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-bottom: var(--space-sm);
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: var(--text-section);
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--color-ink);
+}
+
+.card-note {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.card-interactive {
+  transition:
+    transform var(--dur-short) var(--ease-out),
+    box-shadow var(--dur-short) var(--ease-out),
+    border-color var(--dur-short) var(--ease-out);
+}
+
+.card-interactive:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  border-color: color-mix(in oklab, var(--color-primary) 35%, var(--color-rule));
+  box-shadow: var(--shadow-lift);
 }
 
-@font-face {
-  font-family: "PlaywriteDeutschlandSchulausgangschri";
-  src: url("../styles/fonts/PlaywriteFont.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
+.card-interactive:active {
+  transform: translateY(0);
 }
 
-.font-playwrite {
-  font-family: "PlaywriteDeutschlandSchulausgangschri", cursive;
+/* Accent strips and icon tiles shared by the dashboard KPI cards. */
+.card-mint { --kpi-accent: var(--color-success); --kpi-soft: color-mix(in oklab, var(--color-success) 14%, var(--color-surface)); }
+.card-coral { --kpi-accent: var(--color-danger); --kpi-soft: color-mix(in oklab, var(--color-danger) 12%, var(--color-surface)); }
+.card-violet { --kpi-accent: var(--color-brand-2); --kpi-soft: color-mix(in oklab, var(--color-brand-2) 12%, var(--color-surface)); }
+.card-sky { --kpi-accent: var(--color-info); --kpi-soft: color-mix(in oklab, var(--color-info) 12%, var(--color-surface)); }
+.card-amber { --kpi-accent: var(--color-warning); --kpi-soft: color-mix(in oklab, var(--color-warning) 14%, var(--color-surface)); }
+
+.kpi-card {
+  position: relative;
+  overflow: hidden;
 }
 
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--kpi-accent, var(--color-primary));
+}
+
+.icon-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--kpi-soft, var(--color-well));
+  color: color-mix(in oklab, var(--kpi-accent, var(--color-primary)) 82%, var(--color-ink));
+}
+
+/* A quiet inset well for nested groups. Never a card inside a card. */
+.well {
+  background-color: var(--color-well);
+  border-radius: var(--radius-panel);
+  padding: var(--space-sm) var(--space-md);
+}
+
+/* ---------- Gradient balance hero ---------- */
+
+.hero-balance {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  padding: var(--space-lg);
+  background: linear-gradient(125deg, var(--color-primary), var(--color-brand-2));
+  box-shadow: var(--shadow-glow);
+  color: var(--color-primary-ink);
+}
+
+.hero-balance::after {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--space-4xl));
+  right: calc(-1 * var(--space-2xl));
+  width: 260px;
+  height: 260px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in oklab, var(--color-primary-ink) 18%, transparent);
+  pointer-events: none;
+}
+
+.hero-balance > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-balance-label {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0;
+  color: color-mix(in oklab, var(--color-primary-ink) 88%, transparent);
+}
+
+.hero-balance-value {
+  margin-top: var(--space-xs);
+  font-family: var(--font-display);
+  font-size: var(--text-hero);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-display);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.hero-balance-sheet {
+  min-width: 220px;
+  border-radius: var(--radius-panel);
+  border: 1px solid color-mix(in oklab, var(--color-primary-ink) 20%, transparent);
+  background-color: color-mix(in oklab, var(--color-primary-ink) 8%, transparent);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.hero-balance-sheet-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-lg);
+  font-size: var(--text-sm);
+}
+
+.hero-balance-sheet-row + .hero-balance-sheet-row { margin-top: var(--space-sm); }
+
+.hero-balance-sheet-row span {
+  color: color-mix(in oklab, var(--color-primary-ink) 84%, transparent);
+}
+
+.hero-balance-sheet-row b {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ---------- Controls ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  height: 40px;
+  padding: 0 var(--space-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color var(--dur-micro) var(--ease-in-out),
+    border-color var(--dur-micro) var(--ease-in-out),
+    color var(--dur-micro) var(--ease-in-out),
+    box-shadow var(--dur-micro) var(--ease-in-out),
+    transform var(--dur-micro) var(--ease-in-out);
+}
+
+.btn:active:not(:disabled) { transform: translateY(1px); }
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-brand-2));
+  border-color: transparent;
+  color: var(--color-primary-ink);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+.btn-secondary {
+  background-color: transparent;
+  border-color: var(--color-rule-strong);
+  color: var(--color-ink);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background-color: var(--color-well);
+  color: color-mix(in oklab, var(--color-primary) 82%, var(--color-ink));
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-ink-2);
+}
+
+.btn-ghost:hover:not(:disabled) { background-color: var(--color-well); color: var(--color-ink); }
+
+.btn-danger {
+  background-color: transparent;
+  border-color: color-mix(in oklab, var(--color-danger) 45%, var(--color-rule));
+  color: var(--color-danger-text);
+}
+
+.btn-danger:hover:not(:disabled) { background-color: color-mix(in oklab, var(--color-danger) 10%, var(--color-surface)); }
+
+.btn-sm { height: 32px; padding: 0 var(--space-sm); font-size: var(--text-xs); }
+
+.btn-icon {
+  width: 40px;
+  padding: 0;
+}
+
+.btn-icon.btn-sm { width: 32px; }
+
+.link {
+  color: var(--color-primary);
+  font-weight: 800;
+  text-decoration: none;
+  transition: color var(--dur-micro) var(--ease-in-out);
+}
+
+.link:hover { color: var(--color-brand-2); text-decoration: underline; text-underline-offset: 0.2em; }
+
+.field {
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  outline: 2px solid transparent;
+  outline-offset: -3px;
+  transition: background-color var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out);
+}
+
+.field::placeholder { color: var(--color-muted); }
+.field:hover { background-color: var(--color-well); }
+.field:focus-visible { outline-color: var(--color-primary); border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 14%, transparent); }
+.field:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Utilities that must win over the base field recipe */
+.field-auto { width: auto; }
+.field-search { padding-left: var(--space-xl); }
+.field-sm { height: 32px; }
+.field-num { width: 6rem; text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+
+textarea.field {
+  height: auto;
+  min-height: 6rem;
+  padding: var(--space-sm);
+  resize: vertical;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: var(--space-2xs);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  color: var(--color-ink-2);
+}
+
+.field-help {
+  min-height: 1lh;
+  margin-top: var(--space-2xs);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+/* ---------- Tabs and segmented controls ---------- */
+
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-chip);
+}
+
+.seg-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  height: 32px;
+  padding: 0 var(--space-sm);
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  color: var(--color-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-in-out), color var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out);
+}
+
+.seg-item:hover { color: var(--color-ink); background-color: var(--color-well); }
+
+.seg-item[aria-selected="true"],
+.seg-item.is-active {
+  background-color: color-mix(in oklab, var(--color-primary) 12%, var(--color-surface));
+  border-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  color: var(--color-primary);
+}
+
+/* ---------- Badges and figures ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  height: 24px;
+  padding: 0 var(--space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge-neutral {
+  background-color: var(--color-well);
+  border-color: var(--color-rule);
+  color: var(--color-ink-2);
+}
+
+.badge-positive {
+  background-color: color-mix(in oklab, var(--color-success) 16%, var(--color-surface));
+  border-color: color-mix(in oklab, var(--color-success) 26%, transparent);
+  color: var(--color-success-text);
+}
+
+.badge-negative {
+  background-color: color-mix(in oklab, var(--color-danger) 12%, var(--color-surface));
+  border-color: color-mix(in oklab, var(--color-danger) 24%, transparent);
+  color: var(--color-danger-text);
+}
+
+.badge-warning {
+  background-color: color-mix(in oklab, var(--color-warning) 18%, var(--color-surface));
+  border-color: color-mix(in oklab, var(--color-warning) 30%, transparent);
+  color: var(--color-warning-text);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: var(--tracking-display);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--color-ink);
+}
+
+.stat-value-sm {
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ---------- Data tables ---------- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead th {
+  padding: 0 var(--space-sm) var(--space-xs);
+  border-bottom: 1px solid var(--color-rule);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-rule);
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr { transition: background-color var(--dur-micro) var(--ease-in-out); }
+.table tbody tr:hover { background-color: color-mix(in oklab, var(--color-well) 65%, transparent); }
+.table .num { text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+
+/* ---------- Progress meter ---------- */
+
+.meter {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-well);
+  overflow: hidden;
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  transform: scaleX(var(--value, 0));
+  background: linear-gradient(90deg, var(--color-primary), var(--color-brand-2));
+  border-radius: inherit;
+  transition: transform var(--dur-long) var(--ease-out);
+}
+
+.meter.accent > span { background: linear-gradient(90deg, var(--color-warning), var(--color-danger)); }
+.meter.danger > span { background-color: var(--color-danger); }
+
+/* ---------- Skeletons and states ---------- */
+
+.skeleton {
+  background-color: var(--color-well);
+  border-radius: var(--radius-panel);
+  animation: skeleton-pulse 1.6s var(--ease-in-out) infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-muted);
+}
+
+.state-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+/* ---------- Chrome ---------- */
+
+.rail {
+  background-color: var(--color-sidebar);
+  color: var(--color-sidebar-ink);
+}
+
+.rail-cap {
+  padding: 0 var(--space-sm);
+  margin: var(--space-md) 0 var(--space-xs);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  color: var(--color-muted);
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-brand-2));
+  box-shadow: var(--shadow-glow);
+  color: var(--color-primary-ink);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 800;
+}
+
+.rail-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 38px;
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: 11px;
+  border: 1px solid transparent;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--color-sidebar-muted);
+  text-decoration: none;
+  transition: background-color var(--dur-micro) var(--ease-in-out), color var(--dur-micro) var(--ease-in-out), border-color var(--dur-micro) var(--ease-in-out);
+}
+
+.rail-link:hover { background-color: var(--color-well); color: var(--color-sidebar-ink); }
+
+.rail-link[aria-current="page"],
+.rail-link[aria-current="true"] {
+  background-color: var(--color-sidebar-2);
+  border-color: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  color: color-mix(in oklab, var(--color-primary) 80%, var(--color-sidebar-ink));
+}
+
+.rail-link:focus-visible,
+.rail a:focus-visible,
+.rail button:focus-visible { outline-color: var(--color-primary); }
+
+.topbar {
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Date picker, following the same tokens. */
 .react-datepicker {
-  font-family: inherit;
-  border-radius: 12px !important;
-  border: 1px solid var(--color-border);
-  background-color: var(--color-accent);
-  color: var(--color-text-primary);
+  font-family: var(--font-body) !important;
+  font-size: var(--text-sm) !important;
+  border-radius: var(--radius-panel) !important;
+  border: 1px solid var(--color-edge) !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-ink) !important;
+  box-shadow: var(--shadow-pop) !important;
 }
 
 .react-datepicker__header {
-  background-color: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-well) !important;
+  border-bottom: 1px solid var(--color-rule) !important;
 }
 
-.react-datepicker__day--selected {
-  background-color: var(--color-accent);
-  color: white;
-}
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header { color: var(--color-ink) !important; }
 
-.perspective {
-  perspective: 1000px;
+.react-datepicker__day { color: var(--color-ink-2) !important; }
+.react-datepicker__day:hover { background-color: var(--color-well) !important; border-radius: 9px !important; }
+.react-datepicker__day--selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range {
+  background-color: var(--color-primary) !important;
+  color: var(--color-primary-ink) !important;
 }
-.transform-style-preserve-3d {
-  transform-style: preserve-3d;
-}
-.backface-hidden {
-  backface-visibility: hidden;
-}
-.rotate-y-180 {
-  transform: rotateY(180deg);
-}
+.react-datepicker__day--keyboard-selected { background-color: var(--color-well) !important; color: var(--color-ink) !important; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-rule-strong); border-radius: var(--radius-pill); }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }

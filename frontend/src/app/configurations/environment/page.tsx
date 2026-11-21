@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
+import { ChevronRight, Save } from "lucide-react";
 
 const sections = {
   "Database Setup": [
@@ -82,60 +83,93 @@ export default function EnvironmentConfigPage() {
     }
   };
 
-  if (!envConfig) return <div>Loading...</div>;
+  if (!envConfig) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Loading environment configuration">
+        <div className="skeleton h-9 w-1/3" />
+        <div className="skeleton h-16 w-full" />
+        <div className="skeleton h-16 w-full" />
+        <div className="skeleton h-16 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 text-[var(--color-accent)]">Environment Variables</h1>
+    <div className="space-y-6 pb-8">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Environment variables</h1>
+          <p className="page-sub">
+            Service credentials and endpoints used by the data pipelines.
+          </p>
+        </div>
+      </div>
 
-      {Object.entries(sections).map(([sectionName, keys]) => {
-        const isCollapsed = collapsed[sectionName] ?? false;
+      <div className="space-y-3">
+        {Object.entries(sections).map(([sectionName, keys]) => {
+          const isCollapsed = collapsed[sectionName] ?? false;
+          const panelId = `env-panel-${sectionName.replace(/\s+/g, '-').toLowerCase()}`;
 
-        return (
-          <div key={sectionName} className="mb-4 shadow-lg">
-            {/* Header */}
-            <div
-              className={`
-                card cursor-pointer flex justify-between items-center p-3
-                bg-[var(--color-card)]
-                ${isCollapsed ? 'rounded-2xl' : 'rounded-t-2xl'}
-                transition-all duration-200 ease-in-out
-              `}
-              onClick={() =>
-                setCollapsed(prev => ({ ...prev, [sectionName]: !prev[sectionName] }))
-              }
-            >
-              <h2 className="font-semibold text-[var(--color-accent)]">{sectionName}</h2>
-              <span className="text-xl font-bold">{isCollapsed ? "+" : "-"}</span>
-            </div>
+          return (
+            <section key={sectionName} className="card overflow-hidden">
+              {/* Header */}
+              <button
+                type="button"
+                aria-expanded={!isCollapsed}
+                aria-controls={panelId}
+                className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors hover:bg-[var(--color-well)]"
+                onClick={() =>
+                  setCollapsed(prev => ({ ...prev, [sectionName]: !prev[sectionName] }))
+                }
+              >
+                <h2 className="text-[length:var(--text-md)] font-semibold text-[var(--color-ink)]">{sectionName}</h2>
+                <span className="flex items-center gap-3">
+                  <span className="card-note">{keys.length} keys</span>
+                  <ChevronRight
+                    size={16}
+                    aria-hidden="true"
+                    className={`shrink-0 text-[var(--color-muted)] transition-transform duration-[var(--dur-short)] ease-[var(--ease-out)] ${
+                      isCollapsed ? '' : 'rotate-90'
+                    }`}
+                  />
+                </span>
+              </button>
 
-            {/* Content */}
-            {!isCollapsed && (
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-700 rounded-b-2xl bg-[var(--color-card)]">
-                {keys.map(key => (
-                  <div key={key} className="flex flex-col">
-                    <label className="font-medium mb-1">{key}</label>
-                    <input
-                      type="text"
-                      className="p-2 border rounded"
-                      value={envConfig[key] || ""}
-                      onChange={(e) => handleChange(key, e.target.value)}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+              {/* Content */}
+              {!isCollapsed && (
+                <div
+                  id={panelId}
+                  className="grid grid-cols-1 gap-4 border-t border-[var(--color-rule)] p-5 md:grid-cols-2"
+                >
+                  {keys.map(key => (
+                    <div key={key} className="flex flex-col">
+                      <label className="field-label" htmlFor={`env-${key}`}>{key}</label>
+                      <input
+                        id={`env-${key}`}
+                        type="text"
+                        className="field"
+                        value={envConfig[key] || ""}
+                        onChange={(e) => handleChange(key, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="mt-6 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-all"
-      >
-        {saving ? 'Saving...' : 'Save'}
-      </button>
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="btn btn-primary"
+        >
+          <Save size={15} aria-hidden="true" />
+          {saving ? 'Saving' : 'Save environment'}
+        </button>
+      </div>
     </div>
   );
 }

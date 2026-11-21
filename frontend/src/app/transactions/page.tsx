@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import DatePicker from "react-datepicker";
+import { Plus, X, ArrowDownLeft, ArrowUpRight, Landmark, Pencil, Trash2 } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
 
 type User = { user_id: number; name: string };
@@ -12,9 +13,29 @@ type InvestmentSubcategory = { id: number; investment_subcategory_name: string; 
 type Currency = { currency_id: number; currency_name: string; currency_code: string };
 type Region = { region_id: number; region_name: string; currency_id: number };
 type Unit = { unit_id: number; unit_name: string };
+type LiabilityType = { liability_id: number; liability_type: string };
+type LiabilityRecord = {
+  id: number;
+  liability_id: number;
+  liability_type: string;
+  value: number;
+  currency: string;
+  comment: string;
+  date: string;
+  value_inr: number;
+};
+
+const TAB_LABELS: Record<string, string> = {
+  income: 'Income',
+  expense: 'Expenses',
+  investment: 'Investments',
+  dividend: 'Dividends',
+  instruments: 'Instruments',
+  liability: 'Liabilities',
+};
 
 export default function TransactionsPage() {
-  const [activeTab, setActiveTab] = useState<'income' | 'expense' | 'investment' | 'dividend' | 'instruments'>('income');
+  const [activeTab, setActiveTab] = useState<'income' | 'expense' | 'investment' | 'dividend' | 'instruments' | 'liability'>('income');
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [incomeSources, setIncomeSources] = useState<any[]>([]);
@@ -24,6 +45,7 @@ export default function TransactionsPage() {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [liabilityTypes, setLiabilityTypes] = useState<LiabilityType[]>([]);
   const [recent, setRecent] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,6 +58,9 @@ export default function TransactionsPage() {
   const [investmentForm, setInvestmentForm] = useState<any>({});
   const [dividendForm, setDividendForm] = useState<any>({});
   const [instrumentForm, setInstrumentForm] = useState<any>({});
+  const [liabilityForm, setLiabilityForm] = useState<any>({});
+  const [newLiabilityType, setNewLiabilityType] = useState("");
+  const [editingLiabilityId, setEditingLiabilityId] = useState<number | null>(null);
 
   // Autocomplete Data
   const [stockSummaries, setStockSummaries] = useState<any[]>([]);
@@ -74,7 +99,8 @@ export default function TransactionsPage() {
           invSubRes,
           curRes,
           regRes,
-          unitRes
+          unitRes,
+          liabilityTypesRes
         ] = await Promise.all([
           fetch("/api/categories/users").then(r => r.json()).catch(() => []),
           fetch("/api/categories/income-sources").then(r => r.json()).catch(() => []),
@@ -83,7 +109,8 @@ export default function TransactionsPage() {
           fetch("/api/categories/investment-subcategory").then(r => r.json()).catch(() => []),
           fetch("/api/categories/currencies").then(r => r.json()).catch(() => []),
           fetch("/api/categories/region").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/units").then(r => r.json()).catch(() => [])
+          fetch("/api/categories/units").then(r => r.json()).catch(() => []),
+          fetch("/api/liabilities/types").then(r => r.json()).catch(() => [])
         ]);
 
         setUsers(usersRes || []);
@@ -94,6 +121,7 @@ export default function TransactionsPage() {
         setCurrencies(curRes || []);
         setRegions(regRes || []);
         setUnits(unitRes || []);
+        setLiabilityTypes(liabilityTypesRes || []);
       } catch (err) {
         console.error("Failed to load reference data", err);
       }
@@ -101,6 +129,16 @@ export default function TransactionsPage() {
     loadRefs();
   }, []);
 
+
+// Open the tab requested by a dashboard link, for example ?tab=dividend
+useEffect(() => {
+  const requested = new URLSearchParams(window.location.search).get("tab");
+  const tabs = ["income", "expense", "investment", "dividend", "instruments", "liability"];
+  if (requested && tabs.includes(requested)) {
+    setActiveTab(requested as typeof activeTab);
+    setShowForm(false);
+  }
+}, []);
 
 // Fetch active tab to do calculations
 useEffect(() => {
@@ -150,6 +188,10 @@ async function fetchRecent() {
          const data = await res.json();
          records = Array.isArray(data) ? data : data?.results || [];
          setExistingInstruments(records);
+    } else if (activeTab === "liability") {
+      const res = await fetch("/api/liabilities");
+      const data = await res.json();
+      records = Array.isArray(data) ? data : data?.results || [];
     } else {
       // default = income
       const res = await fetch("/api/income");
@@ -437,6 +479,108 @@ async function fetchRecent() {
     }
   }
 
+  async function submitLiability(e?: any) {
+    if (e) e.preventDefault();
+    setLoading(true);
+    try {
+      const payload = {
+        liability_id: Number(liabilityForm.liability_id),
+        value: Number(liabilityForm.value),
+        currency: liabilityForm.currency || (currencies[0]?.currency_code ?? "INR"),
+        comment: (liabilityForm.comment || "").trim(),
+        date: liabilityForm.date || new Date().toISOString().substring(0, 10),
+      };
+      if (!payload.liability_id || !payload.value) {
+        throw new Error("Choose a liability type and enter an amount");
+      }
+
+      const isEditing = editingLiabilityId !== null;
+      const res = await fetch(
+        isEditing ? `/api/liabilities/${editingLiabilityId}` : "/api/liabilities",
+        {
+          method: isEditing ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Liability save failed: ${res.status} ${txt}`);
+      }
+      alert(isEditing ? "Liability updated." : "Liability saved. The dashboard converts it to INR.");
+      setLiabilityForm({});
+      setEditingLiabilityId(null);
+      await fetchRecent();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to save liability: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addLiabilityType(e?: any) {
+    if (e) e.preventDefault();
+    const name = newLiabilityType.trim();
+    if (!name) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/liabilities/types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ liability_type: name })
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Type POST failed: ${res.status} ${txt}`);
+      }
+      const created: LiabilityType = await res.json();
+      const refreshed: LiabilityType[] = await fetch("/api/liabilities/types").then(r => r.json()).catch(() => []);
+      setLiabilityTypes(refreshed);
+      setLiabilityForm((prev: any) => ({ ...prev, liability_id: created.liability_id }));
+      setNewLiabilityType("");
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to add liability type: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function editLiability(item: LiabilityRecord) {
+    setEditingLiabilityId(item.id);
+    setLiabilityForm({
+      liability_id: item.liability_id,
+      value: item.value,
+      currency: item.currency,
+      comment: item.comment || "",
+      date: item.date ? new Date(item.date).toISOString().substring(0, 10) : "",
+    });
+    setShowForm(true);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function cancelLiabilityEdit() {
+    setEditingLiabilityId(null);
+    setLiabilityForm({});
+  }
+
+  async function deleteLiability(id: number) {
+    if (!confirm("Delete this liability entry?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/liabilities/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      if (editingLiabilityId === id) cancelLiabilityEdit();
+      await fetchRecent();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to delete liability: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
 
   // Filtered subcategories when investment type changes
   const filteredInvestmentSubcats = (typeId?: number) =>
@@ -498,16 +642,16 @@ function formatAmount(amount: any, currency?: string) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br p-6 space-y-4">
-      <div className="max-w-8xl mx-auto space-y-2">
+    <div className="space-y-6 pb-8">
+      <div className="max-w-8xl mx-auto space-y-4">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="page-head">
           <div>
-            <h1 className="text-3xl font-semibold">Transactions</h1>
-            <p className="text-1xl font-semibold">Track your income, expenses, and investments</p>
+            <h1 className="page-title">Transactions</h1>
+            <p className="page-sub">Track and manage your income, expenses, and investments.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                   setShowImportModal(true);
@@ -516,43 +660,47 @@ function formatAmount(amount: any, currency?: string) {
                       .then(data => setAvailableBanks(data))
                       .catch(err => console.error("Failed to fetch banks", err));
               }}
-              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition"
+              className="btn btn-secondary"
             >
-              Import File
+              Import file
             </button>
             <button
               onClick={() => setShowForm(!showForm)}
-              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-4 rounded-md text-sm font-semibold transition"
+              className="btn btn-primary"
             >
-              {showForm ? '✕ Close' : '+ New Transaction'}
+              {showForm ? <X size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
+              {showForm ? 'Close' : 'New transaction'}
             </button>
           </div>
         </div>
 
-
-        {/* Tabs - Full Width */}
-        <div className="flex rounded-2xl p-1.5 shadow-md mb-8" style={{ backgroundColor: 'var(--color-card)' }}>
-          {(['income', 'expense', 'investment', 'dividend', 'instruments'] as const).map(tab => (
+        {/* Tabs - Full Width Segmented Control */}
+        <div className="seg" role="tablist" aria-label="Transaction type">
+          {(['income', 'expense', 'investment', 'dividend', 'instruments', 'liability'] as const).map(tab => (
             <button
               key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
-              className="flex-1 px-6 py-2.5 rounded-xl font-medium transition-all"
-              style={{
-                backgroundColor: activeTab === tab ? 'var(--color-accent)' : 'transparent',
-                color: activeTab === tab ? 'var(--color-text-pie)' : 'var(--color-text-primary)',
-              }}
+              className={`seg-item ${
+                activeTab === tab ? 'is-active' : ''
+              }`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {TAB_LABELS[tab]}
             </button>
           ))}
         </div>
 
         {/* Form - Slide down animation */}
         {showForm && (
-            <div ref={formRef} className="rounded-2xl p-6 shadow-xl animate-slideDown mb-8" style={{ backgroundColor: 'var(--color-card)' }}>
-              <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--color-text-secondary)' }}>
-                Add {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-              </h2>
+            <div ref={formRef} className="card animate-slideDown mb-6">
+              <div className="card-head">
+                <h2 className="card-title">
+                  {activeTab === "liability" && editingLiabilityId !== null ? "Edit Liability" : `Add ${TAB_LABELS[activeTab]}`}
+                </h2>
+                <span className="card-note">All fields marked by the API contract</span>
+              </div>
+              <div className="p-5 sm:p-6">
 
               {/* Income Form */}
               {activeTab === "income" && (
@@ -595,27 +743,19 @@ function formatAmount(amount: any, currency?: string) {
                             onChange={(e) =>
                               setIncomeForm({ ...incomeForm, earned_date: e.target.value })
                             }
-                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
-                            style={{
-                              backgroundColor: 'var(--color-bg)',
-                              borderColor: 'var(--color-bg-lighter)',
-                              color: 'var(--color-text-primary)',
-                              colorScheme: 'dark',
-                              padding: '0.6rem 0.8rem',
-                              borderRadius: '0.75rem',
-                            }}
+                            className={`${inputClass} cursor-pointer`}
                           />
                       </div>
 
                       {/* Checkboxes for recurring entries and auto learn */}
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" checked={!!incomeForm.is_recurring} onChange={(e) => setIncomeForm({...incomeForm, is_recurring: e.target.checked})} />
-                          <span className="text-sm">Recurring</span>
+                      <div className="flex flex-wrap items-center gap-4 text-[length:var(--text-sm)] font-medium text-[var(--color-ink-2)] md:col-span-full">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={!!incomeForm.is_recurring} onChange={(e) => setIncomeForm({...incomeForm, is_recurring: e.target.checked})} className="accent-[var(--color-primary)]" />
+                          <span>Recurring</span>
                         </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" checked={!!incomeForm.auto_learn} onChange={(e) => setIncomeForm({...incomeForm, auto_learn: e.target.checked})} />
-                          <span className="text-sm">Auto-learn</span>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={!!incomeForm.auto_learn} onChange={(e) => setIncomeForm({...incomeForm, auto_learn: e.target.checked})} className="accent-[var(--color-primary)]" />
+                          <span>Auto-learn</span>
                         </label>
                       </div>
 
@@ -623,8 +763,8 @@ function formatAmount(amount: any, currency?: string) {
 
                     {/* save income button */}
                     <div className="flex justify-end pt-2">
-                      <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-medium disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-pie)' }}>
-                      {loading ? "Saving..." : "Save Income"}
+                      <button type="submit" disabled={loading} className="btn btn-primary">
+                        {loading ? "Saving..." : "Save Income"}
                       </button>
                     </div>
 
@@ -673,27 +813,19 @@ function formatAmount(amount: any, currency?: string) {
                             onChange={(e) =>
                               setExpenseForm({ ...expenseForm, spent_date: e.target.value })
                             }
-                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
-                            style={{
-                              backgroundColor: 'var(--color-bg)',
-                              borderColor: 'var(--color-bg-lighter)',
-                              color: 'var(--color-text-primary)',
-                              colorScheme: 'dark',
-                              padding: '0.6rem 0.8rem',
-                              borderRadius: '0.75rem',
-                            }}
+                            className={`${inputClass} cursor-pointer`}
                           />
                       </div>
 
                       {/* Checkboxes for recurring entries and auto learn */}
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" checked={!!expenseForm.is_recurring} onChange={(e) => setExpenseForm({...expenseForm, is_recurring: e.target.checked})} />
-                          <span className="text-sm">Recurring</span>
+                      <div className="flex flex-wrap items-center gap-4 text-[length:var(--text-sm)] font-medium text-[var(--color-ink-2)] md:col-span-full">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={!!expenseForm.is_recurring} onChange={(e) => setExpenseForm({...expenseForm, is_recurring: e.target.checked})} className="accent-[var(--color-primary)]" />
+                          <span>Recurring</span>
                         </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" checked={!!expenseForm.auto_learn} onChange={(e) => setExpenseForm({...expenseForm, auto_learn: e.target.checked})} />
-                          <span className="text-sm">Auto-learn</span>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={!!expenseForm.auto_learn} onChange={(e) => setExpenseForm({...expenseForm, auto_learn: e.target.checked})} className="accent-[var(--color-primary)]" />
+                          <span>Auto-learn</span>
                         </label>
                       </div>
 
@@ -701,12 +833,117 @@ function formatAmount(amount: any, currency?: string) {
 
                     {/* save expense button */}
                     <div className="flex justify-end pt-2">
-                      <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-medium disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-pie)' }}>
-                      {loading ? "Saving..." : "Save Expense"}
+                      <button type="submit" disabled={loading} className="btn btn-primary">
+                        {loading ? "Saving..." : "Save Expense"}
                       </button>
                     </div>
 
                   </form>
+              )}
+
+              {/* Liability Form */}
+              {activeTab === "liability" && (
+                <form onSubmit={submitLiability} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                    <div>
+                      <label className="field-label" htmlFor="liability-type">Liability type</label>
+                      <select
+                        id="liability-type"
+                        value={liabilityForm.liability_id ?? ""}
+                        onChange={(e) => setLiabilityForm({ ...liabilityForm, liability_id: e.target.value })}
+                        className={selectClass}
+                      >
+                        <option value="">Select liability</option>
+                        {liabilityTypes.map(t => (
+                          <option key={t.liability_id} value={t.liability_id}>{t.liability_type}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="field-label" htmlFor="liability-currency">Currency due</label>
+                      <select
+                        id="liability-currency"
+                        value={liabilityForm.currency ?? ""}
+                        onChange={(e) => setLiabilityForm({ ...liabilityForm, currency: e.target.value })}
+                        className={selectClass}
+                      >
+                        <option value="">Currency</option>
+                        {currencies.map(c => (
+                          <option key={c.currency_id} value={c.currency_code}>{c.currency_name} ({c.currency_code})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="field-label" htmlFor="liability-value">Outstanding amount</label>
+                      <input
+                        id="liability-value"
+                        type="number"
+                        step="0.01"
+                        value={liabilityForm.value ?? ""}
+                        onChange={(e) => setLiabilityForm({ ...liabilityForm, value: e.target.value })}
+                        placeholder="Amount in the currency due"
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="field-label" htmlFor="liability-comment">Which loan</label>
+                      <input
+                        id="liability-comment"
+                        type="text"
+                        value={liabilityForm.comment ?? ""}
+                        onChange={(e) => setLiabilityForm({ ...liabilityForm, comment: e.target.value })}
+                        placeholder="For example marriage loan"
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="field-label" htmlFor="liability-date">As of date</label>
+                      <input
+                        id="liability-date"
+                        type="date"
+                        value={liabilityForm.date || new Date().toISOString().substring(0, 10)}
+                        onChange={(e) => setLiabilityForm({ ...liabilityForm, date: e.target.value })}
+                        className={`${inputClass} cursor-pointer`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-end gap-2 rounded-[var(--radius-panel)] bg-[var(--color-well)] p-3">
+                    <div className="min-w-[180px] flex-1">
+                      <label className="field-label" htmlFor="new-liability-type">New liability type</label>
+                      <input
+                        id="new-liability-type"
+                        type="text"
+                        value={newLiabilityType}
+                        onChange={(e) => setNewLiabilityType(e.target.value)}
+                        placeholder="For example Car Loan"
+                        className={inputClass}
+                      />
+                    </div>
+                    <button type="button" onClick={addLiabilityType} disabled={loading} className="btn btn-secondary">
+                      Add type
+                    </button>
+                  </div>
+
+                  <p className="text-[length:var(--text-xs)] text-[var(--color-muted)]">
+                    Use the same “Which loan” text each month. The dashboard takes the newest entry per loan and converts it to INR, so months never add up.
+                  </p>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    {editingLiabilityId !== null && (
+                      <button type="button" onClick={cancelLiabilityEdit} className="btn btn-secondary">
+                        Cancel
+                      </button>
+                    )}
+                    <button type="submit" disabled={loading} className="btn btn-primary">
+                      {loading ? "Saving..." : editingLiabilityId !== null ? "Update Liability" : "Save Liability"}
+                    </button>
+                  </div>
+                </form>
               )}
 
               {/* Investment Form */}
@@ -760,15 +997,7 @@ function formatAmount(amount: any, currency?: string) {
                             onChange={(e) =>
                               setInvestmentForm({ ...investmentForm, investment_date: e.target.value })
                             }
-                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
-                            style={{
-                              backgroundColor: 'var(--color-bg)',
-                              borderColor: 'var(--color-bg-lighter)',
-                              color: 'var(--color-text-primary)',
-                              colorScheme: 'dark',
-                              padding: '0.6rem 0.8rem',
-                              borderRadius: '0.75rem',
-                            }}
+                            className={`${inputClass} cursor-pointer`}
                           />
                       </div>
 
@@ -782,14 +1011,14 @@ function formatAmount(amount: any, currency?: string) {
                            <input type="number" step="0.0001" placeholder="Quantity" value={investmentForm.stock_quantity ?? ""} onChange={(e) => setInvestmentForm({...investmentForm, stock_quantity: e.target.value})} className={inputClass} />
                            {/* Dividend Paying Checkbox */}
                            <div className="flex items-center gap-2 px-1">
-                              <input 
-                                type="checkbox" 
+                              <input
+                                type="checkbox"
                                 id="dividend_paying"
-                                checked={!!investmentForm.dividend_paying} 
-                                onChange={(e) => setInvestmentForm({...investmentForm, dividend_paying: e.target.checked})} 
-                                className="w-4 h-4 rounded border-gray-600 text-[var(--color-accent)] focus:ring-[var(--color-accent)] bg-[var(--color-bg)]"
+                                checked={!!investmentForm.dividend_paying}
+                                onChange={(e) => setInvestmentForm({...investmentForm, dividend_paying: e.target.checked})}
+                                className="h-4 w-4 accent-[var(--color-primary)]"
                               />
-                              <label htmlFor="dividend_paying" className="text-sm text-[var(--color-text-secondary)]">
+                              <label htmlFor="dividend_paying" className="cursor-pointer text-[length:var(--text-sm)] font-medium text-[var(--color-ink-2)]">
                                 Dividend Paying Stock
                               </label>
                            </div>
@@ -876,8 +1105,8 @@ function formatAmount(amount: any, currency?: string) {
 
                     {/* save investment button */}
                     <div className="flex justify-end pt-2">
-                      <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-medium disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-pie)' }}>
-                      {loading ? "Saving..." : "Save Investment"}
+                      <button type="submit" disabled={loading} className="btn btn-primary">
+                        {loading ? "Saving..." : "Save Investment"}
                       </button>
                     </div>
 
@@ -940,23 +1169,15 @@ function formatAmount(amount: any, currency?: string) {
                             onChange={(e) =>
                               setDividendForm({ ...dividendForm, received_date: e.target.value })
                             }
-                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
-                            style={{
-                              backgroundColor: 'var(--color-bg)',
-                              borderColor: 'var(--color-bg-lighter)',
-                              color: 'var(--color-text-primary)',
-                              colorScheme: 'dark',
-                              padding: '0.6rem 0.8rem',
-                              borderRadius: '0.75rem',
-                            }}
+                            className={`${inputClass} cursor-pointer`}
                           />
                       </div>
 
                     </div>
 
                     <div className="flex justify-end pt-2">
-                      <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-medium disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-pie)' }}>
-                      {loading ? "Saving..." : "Save Dividend"}
+                      <button type="submit" disabled={loading} className="btn btn-primary">
+                        {loading ? "Saving..." : "Save Dividend"}
                       </button>
                     </div>
                   </form>
@@ -1044,137 +1265,163 @@ function formatAmount(amount: any, currency?: string) {
 
                        {/* Start Date */}
                       <div className="md:col-start-2 md:row-start-3">
-                          <label className="text-xs ml-1 mb-1 block opacity-70">Start Date</label>
+                          <label className="field-label mb-1.5">Start date</label>
                           <input type="date"
                             value={instrumentForm.start_date ?? new Date().toISOString().substring(0, 10)}
                             onChange={(e) =>
                               setInstrumentForm({ ...instrumentForm, start_date: e.target.value })
                             }
-                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
-                            style={{
-                              backgroundColor: 'var(--color-bg)',
-                              borderColor: 'var(--color-bg-lighter)',
-                              color: 'var(--color-text-primary)',
-                              colorScheme: 'dark',
-                              padding: '0.6rem 0.8rem',
-                              borderRadius: '0.75rem',
-                            }}
+                            className={`${inputClass} cursor-pointer`}
                           />
                       </div>
 
                        {/* Maturity Date */}
                       <div>
-                          <label className="text-xs ml-1 mb-1 block opacity-70">Maturity Date</label>
+                          <label className="field-label mb-1.5">Maturity date</label>
                           <input type="date"
                             value={instrumentForm.maturity_date ?? ""}
                             onChange={(e) =>
                               setInstrumentForm({ ...instrumentForm, maturity_date: e.target.value })
                             }
-                            className={`${inputClass} cursor-pointer text-[var(--color-text-primary)]`}
-                            style={{
-                              backgroundColor: 'var(--color-bg)',
-                              borderColor: 'var(--color-bg-lighter)',
-                              color: 'var(--color-text-primary)',
-                              colorScheme: 'dark',
-                              padding: '0.6rem 0.8rem',
-                              borderRadius: '0.75rem',
-                            }}
+                            className={`${inputClass} cursor-pointer`}
                           />
                       </div>
 
                      </div>
                      <div className="flex justify-end pt-2">
-                      <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-medium disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-pie)' }}>
-                      {loading ? "Saving..." : "Save Instrument"}
+                      <button type="submit" disabled={loading} className="btn btn-primary">
+                        {loading ? "Saving..." : "Save Instrument"}
                       </button>
                     </div>
                   </form>
               )}
+              </div>
             </div>
         )}
 
-            {/* Recent Transactions - Card Style */}
-            <div className="rounded-2xl shadow-xl overflow-hidden" style={{ backgroundColor: 'var(--color-card)' }}>
-              <div className="p-4 border-b" style={{ borderColor: 'var(--color-bg-lighter)' }}>
-                <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-secondary)' }}>Recent {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}s</h3>
-              </div>
-
-                <div className="divide-y" style={{ borderColor: 'var(--color-bg-lighter)' }}>
-                  {paginatedData.map((item: any, idx) => (
-                  <div key={idx} className="p-6 transition-colors hover:opacity-90" style={{ backgroundColor: idx % 2 === 0 ? 'var(--color-card)' : 'var(--color-bg-lighter)' }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{
-                            backgroundColor: activeTab === 'income' ? '#10b98150' :
-                                           activeTab === 'expense' ? '#ef444450' : '#3b82f650'
-                          }}>
-                            <span className="text-lg">
-                              {activeTab === 'income' ? '↓' : activeTab === 'expense' ? '↑' : '💰'}
-                            </span>
-                          </div>
-                          <div>
-                              <p className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                                {activeTab === 'income'
-                                  ? incomeSourceName(item.source_id)
-                                  : activeTab === 'expense'
-                                    ? expenseCategoryName(item.category_id)
-                                    : `${investmentTypeName(item.investment_type_id)} : ${invSubName(item.investment_subcategory_id) || (item.stock_symbol || item.fund_name || item.metal_name || 'Investment')}`
-                                }
-                              </p>
-                              <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                                {userName(item.user_id || item.investor)} • {formatDate(item.earned_date || item.spent_date || item.investment_date)}
-                              </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Amount column */}
-                      <div className="text-right">
-                        <p className="text-lg font-semibold" style={{
-                          color: activeTab === 'income' ? '#10b981' :
-                                 activeTab === 'expense' ? '#ef4444' : '#3b82f6'
-                        }}>
-                           {formatAmount(
-                            activeTab === 'investment'
-                              ? item.total_invested_amount || 0
-                              : activeTab === 'income'
-                              ? item.amount || 0
-                              : item.amount,
-                              item.currency_id ? currencyCode(item.currency_id) : item.currency || ''
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="p-4 flex items-center justify-between border-t" style={{ borderColor: 'var(--color-bg-lighter)' }}>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 rounded-lg disabled:opacity-50 transition-all"
-                    style={{ backgroundColor: 'var(--color-bg-lighter)', color: 'var(--color-text-primary)' }}
-                  >
-                    Previous
-                  </button>
-                  <span style={{ color: 'var(--color-text-primary)' }}>
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 rounded-lg disabled:opacity-50 transition-all"
-                    style={{ backgroundColor: 'var(--color-bg-lighter)', color: 'var(--color-text-primary)' }}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
+        {/* Recent transactions */}
+        <section className="card overflow-hidden">
+          <div className="card-head">
+            <div>
+              <h2 className="card-title">Recent {TAB_LABELS[activeTab]}</h2>
+              <p className="card-note">Newest entries from the ledger</p>
             </div>
+            <span className="badge badge-neutral">{recent.length} records</span>
+          </div>
+
+          <div>
+            {paginatedData.length === 0 && (
+              <div className="empty-state">
+                <p className="state-title">Nothing recorded yet</p>
+                <p className="text-[length:var(--text-sm)]">New {activeTab} entries appear here as they are added.</p>
+              </div>
+            )}
+
+            {paginatedData.map((item: any, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between gap-3 border-b border-[var(--color-rule)] px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[var(--color-well)]"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border ${
+                      activeTab === 'income'
+                        ? 'border-[color-mix(in_oklab,var(--color-success)_30%,transparent)] bg-[color-mix(in_oklab,var(--color-success)_12%,transparent)] text-[var(--color-success-text)]'
+                        : activeTab === 'expense'
+                          ? 'border-[color-mix(in_oklab,var(--color-danger)_28%,transparent)] bg-[color-mix(in_oklab,var(--color-danger)_10%,transparent)] text-[var(--color-danger-text)]'
+                          : 'border-[var(--color-rule)] bg-[var(--color-well)] text-[var(--color-accent)]'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {activeTab === 'income' ? <ArrowDownLeft size={16} /> : activeTab === 'expense' ? <ArrowUpRight size={16} /> : <Landmark size={16} />}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[length:var(--text-sm)] font-semibold text-[var(--color-ink)]">
+                      {activeTab === 'income'
+                        ? incomeSourceName(item.source_id)
+                        : activeTab === 'expense'
+                          ? expenseCategoryName(item.category_id)
+                          : activeTab === 'liability'
+                            ? item.liability_type
+                            : `${investmentTypeName(item.investment_type_id)} : ${invSubName(item.investment_subcategory_id) || (item.stock_symbol || item.fund_name || item.metal_name || 'Investment')}`
+                      }
+                    </p>
+                    <p className="mt-0.5 flex items-center gap-2 text-[length:var(--text-xs)] text-[var(--color-muted)]">
+                      <span className="truncate">
+                        {activeTab === 'liability'
+                          ? `${item.comment ? `${item.comment} · ` : ''}INR equivalent ${formatAmount(item.value_inr || 0, 'INR')}`
+                          : userName(item.user_id || item.investor)}
+                      </span>
+                      <span className="h-3 w-px shrink-0 bg-[var(--color-rule)]" aria-hidden="true" />
+                      <span className="shrink-0 tabular-nums">{formatDate(item.earned_date || item.spent_date || item.investment_date || item.date)}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <p className={`text-[length:var(--text-md)] font-semibold tabular-nums ${
+                    activeTab === 'income' ? 'text-[var(--color-success-text)]' :
+                    activeTab === 'expense' ? 'text-[var(--color-danger-text)]' : 'text-[var(--color-ink)]'
+                  }`}>
+                    {formatAmount(
+                      activeTab === 'liability'
+                        ? item.value || 0
+                        : activeTab === 'investment'
+                        ? item.total_invested_amount || 0
+                        : activeTab === 'income'
+                          ? item.amount || 0
+                          : item.amount,
+                      item.currency_id ? currencyCode(item.currency_id) : item.currency || ''
+                    )}
+                  </p>
+                  {activeTab === 'liability' && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => editLiability(item as LiabilityRecord)}
+                        className="btn btn-secondary btn-sm"
+                      >
+                        <Pencil size={12} aria-hidden="true" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteLiability(item.id)}
+                        className="btn btn-danger btn-sm btn-icon"
+                        aria-label="Delete liability entry"
+                      >
+                        <Trash2 size={12} aria-hidden="true" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-[var(--color-rule)] bg-[var(--color-well)] px-5 py-3 text-[length:var(--text-xs)]">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="btn btn-secondary btn-sm"
+              >
+                Previous
+              </button>
+              <span className="font-medium tabular-nums text-[var(--color-ink-2)]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="btn btn-secondary btn-sm"
+              >
+                Next
+              </button>
+            </div>
+          )}
+            </section>
 
             <style jsx>{`
         @keyframes slideDown {
@@ -1190,40 +1437,49 @@ function formatAmount(amount: any, currency?: string) {
         .animate-slideDown {
           animation: slideDown 0.3s ease-out;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-slideDown { animation: none; }
+        }
       `}</style>
 
       </div>
 
-      {/* Floating + button scrolls to form */}
-      <button onClick={scrollToForm} className="fixed bottom-8 right-8 bg-[var(--color-accent)] text-black p-4 rounded-full shadow-lg hover:bg-[var(--color-accent-hover)]">
-        +
+      {/* Floating control scrolls to the form */}
+      <button
+        onClick={scrollToForm}
+        className="btn btn-primary btn-icon fixed bottom-8 right-8 h-12 w-12 rounded-full border-[color-mix(in_oklab,var(--color-accent)_55%,transparent)] shadow-[var(--shadow-pop)]"
+        title="New transaction"
+        aria-label="New transaction"
+      >
+        <Plus size={20} aria-hidden="true" />
       </button>
 
       {/* Import Modal */}
       {showImportModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] overflow-y-auto">
-              <div className="bg-[var(--color-card)] p-8 rounded-2xl w-full max-w-4xl shadow-2xl relative my-8">
-                  <button 
+          <div className="fixed inset-0 z-[400] flex items-start justify-center overflow-y-auto bg-[color-mix(in_oklab,var(--color-ink)_55%,transparent)] p-4 backdrop-blur-[2px] sm:items-center">
+              <div className="card relative my-8 w-full max-w-4xl p-6 sm:p-8">
+                  <button
                       onClick={() => {
                           setShowImportModal(false);
                           setPreviewData([]); // Reset preview on close
                       }}
-                      className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                      className="btn btn-ghost btn-icon btn-sm absolute right-4 top-4"
+                      aria-label="Close import dialog"
                   >
-                      ✕
+                      <X size={16} aria-hidden="true" />
                   </button>
-                  <h2 className="text-2xl font-bold mb-6 text-[var(--color-text-primary)]">
-                      {previewData.length > 0 ? "Review & Confirm Import" : "Import Transactions"}
+                  <h2 className="page-title mb-6 pr-10 text-[length:var(--text-2xl)]">
+                      {previewData.length > 0 ? "Review and confirm import" : "Import transactions"}
                   </h2>
-                  
+
                   {!previewData.length ? (
                       // STEP 1: UPLOAD FORM
                       <div className="space-y-4 max-w-lg mx-auto">
                           {/* User Select */}
                           <div>
-                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">User</label>
-                              <select 
-                                  value={importForm.user_id} 
+                              <label className="field-label">User</label>
+                              <select
+                                  value={importForm.user_id}
                                   onChange={(e) => setImportForm({...importForm, user_id: e.target.value})}
                                   className={selectClass}
                               >
@@ -1234,9 +1490,9 @@ function formatAmount(amount: any, currency?: string) {
 
                           {/* Bank Select */}
                           <div>
-                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Bank</label>
-                              <select 
-                                  value={importForm.bank_name} 
+                              <label className="field-label">Bank</label>
+                              <select
+                                  value={importForm.bank_name}
                                   onChange={(e) => setImportForm({...importForm, bank_name: e.target.value})}
                                   className={selectClass}
                               >
@@ -1249,9 +1505,9 @@ function formatAmount(amount: any, currency?: string) {
 
                            {/* Currency Select */}
                            <div>
-                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Currency</label>
-                              <select 
-                                  value={importForm.currency} 
+                              <label className="field-label">Currency</label>
+                              <select
+                                  value={importForm.currency}
                                   onChange={(e) => setImportForm({...importForm, currency: e.target.value})}
                                   className={selectClass}
                               >
@@ -1261,24 +1517,24 @@ function formatAmount(amount: any, currency?: string) {
 
                           {/* File Upload */}
                            <div>
-                              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">CSV / TXT File</label>
-                              <input 
-                                  type="file" 
+                              <label className="field-label">CSV or TXT file</label>
+                              <input
+                                  type="file"
                                   accept=".csv,.txt"
                                   onChange={(e) => setImportForm({...importForm, file: e.target.files?.[0] || null})}
-                                  className={`${inputClass} !p-2`}
+                                  className="field py-2"
                               />
                           </div>
 
                           {/* Preview Button */}
                           <div className="pt-4 flex justify-end">
-                              <button 
+                              <button
                                   onClick={async () => {
                                       if (!importForm.user_id || !importForm.bank_name || !importForm.file) {
                                           alert("Please fill all fields");
                                           return;
                                       }
-                                      
+
                                       const formData = new FormData();
                                       formData.append("bank_name", importForm.bank_name);
                                       formData.append("currency", importForm.currency);
@@ -1291,15 +1547,14 @@ function formatAmount(amount: any, currency?: string) {
                                           });
                                           const data = await res.json();
                                           if(!res.ok) throw new Error(data.detail || "Preview failed");
-                                          
-                                          // console.log("Preview Data:", data);
+
                                           setPreviewData(data); // Move to Step 2
-                                          
+
                                       } catch (err: any) {
                                           alert("Error: " + err.message);
                                       }
                                   }}
-                                  className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-3 rounded-xl font-bold transition"
+                                  className="btn btn-primary w-full"
                               >
                                   Preview Transactions
                               </button>
@@ -1308,9 +1563,9 @@ function formatAmount(amount: any, currency?: string) {
                   ) : (
                       // STEP 2: PREVIEW TABLE
                       <div className="space-y-4">
-                          <div className="overflow-x-auto max-h-[60vh] border rounded-xl border-[var(--color-bg-lighter)]">
-                              <table className="w-full text-sm text-left">
-                                  <thead className="text-xs uppercase bg-[var(--color-bg-lighter)] text-[var(--color-text-secondary)] sticky top-0 z-10">
+                          <div className="max-h-[60vh] overflow-x-auto rounded-[var(--radius-panel)] border border-[var(--color-edge)]">
+                              <table className="w-full text-xs sm:text-sm text-left">
+                                  <thead className="sticky top-0 z-10 bg-[var(--color-well)] text-[length:var(--text-xs)] font-semibold text-[var(--color-muted)]">
                                       <tr>
                                           <th className="px-4 py-3">Date</th>
                                           <th className="px-4 py-3">Description</th>
@@ -1320,63 +1575,57 @@ function formatAmount(amount: any, currency?: string) {
                                           <th className="px-4 py-3 text-center">Action</th>
                                       </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-[var(--color-bg-lighter)]">
+                                  <tbody className="font-medium">
                                       {previewData.map((txn, idx) => (
-                                          <tr key={idx} className={`hover:bg-[var(--color-bg-lighter)]/50 ${txn.ignore ? 'opacity-40' : ''}`}>
-                                              <td className="px-4 py-2">{txn.date}</td>
-                                              <td className="px-4 py-2 truncate max-w-xs" title={txn.description}>{txn.description}</td>
-                                              <td className={`px-4 py-2 text-right font-mono ${txn.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
+                                          <tr key={idx} className={`border-b border-[var(--color-rule)] last:border-b-0 hover:bg-[var(--color-well)] ${txn.ignore ? 'opacity-45' : ''}`}>
+                                              <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-[var(--color-ink-2)]">{txn.date}</td>
+                                              <td className="max-w-xs truncate px-4 py-2.5 text-[var(--color-ink)]" title={txn.description}>{txn.description}</td>
+                                              <td className={`px-4 py-2.5 text-right font-semibold tabular-nums ${txn.type === 'income' ? 'text-[var(--color-success-text)]' : 'text-[var(--color-danger-text)]'}`}>
                                                   {txn.amount} {txn.currency}
                                               </td>
-                                              <td className="px-4 py-2 capitalize">{txn.type}</td>
-                                              <td className="px-4 py-2">
+                                              <td className="px-4 py-2.5 capitalize text-[var(--color-ink-2)]">{txn.type}</td>
+                                              <td className="px-4 py-2.5">
                                                   {txn.type === 'income' ? (
-                                                      <select 
-                                                          value={txn.source_id || ""} 
+                                                      <select
+                                                          value={txn.source_id || ""}
                                                           disabled={txn.ignore}
                                                           onChange={(e) => {
                                                               const newVal = Number(e.target.value);
                                                               const newData = [...previewData];
                                                               newData[idx].source_id = newVal;
-                                                              // Auto-learn: Use the description as the keyword to learn
-                                                              // We strip numbers to try and make it more generic? 
-                                                              // No, let's keep it safe: use the first 2 words or full description?
-                                                              // Let's use the full description for safety, user can edit config if needed.
-                                                              // Actually, let's just use the description.
                                                               newData[idx].learn_keyword = txn.description;
                                                               setPreviewData(newData);
                                                           }}
-                                                          className="w-full bg-transparent border border-gray-600 rounded p-1"
+                                                          className="field field-sm"
                                                       >
                                                           {incomeSources.map(s => <option key={s.income_source_id} value={s.income_source_id}>{s.name}</option>)}
                                                       </select>
                                                   ) : (
-                                                      <select 
-                                                          value={txn.category_id || ""} 
+                                                      <select
+                                                          value={txn.category_id || ""}
                                                           disabled={txn.ignore}
                                                           onChange={(e) => {
                                                               const newVal = Number(e.target.value);
                                                               const newData = [...previewData];
                                                               newData[idx].category_id = newVal;
-                                                              // Auto-learn: Use the description as the keyword to learn
                                                               newData[idx].learn_keyword = txn.description;
                                                               setPreviewData(newData);
                                                           }}
-                                                          className="w-full bg-transparent border border-gray-600 rounded p-1"
+                                                          className="field field-sm"
                                                       >
                                                           {expenseCategories.map(c => <option key={c.expense_category_id} value={c.expense_category_id}>{c.name}</option>)}
                                                       </select>
                                                   )}
                                               </td>
-                                              <td className="px-4 py-2 text-center">
-                                                  <button 
+                                              <td className="px-4 py-2.5 text-center">
+                                                  <button
                                                       title={txn.ignore ? "Include this transaction" : "Ignore this transaction"}
                                                       onClick={() => {
                                                           const newData = [...previewData];
                                                           newData[idx].ignore = !newData[idx].ignore;
                                                           setPreviewData(newData);
                                                       }}
-                                                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${txn.ignore ? 'bg-green-500/20 text-green-500 hover:bg-green-500/30' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
+                                                      className={`btn btn-sm ${txn.ignore ? 'btn-secondary' : 'btn-danger'}`}
                                                   >
                                                       {txn.ignore ? "Include" : "Ignore"}
                                                   </button>
@@ -1386,16 +1635,16 @@ function formatAmount(amount: any, currency?: string) {
                                   </tbody>
                               </table>
                           </div>
-                      
-                          <div className="flex justify-between items-center pt-4">
-                              <button 
+
+                          <div className="flex items-center justify-between gap-3 border-t border-[var(--color-rule)] pt-4">
+                              <button
                                   onClick={() => setPreviewData([])} // Back to upload
-                                  className="text-[var(--color-text-secondary)] hover:text-white px-4"
+                                  className="btn btn-secondary btn-sm"
                               >
                                   &larr; Back
                               </button>
-                              
-                              <button 
+
+                              <button
                                   onClick={async () => {
                                       setLoading(true);
                                       try {
@@ -1405,26 +1654,26 @@ function formatAmount(amount: any, currency?: string) {
                                               setLoading(false);
                                               return;
                                           }
-                                          
+
                                           const payload = {
                                               user_id: Number(importForm.user_id),
                                               transactions: finalTransactions
                                           };
-                                          
+
                                           const res = await fetch("/api/import/confirm", {
                                               method: "POST",
                                               headers: { "Content-Type": "application/json" },
                                               body: JSON.stringify(payload)
                                           });
-                                          
+
                                           const data = await res.json();
                                           if(!res.ok) throw new Error(data.detail || "Confirm failed");
-                                          
+
                                           alert(`Successfully imported ${data.processed} transactions!`);
                                           if (data.learned > 0) {
                                               alert(`Learned ${data.learned} new categorization rules.`);
                                           }
-                                          
+
                                           setShowImportModal(false);
                                           setPreviewData([]);
                                           fetchRecent();
@@ -1435,7 +1684,7 @@ function formatAmount(amount: any, currency?: string) {
                                       }
                                   }}
                                   disabled={loading}
-                                  className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black py-2 px-8 rounded-xl font-bold transition disabled:opacity-50"
+                                  className="btn btn-primary"
                               >
                                   {loading ? "Importing..." : `Confirm & Import (${previewData.filter(t => !t.ignore).length})`}
                               </button>
@@ -1449,5 +1698,5 @@ function formatAmount(amount: any, currency?: string) {
   );
 }
 
-const inputClass = 'w-full px-4 py-2.5 rounded-xl border border-[var(--color-bg-lighter)] bg-[var(--color-bg)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)/30] transition-all';
-const selectClass = 'w-full px-4 py-2.5 rounded-xl border border-[var(--color-bg-lighter)] bg-[var(--color-bg)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)/30] transition-all';
+const inputClass = 'field';
+const selectClass = 'field';

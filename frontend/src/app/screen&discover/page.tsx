@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useDebounce } from 'use-debounce';
+import { Search, ChevronRight, Eye, EyeOff } from 'lucide-react';
 
 // --- Types ---
 interface StockData {
@@ -39,78 +40,89 @@ interface ApiResponse {
 // --- Components ---
 
 function ScoreBox({ label, value }: { label: string; value: number }) {
-  const color =
-    value > 0.2 ? 'bg-green-500' : value < -0.2 ? 'bg-red-500' : 'bg-yellow-500';
+  const isHigh = value > 0.2;
+  const isLow = value < -0.2;
+
+  const colorClass = isHigh
+    ? 'border-[color-mix(in_oklab,var(--color-success)_30%,transparent)] bg-[color-mix(in_oklab,var(--color-success)_10%,transparent)] text-[var(--color-success-text)]'
+    : isLow
+    ? 'border-[color-mix(in_oklab,var(--color-danger)_28%,transparent)] bg-[color-mix(in_oklab,var(--color-danger)_10%,transparent)] text-[var(--color-danger-text)]'
+    : 'border-[color-mix(in_oklab,var(--color-warning)_32%,transparent)] bg-[color-mix(in_oklab,var(--color-warning)_12%,transparent)] text-[color-mix(in_oklab,var(--color-warning)_70%,var(--color-ink))]';
+
   return (
-    <div className={`px-3 py-1 rounded text-sm font-medium text-white ${color}`}>
+    <span className={`rounded-[6px] border px-2 py-0.5 text-[length:var(--text-xs)] font-semibold tabular-nums ${colorClass}`}>
       {label}: {value.toFixed(2)}
-    </div>
+    </span>
   );
 }
 
 function StockCard({ stock }: { stock: StockData }) {
-  const [flipped, setFlipped] = useState(false);
+  const [showFundamentals, setShowFundamentals] = useState(false);
   const isSell = stock.recommendation === 'Sell';
 
   return (
-    <div
-      className="relative w-full h-48 cursor-pointer perspective mb-4"
-      onClick={() => setFlipped(!flipped)}
+    <article
+      className={`card card-interactive flex h-48 flex-col justify-between p-4 ${
+        isSell ? 'border-[color-mix(in_oklab,var(--color-danger)_45%,var(--color-edge))]' : ''
+      }`}
     >
-      <div
-        className={`relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
-          flipped ? 'rotate-y-180' : ''
-        }`}
-      >
-        {/* Front Side */}
-        <div className={`absolute inset-0 bg-gray-900 rounded-lg p-4 shadow-lg backface-hidden border ${isSell ? 'border-red-500' : 'border-gray-700 hover:border-blue-500'} transition-colors`}>
-          <div className="flex justify-between items-start mb-1">
-             <h2 className="text-lg font-semibold">{stock.symbol}</h2>
-             {isSell && (
-                 <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded animate-pulse">
-                    SELL
-                 </span>
-             )}
+      <div className="min-w-0">
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="truncate font-body text-[length:var(--text-lg)] font-semibold leading-tight text-[var(--color-ink)]">
+              {stock.symbol}
+            </h2>
+            <p className="max-w-[180px] truncate text-[length:var(--text-xs)] text-[var(--color-muted)]">
+              {stock.sub_sector || stock.sector}
+            </p>
           </div>
-          
-          <p className="text-sm text-gray-400 mb-3 truncate">
-            {stock.sub_sector} [{stock.sector}]
-          </p>
-          
           {isSell ? (
-             <div className="text-red-400 text-sm mt-2 font-medium">
-                Reason: {stock.reason || "Underperforming"}
-             </div>
+            <span className="badge badge-negative">Sell</span>
           ) : (
-             <div className="flex flex-wrap gap-2">
+            <span className="badge badge-neutral">{stock.sector}</span>
+          )}
+        </div>
+
+        {!showFundamentals ? (
+          <div className="mt-3">
+            {isSell ? (
+              <p className="rounded-[var(--radius-panel)] border border-[color-mix(in_oklab,var(--color-danger)_25%,transparent)] bg-[color-mix(in_oklab,var(--color-danger)_8%,transparent)] p-2 text-[length:var(--text-xs)] text-[var(--color-danger-text)]">
+                {stock.reason || "Flagged for risk / underperformance"}
+              </p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 <ScoreBox label="Core" value={stock.core} />
                 <ScoreBox label="Acc" value={stock.accelerators} />
                 <ScoreBox label="GEM" value={stock.gem} />
-             </div>
-          )}
-          
-          <p className="text-xs text-gray-500 mt-3 absolute bottom-4">Click for fundamentals ↩</p>
-        </div>
-
-        {/* Back Side */}
-        <div className="absolute inset-0 bg-gray-800 rounded-lg p-4 shadow-lg rotate-y-180 backface-hidden border border-gray-600">
-          <h3 className="text-md font-semibold mb-2 text-blue-400">
-            Fundamentals
-          </h3>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs sm:text-sm">
-            <span>MC: {(stock.market_cap / 1000).toFixed(1)}K Cr</span>
-            <span>PE: {stock.pe_ratio.toFixed(1)}</span>
-            <span>PB: {stock.pb_ratio.toFixed(1)}</span>
-            <span>PEG: {stock.peg_ratio.toFixed(1)}</span>
-            <span>ROE: {stock.roe.toFixed(1)}%</span>
-            <span>ROCE: {stock.roce.toFixed(1)}%</span>
-            <span>D/E: {stock.debt_to_equity.toFixed(1)}</span>
-            <span>Prom: {stock.promoter_holding.toFixed(1)}%</span>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-gray-500 mt-3 absolute bottom-4">Click to flip ↪</p>
-        </div>
+        ) : (
+          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[length:var(--text-xs)] text-[var(--color-ink-2)]">
+            <div><dt className="inline">MC: </dt><dd className="inline font-semibold tabular-nums text-[var(--color-ink)]">{(stock.market_cap / 1000).toFixed(1)}K Cr</dd></div>
+            <div><dt className="inline">PE: </dt><dd className="inline font-semibold tabular-nums text-[var(--color-ink)]">{stock.pe_ratio.toFixed(1)}</dd></div>
+            <div><dt className="inline">PB: </dt><dd className="inline font-semibold tabular-nums text-[var(--color-ink)]">{stock.pb_ratio.toFixed(1)}</dd></div>
+            <div><dt className="inline">ROE: </dt><dd className="inline font-semibold tabular-nums text-[var(--color-ink)]">{stock.roe.toFixed(1)}%</dd></div>
+            <div><dt className="inline">D/E: </dt><dd className="inline font-semibold tabular-nums text-[var(--color-ink)]">{stock.debt_to_equity.toFixed(1)}</dd></div>
+            <div><dt className="inline">Prom: </dt><dd className="inline font-semibold tabular-nums text-[var(--color-ink)]">{stock.promoter_holding.toFixed(1)}%</dd></div>
+          </dl>
+        )}
       </div>
-    </div>
+
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--color-rule)] pt-2 text-[length:var(--text-xs)]">
+        <button
+          type="button"
+          onClick={() => setShowFundamentals(!showFundamentals)}
+          className="link inline-flex items-center gap-1"
+        >
+          {showFundamentals ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
+          {showFundamentals ? 'Show scores' : 'Fundamentals'}
+        </button>
+        <span className="font-medium tabular-nums text-[var(--color-muted)]">
+          ROCE: {stock.roce.toFixed(1)}%
+        </span>
+      </div>
+    </article>
   );
 }
 
@@ -120,11 +132,11 @@ export default function ScreenNDiscover() {
   // State
   const [activeTab, setActiveTab] = useState<'Candidates' | 'Invested'>('Candidates');
   const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebounce(search, 500);
+  const [debouncedSearch] = useDebounce(search, 400);
   const [sector, setSector] = useState('All');
   const [subSector, setSubSector] = useState('All');
   const [filterType, setFilterType] = useState<'All' | 'Core' | 'Accelerator' | 'GEM'>('All');
-  
+
   // Dynamic Filters State
   const [filters, setFilters] = useState<{ sectors: Record<string, string[]> }>({ sectors: {} });
   const [availableSubSectors, setAvailableSubSectors] = useState<string[]>([]);
@@ -209,17 +221,15 @@ export default function ScreenNDiscover() {
     initialPageParam: 1,
   });
 
-  // Determine stocks to show based on active tab
-  const stocksToShow = activeTab === 'Candidates' 
+  const stocksToShow = activeTab === 'Candidates'
       ? (data ? data.pages.flatMap((page) => page.data) : [])
       : investedStocks;
 
   const isLoading = activeTab === 'Candidates' ? isCandidatesLoading : investedLoading;
 
-  // Virtualizer setup
   const COLUMNS = 3;
   const rowCount = Math.ceil(stocksToShow.length / COLUMNS);
-  
+
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
@@ -229,12 +239,9 @@ export default function ScreenNDiscover() {
 
   const virtualItems = virtualizer.getVirtualItems();
 
-  // Load more on scroll (only for Candidates)
   useEffect(() => {
     if (activeTab !== 'Candidates') return;
-    
     const [lastItem] = [...virtualItems].reverse();
-
     if (!lastItem) return;
 
     if (
@@ -244,112 +251,120 @@ export default function ScreenNDiscover() {
     ) {
       fetchNextPage();
     }
-  }, [
-    activeTab,
-    hasNextPage, 
-    fetchNextPage, 
-    isFetchingNextPage, 
-    rowCount,
-    virtualItems
-  ]);
-
+  }, [activeTab, hasNextPage, fetchNextPage, isFetchingNextPage, rowCount, virtualItems]);
 
   const sectorsList = Object.keys(filters.sectors).sort();
 
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col space-y-4 text-white p-2">
-       {/* Filters & Tabs Header */}
-      <div className="flex flex-col gap-4 p-2 bg-gray-900 rounded-lg shadow stvirtualizer.getVirtualItems()icky top-0 z-10">
-          
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700">
-            {['Invested', 'Candidates'].map(tab => (
-                <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab as any)}
-                    className={`px-6 py-2 font-medium text-sm focus:outline-none transition-colors ${
-                        activeTab === tab 
-                            ? 'text-blue-500 border-b-2 border-blue-500' 
-                            : 'text-gray-400 hover:text-white'
-                    }`}
-                >
-                    {tab}
-                </button>
+    <div className="flex h-[calc(100vh-140px)] flex-col gap-4">
+      <h1 className="sr-only">Stock screener</h1>
+      {/* Title and filter surface */}
+      <div className="card space-y-3 p-4">
+        {/* Tab Switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-rule)] pb-3">
+          <div className="seg" role="tablist" aria-label="Stock universe">
+            {(['Candidates', 'Invested'] as const).map(tab => (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={activeTab === tab}
+                onClick={() => setActiveTab(tab)}
+                className={`seg-item ${activeTab === tab ? 'is-active' : ''}`}
+              >
+                {tab}
+              </button>
             ))}
+          </div>
+
+          <div className="text-[length:var(--text-xs)] font-medium text-[var(--color-muted)]">
+            {activeTab === 'Candidates' && (
+              <span>Matching universe: <b className="tabular-nums text-[var(--color-ink)]">{data?.pages[0]?.total || 0}</b> symbols</span>
+            )}
+            {activeTab === 'Invested' && (
+              <span>Invested portfolio: <b className="tabular-nums text-[var(--color-ink)]">{investedStocks.length}</b> symbols</span>
+            )}
+          </div>
         </div>
 
-        {/* Filters (Only show for Candidates or if we want to filter Invested too - sticking to Candidates for now as per infinite scroll logic) */}
+        {/* Filter Controls */}
         {activeTab === 'Candidates' && (
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-                <div className="flex flex-wrap gap-2 flex-1">
+          <div className="flex flex-col items-center justify-between gap-3 pt-1 md:flex-row">
+            <div className="flex w-full flex-1 flex-wrap items-center gap-2.5">
+              <div className="relative min-w-[200px] max-w-sm flex-1">
+                <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-3 text-[var(--color-muted)]" />
                 <input
-                    type="text"
-                    placeholder="Search symbol..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-500 w-100 md:w-65"
+                  type="text"
+                  placeholder="Search symbol (for example RELIANCE)"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="field field-search"
+                  aria-label="Search stock symbol"
                 />
+              </div>
 
-                <select
-                    value={sector}
-                    onChange={e => setSector(e.target.value)}
-                    className="p-2 rounded bg-gray-800 text-white border border-gray-600 w-full md:w-65"
-                >
-                    <option value="All">All Sectors</option>
-                    {sectorsList.map(sec => (
-                    <option key={sec} value={sec}>{sec}</option>
-                    ))}
-                </select>
-
-                <select
-                    value={subSector}
-                    onChange={e => setSubSector(e.target.value)}
-                    className="p-2 rounded bg-gray-800 text-white border border-gray-600 w-full md:w-65"
-                >
-                    <option value="All">All Sub-Sectors</option>
-                    {availableSubSectors.map(sub => (
-                    <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                </select>
-                
-                <div className="flex items-center text-sm text-gray-400 px-2">
-                    Results: {data?.pages[0]?.total || 0}
-                </div>
-                </div>
-
-                <div className="flex gap-2 bg-gray-800 p-1 rounded h-fit self-center">
-                {['All', 'Core', 'Accelerator', 'GEM'].map(type => (
-                    <button
-                    key={type}
-                    onClick={() => setFilterType(type as any)}
-                    className={`px-3 py-1 rounded text-sm font-semibold transition-colors ${
-                        filterType === type
-                        ? 'bg-blue-600 text-white shadow'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                    >
-                    {type}
-                    </button>
+              <select
+                value={sector}
+                onChange={e => setSector(e.target.value)}
+                className="field field-auto"
+                aria-label="Sector"
+              >
+                <option value="All">All sectors</option>
+                {sectorsList.map(sec => (
+                  <option key={sec} value={sec}>{sec}</option>
                 ))}
-                </div>
+              </select>
+
+              <select
+                value={subSector}
+                onChange={e => setSubSector(e.target.value)}
+                className="field field-auto"
+                aria-label="Sub-sector"
+              >
+                <option value="All">All sub-sectors</option>
+                {availableSubSectors.map(sub => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
             </div>
+
+            {/* Score Category Filter */}
+            <div className="seg shrink-0" role="group" aria-label="Score category">
+              {(['All', 'Core', 'Accelerator', 'GEM'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  aria-pressed={filterType === type}
+                  className={`seg-item ${filterType === type ? 'is-active' : ''}`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Content Area */}
+      {/* Grid Content Area */}
       {isLoading ? (
-        <div className="flex justify-center items-center h-64 text-blue-400 animate-pulse">
-           Loading {activeTab}...
+        <div className="empty-state flex-1 rounded-[var(--radius-card)] border border-[var(--color-rule)] bg-[var(--color-surface)]">
+          <p className="state-title">Loading {activeTab} stocks</p>
+          <p className="text-[length:var(--text-sm)]">Reading the latest scores from the analytics service.</p>
         </div>
       ) : isError ? (
-        <div className="text-red-500 text-center p-10">Error loading data. Please check backend connection.</div>
+        <div className="card border-[color-mix(in_oklab,var(--color-danger)_40%,var(--color-edge))] p-8 text-center">
+          <p className="state-title text-[var(--color-danger-text)]">Stock data unavailable</p>
+          <p className="page-sub mx-auto">Verify the Python analytics backend is running, then reload this screen.</p>
+        </div>
       ) : stocksToShow.length === 0 ? (
-        <div className="text-gray-400 text-center p-10">No stocks found matching criteria.</div>
+        <div className="empty-state flex-1 rounded-[var(--radius-card)] border border-[var(--color-rule)] bg-[var(--color-surface)]">
+          <p className="state-title">No stocks matched</p>
+          <p className="max-w-[46ch] text-[length:var(--text-sm)]">Try broadening the search or clearing the sector filters.</p>
+        </div>
       ) : (
-        /* Virtual Scroll Container */
+        /* Virtualized Grid */
         <div
           ref={parentRef}
-          className="flex-1 overflow-y-auto pr-2 custom-scrollbar"
+          className="custom-scrollbar flex-1 overflow-y-auto pr-1"
         >
           <div
             style={{
@@ -358,33 +373,34 @@ export default function ScreenNDiscover() {
               position: 'relative',
             }}
           >
-            {virtualizer.getVirtualItems().map((virtualRow) => {
+            {virtualItems.map((virtualRow) => {
               const startIndex = virtualRow.index * COLUMNS;
               const rowStocks = stocksToShow.slice(startIndex, startIndex + COLUMNS);
 
               return (
                 <div
                   key={virtualRow.key}
-                  className="absolute top-0 left-0 w-full grid grid-cols-1 md:grid-cols-3 gap-4"
+                  className="absolute left-0 top-0 grid w-full grid-cols-1 gap-4 md:grid-cols-3"
                   style={{
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
                   {rowStocks.map((stock) => (
-                     <div key={stock.symbol} className="h-full">
-                        <StockCard stock={stock} />
-                     </div>
+                    <div key={stock.symbol} className="h-full">
+                      <StockCard stock={stock} />
+                    </div>
                   ))}
                 </div>
               );
             })}
           </div>
-          
-          {/* Loading More Spinner (Candidates Only) */}
+
+          {/* Pagination status */}
           {activeTab === 'Candidates' && isFetchingNextPage && (
-            <div className="text-center py-4 text-gray-500 text-sm animate-pulse">
-              Loading more stocks...
+            <div className="flex items-center justify-center gap-2 py-4 text-[length:var(--text-xs)] text-[var(--color-muted)]">
+              <ChevronRight size={13} aria-hidden="true" className="animate-pulse" />
+              Loading more stocks
             </div>
           )}
         </div>
