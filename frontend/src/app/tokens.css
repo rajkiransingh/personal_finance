@@ -1,0 +1,230 @@
+@theme static {
+  /* Pulse: a soft neutral canvas with white surfaces and indigo/violet energy. */
+  --color-paper: oklch(97.2% 0.006 280);
+  --color-paper-2: oklch(100% 0 0);
+  --color-paper-3: oklch(95.2% 0.008 280);
+
+  /* Ink: blue-black text, three steps of depth. */
+  --color-ink: oklch(23% 0.022 280);
+  --color-ink-2: oklch(42% 0.022 280);
+  --color-muted: oklch(54% 0.022 280);
+
+  /* The card edge is quiet on purpose; the soft shadow carries the boundary. */
+  --color-rule: oklch(92.8% 0.008 280);
+  --color-rule-strong: oklch(87% 0.012 280);
+
+  /* Indigo is the action, violet is its companion, mint/coral/amber are signals. */
+  --color-accent: oklch(47% 0.18 281);
+  --color-accent-ink: oklch(99% 0.005 280);
+  --color-focus: oklch(47% 0.18 281);
+  --color-primary: oklch(47% 0.18 281);
+  --color-primary-hover: oklch(42% 0.18 281);
+  --color-primary-ink: oklch(99% 0.005 280);
+  --color-brand-2: oklch(55% 0.19 290);
+
+  /* Financial states. */
+  --color-success: oklch(72% 0.14 168);
+  --color-success-text: oklch(46% 0.1 165);
+  --color-danger: oklch(70% 0.17 22);
+  --color-danger-text: oklch(50% 0.15 22);
+  --color-warning: oklch(76% 0.14 70);
+  --color-warning-text: oklch(45% 0.1 70);
+  --color-info: oklch(65% 0.15 250);
+
+  /* The rail is a white surface with lavender active pills. */
+  --color-sidebar: oklch(100% 0 0);
+  --color-sidebar-2: oklch(95.5% 0.02 285);
+  --color-sidebar-ink: oklch(23% 0.022 280);
+  --color-sidebar-muted: oklch(50% 0.022 280);
+
+  --font-weight-medium: 600;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 800;
+
+  /* Categorical marks mapped so Stocks reads indigo, Mutual funds violet, Gold sky. */
+  --chart-1: oklch(65% 0.15 250);
+  --chart-2: oklch(70% 0.17 22);
+  --chart-3: oklch(53% 0.19 281);
+  --chart-4: oklch(76% 0.14 70);
+  --chart-5: oklch(60% 0.2 290);
+  --chart-6: oklch(72% 0.14 168);
+  --chart-7: oklch(70% 0.012 280);
+
+  /* One friendly face for display and work. */
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 0.875rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.625rem;
+  --text-hero: 2.625rem;
+  --text-display-s: 1.5rem;
+  --text-display: 2rem;
+  --text-section: 1rem;
+  --text-title: 1rem;
+  --text-lead: 0.9375rem;
+}
+
+:root {
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+  --space-4xl: 144px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  --container: 1440px;
+  --gutter: 32px;
+  --gap-columns: 16px;
+  --rail: 244px;
+  --section-gap-s: 120px;
+  --section-gap: 144px;
+  --section-gap-l: 176px;
+
+  --radius-card: 18px;
+  --radius-panel: 12px;
+  --radius-control: 11px;
+  --radius-pill: 999px;
+  --rule-hair: 1px;
+
+  --shadow-card: 0 6px 22px -8px oklch(30% 0.03 280 / 0.16), 0 2px 5px oklch(30% 0.03 280 / 0.07);
+  --shadow-lift: 0 12px 30px -10px oklch(30% 0.03 280 / 0.22), 0 3px 7px oklch(30% 0.03 280 / 0.10);
+  --shadow-pop: 0 18px 42px -12px oklch(30% 0.03 280 / 0.24);
+  --shadow-chip: 0 2px 6px -2px oklch(30% 0.03 280 / 0.14);
+  --shadow-glow: 0 8px 18px -8px oklch(53% 0.19 281 / 0.8);
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sticky-nav: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+
+  --tracking-display: -0.035em;
+  color-scheme: light;
+}
+
+/* Dark: the same app under a blue-black cover. Surfaces step lighter. */
+[data-mode="dark"] {
+  --color-paper: oklch(19% 0.025 280);
+  --color-paper-2: oklch(24% 0.025 280);
+  --color-paper-3: oklch(30% 0.025 280);
+
+  --color-ink: oklch(96% 0.008 280);
+  --color-ink-2: oklch(82% 0.015 280);
+  --color-muted: oklch(70% 0.02 280);
+
+  --color-rule: oklch(36% 0.02 280);
+  --color-rule-strong: oklch(43% 0.025 280);
+
+  --color-accent: oklch(66% 0.17 281);
+  --color-accent-ink: oklch(19% 0.025 280);
+  --color-focus: oklch(70% 0.17 281);
+  --color-primary: oklch(66% 0.17 281);
+  --color-primary-hover: oklch(72% 0.16 281);
+  --color-primary-ink: oklch(99% 0.005 280);
+  --color-brand-2: oklch(70% 0.18 290);
+
+  --color-success: oklch(80% 0.13 168);
+  --color-success-text: oklch(80% 0.13 168);
+  --color-danger: oklch(75% 0.15 22);
+  --color-danger-text: oklch(75% 0.15 22);
+  --color-warning: oklch(82% 0.13 70);
+  --color-warning-text: oklch(82% 0.13 70);
+  --color-info: oklch(73% 0.14 250);
+
+  --color-sidebar: oklch(24% 0.025 280);
+  --color-sidebar-2: oklch(33% 0.03 285);
+  --color-sidebar-ink: oklch(96% 0.008 280);
+  --color-sidebar-muted: oklch(70% 0.02 280);
+
+  --chart-1: oklch(73% 0.14 250);
+  --chart-2: oklch(75% 0.15 22);
+  --chart-3: oklch(66% 0.17 281);
+  --chart-4: oklch(82% 0.13 70);
+  --chart-5: oklch(70% 0.18 290);
+  --chart-6: oklch(80% 0.13 168);
+  --chart-7: oklch(78% 0.012 280);
+
+  --shadow-card: 0 6px 22px -8px oklch(5% 0.01 280 / 0.55), 0 2px 5px oklch(5% 0.01 280 / 0.5);
+  --shadow-lift: 0 12px 30px -10px oklch(5% 0.01 280 / 0.65), 0 3px 7px oklch(5% 0.01 280 / 0.55);
+  --shadow-pop: 0 18px 42px -12px oklch(5% 0.01 280 / 0.75);
+  --shadow-chip: 0 2px 6px -2px oklch(5% 0.01 280 / 0.55);
+  --shadow-glow: 0 8px 18px -8px oklch(66% 0.17 281 / 0.7);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode]) {
+    --color-paper: oklch(19% 0.025 280);
+    --color-paper-2: oklch(24% 0.025 280);
+    --color-paper-3: oklch(30% 0.025 280);
+    --color-ink: oklch(96% 0.008 280);
+    --color-ink-2: oklch(82% 0.015 280);
+    --color-muted: oklch(70% 0.02 280);
+    --color-rule: oklch(36% 0.02 280);
+    --color-rule-strong: oklch(43% 0.025 280);
+    --color-accent: oklch(66% 0.17 281);
+    --color-accent-ink: oklch(19% 0.025 280);
+    --color-focus: oklch(70% 0.17 281);
+    --color-primary: oklch(66% 0.17 281);
+    --color-primary-hover: oklch(72% 0.16 281);
+    --color-primary-ink: oklch(19% 0.025 280);
+    --color-brand-2: oklch(70% 0.18 290);
+    --color-success: oklch(80% 0.13 168);
+    --color-danger: oklch(75% 0.15 22);
+    --color-warning: oklch(82% 0.13 70);
+  --color-warning-text: oklch(82% 0.13 70);
+    --color-info: oklch(73% 0.14 250);
+    --color-sidebar: oklch(24% 0.025 280);
+    --color-sidebar-2: oklch(33% 0.03 285);
+    --color-sidebar-ink: oklch(96% 0.008 280);
+    --color-sidebar-muted: oklch(70% 0.02 280);
+    --chart-1: oklch(73% 0.14 250);
+    --chart-2: oklch(75% 0.15 22);
+    --chart-3: oklch(66% 0.17 281);
+    --chart-4: oklch(82% 0.13 70);
+    --chart-5: oklch(70% 0.18 290);
+    --chart-6: oklch(80% 0.13 168);
+    --chart-7: oklch(78% 0.012 280);
+    --shadow-card: 0 6px 22px -8px oklch(5% 0.01 280 / 0.55), 0 2px 5px oklch(5% 0.01 280 / 0.5);
+    --shadow-lift: 0 12px 30px -10px oklch(5% 0.01 280 / 0.65), 0 3px 7px oklch(5% 0.01 280 / 0.55);
+    --shadow-pop: 0 18px 42px -12px oklch(5% 0.01 280 / 0.75);
+    --shadow-chip: 0 2px 6px -2px oklch(5% 0.01 280 / 0.55);
+    --shadow-glow: 0 8px 18px -8px oklch(66% 0.17 281 / 0.7);
+    color-scheme: dark;
+  }
+}
+
+@media (max-width: 60rem) {
+  :root {
+    --gutter: 20px;
+    --rail: 244px;
+  }
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --gutter: 16px;
+    --gap-columns: 16px;
+  }
+}

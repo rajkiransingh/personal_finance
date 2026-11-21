@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
+import { Plus, Trash2, Save } from "lucide-react";
 
 export default function PortfolioConfigPage() {
   const [config, setConfig] = useState<any>(null);
@@ -112,103 +113,122 @@ export default function PortfolioConfigPage() {
     }
   };
 
-  if (!config) return <div>Loading configuration...</div>;
+  if (!config) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Loading configuration">
+        <div className="skeleton h-9 w-1/3" />
+        <div className="skeleton h-40 w-full" />
+        <div className="skeleton h-40 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-[var(--color-card)] p-6 rounded-xl shadow-md">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-[var(--color-accent)]">
-          Portfolio Configuration
-        </h2>
+    <div className="space-y-6 pb-8">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Portfolio configuration</h1>
+          <p className="page-sub">
+            Target weights and sub-allocations saved to the rebalancing policy.
+          </p>
+        </div>
         <button
           onClick={handleAddAllocation}
-          className="bg-[var(--color-accent)] text-black px-3 py-1 rounded hover:bg-[var(--color-accent-hover)]"
+          className="btn btn-secondary"
         >
-          + Add Allocation
+          <Plus size={15} aria-hidden="true" />
+          Add allocation
         </button>
       </div>
 
-      {Object.entries(config.targets).map(([target, data]: any) => (
-        <div
-          key={target}
-          className="mb-6 border border-[var(--color-bg-lighter)] rounded-lg p-4 bg-[var(--color-bg-lighter)/30]"
-        >
-          {/* Main allocation header */}
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-[var(--color-text-secondary)]">
-              {target}
-            </h3>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                step="0.01"
-                value={data.weight ?? 0}
-                onChange={(e) =>
-                  handleTargetChange(target, Number(e.target.value))
-                }
-                className="w-28 text-right border border-[var(--color-card)] bg-[var(--color-bg)] p-2 rounded text-[var(--color-text-primary)]"
-              />
-              <button
-                onClick={() => handleRemoveAllocation(target)}
-                className="bg-red-400 px-3 py-1 rounded text-white"
-              >
-                ✕ Delete
-              </button>
-            </div>
-          </div>
-
-          {/* Sub-allocations */}
-          {data.sub_allocations && (
-            <div className="ml-4">
-              <h4 className="text-sm mb-3 text-[var(--color-accent-hover)]">
-                Sub-Allocations
-              </h4>
-              <div className="space-y-2 ">
-                {Object.entries(data.sub_allocations).map(([sub, val]: any) => (
-                  <div
-                    key={sub}
-                    className="flex justify-between items-center border border-[var(--color-bg)] ml-4 rounded-md p-2"
-                  >
-                    <span>{sub}</span>
-                    <div className="flex gap-2 items-center ">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={val}
-                        onChange={(e) =>
-                          handleSubChange(target, sub, Number(e.target.value))
-                        }
-                        className="w-20 bg-[var(--color-bg)] p-1 rounded text-right text-[var(--color-text-primary)] border border-[var(--color-bg-lighter)] "
-                      />
-                      <button
-                        onClick={() => handleRemoveSub(target, sub)}
-                        className="bg-red-400 px-3 py-1 rounded text-white"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                ))}
+      <div className="space-y-4">
+        {Object.entries(config.targets).map(([target, data]: any) => (
+          <section key={target} className="card">
+            {/* Main allocation header */}
+            <div className="card-head flex-wrap">
+              <h2 className="card-title">{target}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="field-label mb-0" htmlFor={`weight-${target}`}>
+                  Weight %
+                </label>
+                <input
+                  id={`weight-${target}`}
+                  type="number"
+                  step="0.01"
+                  value={data.weight ?? 0}
+                  onChange={(e) =>
+                    handleTargetChange(target, Number(e.target.value))
+                  }
+                  className="field field-num"
+                />
+                <button
+                  onClick={() => handleRemoveAllocation(target)}
+                  className="btn btn-danger btn-sm"
+                  aria-label={`Delete ${target} allocation`}
+                >
+                  <Trash2 size={13} aria-hidden="true" />
+                  Delete
+                </button>
               </div>
-
-              <button
-                onClick={() => handleAddSub(target)}
-                className="text-sm text-[var(--color-accent)] hover:underline mt-3 block"
-              >
-                + Add Sub-Allocation
-              </button>
             </div>
-          )}
-        </div>
-      ))}
 
-      <button
-        onClick={saveConfig}
-        disabled={saving}
-        className="mt-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black px-4 py-2 rounded"
-      >
-        {saving ? "Saving..." : "💾 Save Configuration"}
-      </button>
+            {/* Sub-allocations */}
+            {data.sub_allocations && (
+              <div className="p-5">
+                <h3 className="label mb-3">Sub-allocations</h3>
+                <div className="space-y-2">
+                  {Object.entries(data.sub_allocations).map(([sub, val]: any) => (
+                    <div
+                      key={sub}
+                      className="well flex flex-wrap items-center justify-between gap-2"
+                    >
+                      <span className="text-[length:var(--text-sm)] font-medium text-[var(--color-ink)]">{sub}</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={val}
+                          onChange={(e) =>
+                            handleSubChange(target, sub, Number(e.target.value))
+                          }
+                          className="field field-num"
+                          aria-label={`${sub} weight`}
+                        />
+                        <button
+                          onClick={() => handleRemoveSub(target, sub)}
+                          className="btn btn-danger btn-sm btn-icon"
+                          aria-label={`Remove ${sub}`}
+                        >
+                          <Trash2 size={13} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => handleAddSub(target)}
+                  className="link mt-4 inline-flex items-center gap-1 text-[length:var(--text-sm)]"
+                >
+                  <Plus size={13} aria-hidden="true" />
+                  Add sub-allocation
+                </button>
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={saveConfig}
+          disabled={saving}
+          className="btn btn-primary"
+        >
+          <Save size={15} aria-hidden="true" />
+          {saving ? "Saving" : "Save configuration"}
+        </button>
+      </div>
     </div>
   );
 }

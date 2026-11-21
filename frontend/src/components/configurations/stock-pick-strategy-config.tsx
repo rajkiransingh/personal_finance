@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Plus, Trash2, Save } from 'lucide-react';
 
 export default function StockPickStrategyConfigPage() {
   const [config, setConfig] = useState<any>(null);
@@ -12,7 +13,7 @@ export default function StockPickStrategyConfigPage() {
       .then((data) => setConfig(data));
   }, []);
 
-  // ✅ Update metric value
+  // Update metric value
   const handleMetricChange = (strategy: string, metric: string, value: number) => {
     setConfig((prev: any) => ({
       ...prev,
@@ -29,7 +30,7 @@ export default function StockPickStrategyConfigPage() {
     }));
   };
 
-  // ✅ Update description
+  // Update description
   const handleDescriptionChange = (strategy: string, value: string) => {
     setConfig((prev: any) => ({
       ...prev,
@@ -43,7 +44,7 @@ export default function StockPickStrategyConfigPage() {
     }));
   };
 
-  // ✅ Add new metric
+  // Add new metric
   const handleAddMetric = (strategy: string) => {
     const metricName = prompt("Enter metric name:");
     if (!metricName) return;
@@ -62,7 +63,7 @@ export default function StockPickStrategyConfigPage() {
     }));
   };
 
-  // ✅ Remove a metric
+  // Remove a metric
   const handleRemoveMetric = (strategy: string, metric: string) => {
     setConfig((prev: any) => {
       const newMetrics = { ...prev.strategy[strategy].metrics };
@@ -80,7 +81,7 @@ export default function StockPickStrategyConfigPage() {
     });
   };
 
-  // ✅ Add new strategy (asks for name + description)
+  // Add new strategy (asks for name + description)
   const handleAddStrategy = () => {
     const name = prompt("Enter new strategy name:");
     if (!name) return;
@@ -97,7 +98,7 @@ export default function StockPickStrategyConfigPage() {
     }));
   };
 
-  // ✅ Remove a strategy
+  // Remove a strategy
   const handleRemoveStrategy = (strategy: string) => {
     setConfig((prev: any) => {
       const newStrategies = { ...prev.strategy };
@@ -106,7 +107,7 @@ export default function StockPickStrategyConfigPage() {
     });
   };
 
-  // ✅ Save + show success popup
+  // Save and report the result
   const saveConfig = async () => {
     setSaving(true);
     const res = await fetch("/api/config/stock-picking-strategy-config", {
@@ -117,104 +118,123 @@ export default function StockPickStrategyConfigPage() {
     setSaving(false);
 
     if (res.ok) {
-      alert("✅ Configuration saved successfully!");
+      alert("Configuration saved successfully.");
     } else {
-      alert("❌ Failed to save configuration. Please check the console.");
+      alert("Failed to save configuration. Please check the console.");
     }
   };
 
-  if (!config) return <div>Loading configuration...</div>;
+  if (!config) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Loading configuration">
+        <div className="skeleton h-9 w-1/3" />
+        <div className="skeleton h-48 w-full" />
+        <div className="skeleton h-48 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-[var(--color-card)] p-6 rounded-xl shadow-md space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold text-[var(--color-accent)]">
-          Stock Score Configuration
-        </h2>
+    <div className="space-y-6 pb-8">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Stock score configuration</h1>
+          <p className="page-sub">
+            Scoring strategies and the metrics each one weighs.
+          </p>
+        </div>
         <button
           onClick={handleAddStrategy}
-          className="bg-[var(--color-accent)] text-black px-3 py-1 rounded hover:bg-[var(--color-accent-hover)]"
+          className="btn btn-secondary"
         >
-          + Add Strategy
+          <Plus size={15} aria-hidden="true" />
+          Add strategy
         </button>
       </div>
 
-      {Object.entries(config.strategy).map(([strategy, data]: any) => (
-        <div
-          key={strategy}
-          className="border border-[var(--color-bg-lighter)] p-4 rounded-lg bg-[var(--color-bg-lighter)/20] space-y-4"
-        >
-          {/* Strategy header */}
-          <div className="border border-[var(--color-card)] rounded-md p-3 bg-[var(--color-bg)] space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-[var(--color-text-secondary)]">
-                {strategy}
-              </h3>
+      <div className="space-y-4">
+        {Object.entries(config.strategy).map(([strategy, data]: any) => (
+          <section key={strategy} className="card">
+            {/* Strategy header */}
+            <div className="card-head flex-wrap">
+              <h2 className="card-title">{strategy}</h2>
               <button
                 onClick={() => handleRemoveStrategy(strategy)}
-                className="bg-red-400 px-3 py-1 rounded text-white"
+                className="btn btn-danger btn-sm"
               >
-                ✕ Delete Strategy
+                <Trash2 size={13} aria-hidden="true" />
+                Delete strategy
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-[var(--color-accent-hover)]">Description:</span>
-              <input
-                type="text"
-                value={data.description}
-                onChange={(e) => handleDescriptionChange(strategy, e.target.value)}
-                className="flex-1 p-1 rounded text-[var(--color-text-primary)] bg-[var(--color-bg)]"
-              />
-            </div>
-          </div>
-
-          {/* Metrics */}
-          <h4 className="text-sm font-medium text-[var(--color-accent-hover)] ml-4">Metrics</h4>
-          <div className="space-y-2 ml-6">
-            {Object.entries(data.metrics).map(([metric, value]: any) => (
-              <div
-                key={metric}
-                className="flex justify-between items-center border border-[var(--color-bg-lighter)] rounded-md p-2"
-              >
-                <span>{metric}</span>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={value}
-                    onChange={(e) =>
-                      handleMetricChange(strategy, metric, Number(e.target.value))
-                    }
-                    className="w-24 p-1 rounded text-right border border-[var(--color-bg-lighter)] bg-[var(--color-bg)] text-[var(--color-text-primary)]"
-                  />
-                  <button
-                    onClick={() => handleRemoveMetric(strategy, metric)}
-                    className="bg-red-400 px-3 py-1 rounded text-white"
-                  >
-                    ✕
-                  </button>
-                </div>
+            <div className="p-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <label className="field-label mb-0 shrink-0" htmlFor={`desc-${strategy}`}>
+                  Description
+                </label>
+                <input
+                  id={`desc-${strategy}`}
+                  type="text"
+                  value={data.description}
+                  onChange={(e) => handleDescriptionChange(strategy, e.target.value)}
+                  className="field flex-1"
+                />
               </div>
-            ))}
-          </div>
 
-          <button
-            onClick={() => handleAddMetric(strategy)}
-            className="text-sm text-[var(--color-accent)] hover:underline mt-2 block"
-          >
-            + Add Metric
-          </button>
-        </div>
-      ))}
+              {/* Metrics */}
+              <h3 className="label mb-3 mt-5">Metrics</h3>
+              <div className="space-y-2">
+                {Object.entries(data.metrics).map(([metric, value]: any) => (
+                  <div
+                    key={metric}
+                    className="well flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <span className="text-[length:var(--text-sm)] font-medium text-[var(--color-ink)]">{metric}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={value}
+                        onChange={(e) =>
+                          handleMetricChange(strategy, metric, Number(e.target.value))
+                        }
+                        className="field field-num"
+                        aria-label={`${metric} value`}
+                      />
+                      <button
+                        onClick={() => handleRemoveMetric(strategy, metric)}
+                        className="btn btn-danger btn-sm btn-icon"
+                        aria-label={`Remove ${metric}`}
+                      >
+                        <Trash2 size={13} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-      <button
-        onClick={saveConfig}
-        disabled={saving}
-        className="mt-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-black px-4 py-2 rounded"
-      >
-        {saving ? "Saving..." : "💾 Save Configuration"}
-      </button>
+              <button
+                onClick={() => handleAddMetric(strategy)}
+                className="link mt-4 inline-flex items-center gap-1 text-[length:var(--text-sm)]"
+              >
+                <Plus size={13} aria-hidden="true" />
+                Add metric
+              </button>
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={saveConfig}
+          disabled={saving}
+          className="btn btn-primary"
+        >
+          <Save size={15} aria-hidden="true" />
+          {saving ? "Saving" : "Save configuration"}
+        </button>
+      </div>
     </div>
   );
 }

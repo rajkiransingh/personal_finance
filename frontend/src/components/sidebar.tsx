@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { usePathname } from "next/navigation";
 import {
-  ChevronDown,
   ChevronRight,
   BarChart3,
   PieChart,
@@ -16,79 +15,111 @@ import {
   Settings,
   Home,
   FileText,
+  Menu,
+  X,
 } from "lucide-react";
 
-// 🔹 Menu Structure — scalable & nested
-const navItems = [
-  { name: "Dashboard", path: "/", icon: <Home size={16} /> },
-  { name: "Transactions", path: "/transactions", icon: <FileText size={16} /> },
+interface NavChild {
+  name: string;
+  path?: string;
+  available?: boolean;
+  icon?: React.ReactNode;
+  children?: NavChild[];
+}
+
+interface NavItem {
+  name: string;
+  path?: string;
+  available?: boolean;
+  icon: React.ReactNode;
+  children?: NavChild[];
+}
+
+const navItems: NavItem[] = [
+  { name: "Dashboard", path: "/", icon: <Home size={17} /> },
+  { name: "Transactions", path: "/transactions", icon: <FileText size={17} /> },
   {
     name: "Analytics",
-    icon: <BarChart3 size={16} />,
+    icon: <BarChart3 size={17} />,
     children: [
       {
         name: "Portfolio Rebalancing",
-        icon: <PieChart size={16} />,
+        icon: <PieChart size={15} />,
         children: [
           { name: "Overview", path: "/analytics/portfolio-rebalancing/overview" },
-          { name: "Sub Allocations", path: "/analytics/portfolio-rebalancing/sub-allocations" },
-          { name: "Step-up Strategy", path: "/analytics/portfolio-rebalancing/step-up-strategy" },
+          { name: "Sub Allocations", path: "/analytics/portfolio-rebalancing/sub-allocations", available: false },
+          { name: "Step-up Strategy", path: "/analytics/portfolio-rebalancing/step-up-strategy", available: false },
         ],
       },
       {
         name: "Investment Breakdown",
-        icon: <Wallet size={16} />,
+        icon: <Wallet size={15} />,
         children: [
           { name: "By Category", path: "/analytics/investment-breakdown/by-category" },
-          { name: "Individual Holdings", path: "/analytics/investment-breakdown/individual-holdings" },
+          { name: "Individual Holdings", path: "/analytics/investment-breakdown/individual-holdings", available: false },
         ],
       },
       {
-        name: "Screen & Discover", path: "/screen&discover", icon: <TrendingUp size={16} /> },
+        name: "Screen & Discover",
+        path: "/screen&discover",
+        icon: <TrendingUp size={15} />,
+      },
       {
         name: "Trends & Risks",
-        icon: <LineChart size={16} />,
+        icon: <LineChart size={15} />,
         children: [
-          { name: "Performance Vs Benchmark", path: "/analytics/trends-risks/performance-vs-benchmark" },
-          { name: "Risk Heatmap", path: "/analytics/trends-risks/risk-heatmap" },
+          { name: "Performance Vs Benchmark", path: "/analytics/trends-risks/performance-vs-benchmark", available: false },
+          { name: "Risk Heatmap", path: "/analytics/trends-risks/risk-heatmap", available: false },
         ],
       },
       {
         name: "Goals",
-        icon: <Target size={16} />,
-        children: [{ name: "Goal Tracker", path: "/analytics/goals/goal-tracker" }],
+        icon: <Target size={15} />,
+        children: [{ name: "Goal Tracker", path: "/analytics/goals/goal-tracker", available: false }],
       },
       {
         name: "Income & Timeline",
-        icon: <Coins size={16} />,
+        icon: <Coins size={15} />,
         children: [
           { name: "Dividends", path: "/analytics/income-timeline/dividends" },
-          { name: "Allocation History", path: "/analytics/income-timeline/allocation-history" },
+          { name: "Allocation History", path: "/analytics/income-timeline/allocation-history", available: false },
         ],
       },
     ],
   },
   {
-    name: "Configurations", icon: <FileText size={16} />,
+    name: "Configurations",
+    icon: <Settings size={17} />,
     children: [
       { name: "Portfolio Config", path: "/configurations/portfolio-config" },
       { name: "Stock Strategy", path: "/configurations/stock-picking-strategy" },
-      { name: "Environment Configuration", path: "/configurations/environment" }
+      { name: "Environment Configuration", path: "/configurations/environment" },
     ],
   },
   {
-      name: "Settings", icon: <Settings size={16} />,
-      children: [
-      { name: "Supporting Data", path: "/settings/supporting-data" }
+    name: "Settings",
+    icon: <Settings size={17} />,
+    children: [
+      { name: "Supporting Data", path: "/settings/supporting-data" },
     ],
   },
 ];
 
+// Routes marked available: false stay in this file for later tasks but are
+// hidden in the sidebar. Flip the flag when the route becomes real.
+function isVisible(item: any): boolean {
+  if (item.available === false) return false;
+  if (Array.isArray(item.children) && item.children.length) {
+    return item.children.some(isVisible);
+  }
+  return true;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ Analytics: true });
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // ✅ Restore menu state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("sidebarOpenMenus");
     if (saved) {
@@ -100,117 +131,186 @@ export default function Sidebar() {
     }
   }, []);
 
-  // ✅ Save menu state whenever it changes
   useEffect(() => {
     localStorage.setItem("sidebarOpenMenus", JSON.stringify(openMenus));
   }, [openMenus]);
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   const toggleMenu = (menuName: string) => {
-    setOpenMenus((prev) => {
-      const updated = { ...prev, [menuName]: !prev[menuName] };
-      localStorage.setItem("sidebarOpenMenus", JSON.stringify(updated)); // immediate persist
-      return updated;
-    });
+    setOpenMenus((prev) => ({
+      ...prev,
+      [menuName]: !prev[menuName],
+    }));
   };
 
   return (
-    <aside className="bg-[var(--color-sidebar)] text-[var(--color-text-primary)] w-72 min-h-screen p-6 flex flex-col shadow-lg border-r border-[var(--color-card)]">
-      {/* Header / Logo */}
-      <div className="mb-10 px-2">
-        <div className="flex items-center gap-3 group">
-          <div className="bg-[var(--color-accent)] p-2.5 rounded-xl text-black shadow-lg transform group-hover:scale-110 transition-transform duration-300">
-            <TrendingUp size={24} strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-secondary)] leading-none">
-              MERA
-            </h1>
-            <h1 className="text-xl font-light tracking-[0.2em] text-[var(--color-accent)] leading-none mt-1">
-              PAISA
-            </h1>
-          </div>
-        </div>
-        <div className="h-[2px] w-full bg-gradient-to-r from-[var(--color-accent)] to-transparent mt-6 opacity-20"></div>
+    <>
+      <div className="fixed left-4 top-3 z-[310] lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={mobileOpen}
+          className="btn btn-secondary btn-icon"
+        >
+          {mobileOpen ? <X size={19} /> : <Menu size={19} />}
+        </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="space-y-1 flex-1 text-sm overflow-y-auto pr-2 custom-scrollbar">
-        {navItems.map((item) => (
-          <SidebarItem key={item.name} item={item} depth={0} pathname={pathname} openMenus={openMenus} toggleMenu={toggleMenu} />
-        ))}
-      </nav>
-    </aside>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-[305] bg-[color-mix(in_oklab,var(--color-ink)_38%,transparent)] lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`rail fixed left-0 top-0 z-[300] flex h-screen w-[var(--rail)] flex-col border-r border-[var(--color-rule)] transition-transform duration-[var(--dur-short)] ease-[var(--ease-out)] lg:visible lg:sticky lg:translate-x-0 ${
+          mobileOpen ? "visible translate-x-0" : "invisible -translate-x-full"
+        }`}
+      >
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-[var(--color-rule)] px-5">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="Mera Paisa, dashboard">
+            <span className="brand-mark" aria-hidden="true">M</span>
+            <span className="flex flex-col gap-0.5">
+              <span className="wordmark text-[var(--color-sidebar-ink)]">Mera Paisa</span>
+              <span className="text-[11px] font-medium text-[var(--color-sidebar-muted)]">
+                money, made clear
+              </span>
+            </span>
+          </Link>
+        </div>
+
+        <nav
+          className="custom-scrollbar flex-1 space-y-0.5 overflow-y-auto px-3 py-4"
+          aria-label="Primary"
+        >
+          <div className="rail-cap">Your space</div>
+          {navItems.filter(isVisible).map((item) => (
+            <Fragment key={item.name}>
+              {item.name === "Configurations" && <div className="rail-cap">Manage</div>}
+              <SidebarItem
+                item={item}
+                depth={0}
+                pathname={pathname}
+                openMenus={openMenus}
+                toggleMenu={toggleMenu}
+              />
+            </Fragment>
+          ))}
+        </nav>
+
+        <div className="shrink-0 border-t border-[var(--color-rule)] p-3">
+          <div className="flex items-center gap-2.5 rounded-[var(--radius-panel)] bg-[var(--color-sidebar-2)] px-3 py-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--color-surface)] text-[11px] font-extrabold text-[var(--color-primary)] shadow-[var(--shadow-chip)]">
+              RS
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12px] font-bold text-[var(--color-sidebar-ink)]">
+                Rajkiran
+              </span>
+              <span className="block truncate text-[11px] font-medium text-[var(--color-sidebar-muted)]">
+                Personal account
+              </span>
+            </span>
+            <span className="rounded-full border border-[color-mix(in_oklab,var(--color-primary)_30%,transparent)] bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-primary)]">
+              INR
+            </span>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }
 
-// Recursive Sidebar Item Component
-function SidebarItem({ item, depth, pathname, openMenus, toggleMenu }: any) {
-  const isOpen = openMenus[item.name];
+function SidebarItem({
+  item,
+  depth,
+  pathname,
+  openMenus,
+  toggleMenu,
+}: {
+  item: any;
+  depth: number;
+  pathname: string;
+  openMenus: Record<string, boolean>;
+  toggleMenu: (name: string) => void;
+}) {
+  const isOpen = !!openMenus[item.name];
   const hasChildren = Array.isArray(item.children) && item.children.length > 0;
   const isActive = pathname === item.path;
 
-  // Indentation calculation
-  const paddingLeft = `${depth * 12 + 16}px`;
+  const isParentOfActive =
+    hasChildren &&
+    item.children.some(
+      (child: any) =>
+        child.path === pathname ||
+        (child.children && child.children.some((sub: any) => sub.path === pathname))
+    );
+
+  const paddingLeft = depth === 0 ? 10 : depth * 10 + 10;
+
+  if (hasChildren) {
+    return (
+      <div className="w-full">
+        <button
+          type="button"
+          onClick={() => toggleMenu(item.name)}
+          aria-expanded={isOpen}
+          aria-current={isParentOfActive ? "true" : undefined}
+          className="rail-link w-full justify-between"
+          style={{ paddingLeft, paddingRight: 10 }}
+        >
+          <span className="flex min-w-0 items-center gap-2.5">
+            {item.icon && (
+              <span className={isParentOfActive ? "text-[var(--color-accent)]" : "opacity-70"}>
+                {item.icon}
+              </span>
+            )}
+            <span className="truncate">{item.name}</span>
+          </span>
+          <ChevronRight
+            size={14}
+            aria-hidden="true"
+            className={`shrink-0 opacity-70 transition-transform duration-[var(--dur-short)] ease-[var(--ease-out)] ${
+              isOpen ? "rotate-90" : ""
+            }`}
+          />
+        </button>
+
+        {isOpen && (
+          <div className="mt-0.5 space-y-0.5 border-l border-[var(--color-rule)] pl-1.5 ml-3">
+            {item.children.filter(isVisible).map((child: any) => (
+              <SidebarItem
+                key={child.name}
+                item={child}
+                depth={depth + 1}
+                pathname={pathname}
+                openMenus={openMenus}
+                toggleMenu={toggleMenu}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="mb-1">
-      {hasChildren ? (
-        <>
-          <button
-            onClick={() => toggleMenu(item.name)}
-            className={`flex items-center justify-between w-full py-2 rounded-lg font-medium transition-all duration-200 group ${
-              isOpen ? "text-white" : "text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-card)]"
-            }`}
-             style={{ paddingLeft, paddingRight: '12px' }}
-          >
-            <span className="flex items-center gap-3">
-              {item.icon && <span className={`${isOpen ? 'text-[var(--color-accent)]' : 'text-gray-500 group-hover:text-[var(--color-accent)]'}`}>{item.icon}</span>}
-              <span className="tracking-wide">{item.name}</span>
-            </span>
-            <ChevronRight
-              size={16}
-              className={`transition-transform duration-300 ${isOpen ? "rotate-90 text-[var(--color-accent)]" : "text-gray-600"}`}
-            />
-          </button>
-
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out pl-2 border-l border-[var(--color-border)] ml-${depth * 2 + 4}`}
-            style={{
-              maxHeight: isOpen ? "1000px" : "0px",
-              opacity: isOpen ? 1 : 0,
-            }}
-          >
-            <div className="pt-1 pb-2 space-y-1">
-              {item.children.map((child: any) => (
-                <SidebarItem
-                  key={child.name}
-                  item={child}
-                  depth={depth + 1}
-                  pathname={pathname}
-                  openMenus={openMenus}
-                  toggleMenu={toggleMenu}
-                />
-              ))}
-            </div>
-          </div>
-        </>
-      ) : (
-        <Link
-          href={item.path ?? "#"}
-          className={`flex items-center gap-3 py-2 rounded-lg font-medium transition-all duration-150 relative overflow-hidden ${
-            isActive
-              ? "bg-gradient-to-r from-[var(--color-accent)]/10 to-transparent text-[var(--color-accent)]"
-              : "text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-card)]"
-          }`}
-          style={{ paddingLeft, paddingRight: '12px' }}
-        >
-          {isActive && (
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent)] rounded-r-full" />
-          )}
-          {item.icon && <span className={isActive ? "text-[var(--color-accent)]" : "text-gray-500"}>{item.icon}</span>}
-          <span>{item.name}</span>
-        </Link>
+    <Link
+      href={item.path ?? "#"}
+      aria-current={isActive ? "page" : undefined}
+      className="rail-link"
+      style={{ paddingLeft, paddingRight: 10 }}
+    >
+      {item.icon && (
+        <span className={isActive ? "text-[var(--color-accent)]" : "opacity-70"}>{item.icon}</span>
       )}
-    </div>
+      <span className="truncate">{item.name}</span>
+    </Link>
   );
 }

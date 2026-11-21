@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
+import { Plus, X, Pencil, Trash2 } from "lucide-react";
 
 interface RowData extends Record<string, any> {}
 interface FormData extends Record<string, any> {}
@@ -180,117 +181,146 @@ const fetchCurrencies = async () => {
   };
 
   return (
-    <div className="mb-4 shadow-lg">
-      <h1 className="text-2xl font-bold mb-4">Master Data Configuration</h1>
+    <div className="space-y-6 pb-8">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Master data configuration</h1>
+          <p className="page-sub">
+            The reference lists every transaction, portfolio and region points at.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setShowForm(true);
+            setEditingRow(null);
+            setFormData({});
+          }}
+          className="btn btn-primary"
+        >
+          <Plus size={15} aria-hidden="true" />
+          Add record
+        </button>
+      </div>
 
-      <div className="flex justify-between items-center p-3 bg-[var(--color-card)] rounded-t-2xl transition-all duration-200">
+      <div className="seg" role="tablist" aria-label="Master data section">
         {Object.keys(sections).map((s) => (
           <button
             key={s}
+            role="tab"
+            aria-selected={activeSection === s}
             onClick={() => setActiveSection(s)}
-            className={`px-10 py-1 rounded-xl ${
-              activeSection === s
-                ? "bg-[var(--color-accent)] text-black"
-                : "bg-[var(--color-bg-lighter)] text-white"
-            }`}
+            className={`seg-item ${activeSection === s ? "is-active" : ""}`}
           >
             {s}
           </button>
         ))}
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="flex justify-between p-2 bg-[var(--color-card)]">
-          <h2 className="text-2xl font-semibold text-[var(--color-accent)]">
-            {activeSection}
-          </h2>
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setEditingRow(null);
-              setFormData({});
-            }}
-            className="bg-[var(--color-accent)] hover:opacity-90 text-black px-6 py-1 rounded-xl"
-          >
-            + Add
-          </button>
+      <section className="card overflow-hidden">
+        <div className="card-head">
+          <h2 className="card-title">{activeSection}</h2>
+          <span className="card-note">{data[activeSection]?.length || 0} records</span>
         </div>
 
-        {data[activeSection]?.length > 0 ? (
-          <table className="min-w-full border border-gray-700 text-sm bg-[var(--color-bg-lighter)]">
-            <thead>
-              <tr className="text-left border-b border-gray-500">
-                {fieldMappings[activeSection]?.map((field) => (
-                  <th key={field} className="p-2 capitalize">
-                    {field.replace(/_/g, " ")}
-                  </th>
-                ))}
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data[activeSection].map((row, idx) => {
-                const idKey = idKeyMappings[activeSection];
-                const rowId = row[idKey];
-                return (
-                  <tr key={rowId || idx} className="border-b border-gray-700 ">
-                    {fieldMappings[activeSection]?.map((field) => (
-                      <td key={field} className="p-2">
-                        {row[field] || '-'}
+        <div className="overflow-x-auto px-2 sm:px-3">
+          {data[activeSection]?.length > 0 ? (
+            <table className="table">
+              <thead>
+                <tr>
+                  {fieldMappings[activeSection]?.map((field) => (
+                    <th key={field}>
+                      {field.replace(/_/g, " ")}
+                    </th>
+                  ))}
+                  <th className="num">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data[activeSection].map((row, idx) => {
+                  const idKey = idKeyMappings[activeSection];
+                  const rowId = row[idKey];
+                  return (
+                    <tr key={rowId || idx}>
+                      {fieldMappings[activeSection]?.map((field) => (
+                        <td key={field}>
+                          {row[field] || <span className="text-[var(--color-muted)]">Not set</span>}
+                        </td>
+                      ))}
+                      <td className="num">
+                        <span className="inline-flex items-center gap-2">
+                          <button
+                            onClick={() => handleEdit(row)}
+                            className="btn btn-secondary btn-sm"
+                          >
+                            <Pencil size={12} aria-hidden="true" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(activeSection, rowId)}
+                            className="btn btn-danger btn-sm"
+                          >
+                            <Trash2 size={12} aria-hidden="true" />
+                            Delete
+                          </button>
+                        </span>
                       </td>
-                    ))}
-                    <td className="p-2 space-x-2">
-                      <button
-                        onClick={() => handleEdit(row)}
-                        className="bg-blue-400 px-3 py-1 rounded text-white"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(activeSection, rowId)}
-                        className="bg-red-400 px-3 py-1 rounded text-white"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : (
-          <p>No records found.</p>
-        )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">
+              <p className="state-title">No records found</p>
+              <p className="text-[length:var(--text-sm)]">Add the first {activeSection.toLowerCase()} record to start using it.</p>
+            </div>
+          )}
+        </div>
+      </section>
 
-        {showForm && (
-          <div className="fixed inset-0 flex items-center justify-center ">
-            <div className="bg-gray-900 p-6 rounded-2xl shadow-2xl w-[400px]">
-              <h3 className="text-lg font-semibold mb-4">
-                {editingRow ? `Edit ${activeSection}` : `Add New ${activeSection}`}
+      {showForm && (
+          <div className="fixed inset-0 z-[400] flex items-start justify-center overflow-y-auto bg-[color-mix(in_oklab,var(--color-ink)_55%,transparent)] p-4 backdrop-blur-[2px] sm:items-center">
+            <div className="card relative my-8 w-full max-w-[440px] p-6">
+              <button
+                onClick={() => {
+                  setShowForm(false);
+                  setFormData({});
+                  setEditingRow(null);
+                }}
+                className="btn btn-ghost btn-icon btn-sm absolute right-4 top-4"
+                aria-label="Close form"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+
+              <h3 className="section-title mb-5 pr-10">
+                {editingRow ? `Edit ${activeSection}` : `Add new ${activeSection}`}
               </h3>
 
               {fieldMappings[activeSection]?.filter(f => f !== 'category_name').map((field) => (
                 <div key={field} className="mb-3">
-                  <label className="block text-sm capitalize mb-1 text-gray-300">
+                  <label className="field-label" htmlFor={`field-${field}`}>
                     {field.replace(/_/g, " ")}
                   </label>
                   <input
+                    id={`field-${field}`}
                     type="text"
                     value={formData[field] || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, [field]: e.target.value })
                     }
-                    className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-white"
+                    className="field"
                   />
                 </div>
               ))}
 
               {activeSection === "Investment Subcategories" && (
                 <div className="mb-3">
-                  <label className="block text-sm capitalize mb-1 text-gray-300">
+                  <label className="field-label" htmlFor="field-category">
                     Category
                   </label>
                   <select
+                    id="field-category"
                     value={formData["category_id"] || ""}
                     onChange={(e) =>
                       setFormData({
@@ -298,7 +328,7 @@ const fetchCurrencies = async () => {
                         category_id: parseInt(e.target.value),
                       })
                     }
-                    className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-white"
+                    className="field"
                   >
                     <option value="">Select Category</option>
                     {investmentCategories.map((cat) => (
@@ -315,10 +345,11 @@ const fetchCurrencies = async () => {
 
               {activeSection === "Regions" && (
               <div className="mb-3">
-                <label className="block text-sm capitalize mb-1 text-gray-300">
+                <label className="field-label" htmlFor="field-currency">
                   Currency
                 </label>
                 <select
+                  id="field-currency"
                   value={formData["currency_id"] || ""}
                   onChange={(e) =>
                     setFormData({
@@ -326,7 +357,7 @@ const fetchCurrencies = async () => {
                       currency_id: parseInt(e.target.value),
                     })
                   }
-                  className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-white"
+                  className="field"
                 >
                   <option value="">Select Currency</option>
                   {currencies.map((cur) => (
@@ -341,28 +372,27 @@ const fetchCurrencies = async () => {
               </div>
             )}
 
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="mt-5 flex justify-end gap-2 border-t border-[var(--color-rule)] pt-4">
                 <button
                   onClick={() => {
                     setShowForm(false);
                     setFormData({});
                     setEditingRow(null);
                   }}
-                  className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-white"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="bg-[var(--color-accent)] hover:opacity-90 px-4 py-2 rounded text-black"
+                  className="btn btn-primary"
                 >
                   Save
                 </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

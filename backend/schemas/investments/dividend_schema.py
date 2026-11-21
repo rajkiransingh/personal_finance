@@ -32,3 +32,13 @@ class DividendResponse(DividendBase):
 
     class Config:
         from_attributes = True
+
+
+class DividendAnalyticsResponse(BaseModel):
+    id: int
+    stock_symbol: str
+    stock_name: str | None = None
+    amount: float
+    currency_code: str
+    date: date
+    value_inr: float

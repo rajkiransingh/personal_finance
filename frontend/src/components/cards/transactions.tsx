@@ -1,43 +1,49 @@
+import React from "react";
+
 interface Transaction {
   date: string;
-  category: string
-  amount: string;
+  category: string;
+  amount: string | number;
 }
 
-const formatCurrency = (value: number) => {
-    return `₹ ${value.toFixed(2)}`;
-  };
+const formatCurrency = (value: number | string) => {
+  const num = typeof value === 'number' ? value : parseFloat(value) || 0;
+  return `₹ ${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 export default function TransactionTable({ data }: { data: Transaction[] }) {
   return (
-    <div className="bg-[var(--color-card)] rounded-2xl shadow-sm p-4">
-      <h2 className="text-lg font-semibold mb-4 text-[var(--color-text)]">
-        Recent Transactions
-      </h2>
+    <section className="card overflow-hidden">
+      <div className="card-head">
+        <div>
+          <h2 className="card-title">Recent transactions</h2>
+          <p className="card-note">Showing latest records</p>
+        </div>
+      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto px-2 sm:px-3">
+        <table className="table">
           <thead>
-            <tr className="border-b border-[var(--color-border)] text-[var(--color-text-secondary)]">
-              <th className="text-left py-2 font-medium">Date</th>
-              <th className="text-left py-2 font-medium">Category</th>
-              <th className="text-right py-2 font-medium">Amount</th>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th className="num">Amount</th>
             </tr>
           </thead>
 
           <tbody>
             {data.map((tx, index) => (
-              <tr
-                key={index}
-                className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] transition-colors">
-                <td className="py-3 text-[var(--color-text-secondary)]">{tx.date}</td>
-                <td className="py-3 flex items-center gap-3 text-[var(--color-text)]">{tx.category}</td>
-                <td className="py-3 text-right font-semibold text-[var(--color-accent)]">{formatCurrency(tx.amount)}</td>
+              <tr key={index}>
+                <td className="whitespace-nowrap text-[var(--color-muted)]">{tx.date}</td>
+                <td className="font-medium text-[var(--color-ink)]">{tx.category}</td>
+                <td className="num font-semibold text-[var(--color-ink)]">
+                  {formatCurrency(tx.amount)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }

@@ -12,103 +12,158 @@ interface EarningsData {
   Crypto: number;
 }
 
+const colorMap: Record<string, string> = {
+  Cash: 'var(--chart-2)',
+  Stocks: 'var(--chart-3)',
+  'Mutual Fund': 'var(--chart-5)',
+  Gold: 'var(--chart-1)',
+  Silver: 'var(--chart-7)',
+  Land: 'var(--chart-6)',
+  Crypto: 'var(--chart-4)',
+};
+
+const formatCurrency = (value: number): string => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '₹ 0';
+  const absValue = Math.abs(value);
+  if (absValue >= 10000000) {
+    return `₹ ${(value / 10000000).toFixed(2)} Cr`;
+  } else if (absValue >= 100000) {
+    return `₹ ${(value / 100000).toFixed(2)} L`;
+  } else if (absValue >= 1000) {
+    return `₹ ${(value / 1000).toFixed(1)} K`;
+  } else {
+    return `₹ ${value.toLocaleString('en-IN')}`;
+  }
+};
+
 export default function InvestmentPieChart({ earnings }: { earnings: EarningsData }) {
   if (!earnings) return null;
 
-  const data = Object.entries(earnings).map(([key, value]) => ({
-    name: key.replace(/_/g, ' '),
-    value,
-  }));
+  const data = Object.entries(earnings)
+    .map(([key, value]) => ({
+      name: key.replace(/_/g, ' '),
+      value: Number(value) || 0,
+    }))
+    .filter((d) => d.value > 0);
 
-  const total = Object.values(earnings).reduce((a, b) => a + b, 0);
-
-  const colorMap: Record<string, string> = {
-    Cash: '#50C878',
-    Stocks: '#F28500',
-    'Mutual Fund': '#99FFFF',
-    Gold: '#FADA5E',
-    Silver: '#E5E4E2',
-    Land: '#9F8170',
-    Crypto: '#FFB7C5',
-  };
+  const total = Object.values(earnings).reduce((a, b) => a + (Number(b) || 0), 0);
 
   return (
-    <div className="w-full h-[445px] flex flex-col sm:flex-row justify-center items-center sm:items-start">
-
-      {/* Chart Section */}
-      <div className="w-full sm:w-2/3 h-[420px]">
+    <div className="flex w-full flex-col items-center justify-center gap-4 py-2">
+      <div
+        className="relative h-[300px] w-full md:h-[380px]"
+        role="img"
+        aria-label={`Asset distribution: ${data
+          .map((entry) => `${entry.name} ${total > 0 ? ((entry.value / total) * 100).toFixed(1) : '0.0'} percent`)
+          .join(', ')}`}
+      >
         <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            innerRadius={150}
-            outerRadius={200}
-            paddingAngle={4}
-            isAnimationActive={true}
-            animationDuration={800}
-          >
-            {data.map((entry) => (
-              <Cell key={`cell-${entry.name}`} fill={colorMap[entry.name] || '#ccc'} />
-            ))}
-          </Pie>
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius="52%"
+              outerRadius="82%"
+              paddingAngle={2}
+              isAnimationActive={false}
+            >
+              {data.map((entry) => (
+                <Cell
+                  key={`cell-${entry.name}`}
+                  fill={colorMap[entry.name] || 'var(--color-muted)'}
+                  stroke="var(--color-surface)"
+                  strokeWidth={2}
+                />
+              ))}
+            </Pie>
 
-          <Tooltip contentStyle={{
-                                  backgroundColor: 'var(--color-card)',
-                                  border: '1px solid var(--color-bg)',
-                                  color: 'var(--color-text-primary)',
-                                 }}
-                             content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const value = payload[0].value;
-                              const percentage = ((value / total) * 100).toFixed(1);
-                              return (
-                                <div className="p-2">
-                                  <p className="text-white">
-                                    {payload[0].name}: ₹{value.toLocaleString('en-IN')} ({percentage}%)
-                                  </p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-          />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const entry = payload[0];
+                  const value = Number(entry.value) || 0;
+                  const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                  return (
+                    <div className="rounded-[var(--radius-panel)] border border-[var(--color-edge)] bg-[var(--color-surface)] p-3 text-xs shadow-[var(--shadow-pop)]">
+                      <div className="mb-1 flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: colorMap[entry.name as string] || 'var(--color-muted)' }}
+                        />
+                        <span className="font-semibold text-[var(--color-ink)]">{entry.name}</span>
+                      </div>
+                      <div className="flex justify-between gap-4 text-[var(--color-ink-2)]">
+                        <span>Amount</span>
+                        <span className="font-semibold tabular-nums text-[var(--color-ink)]">
+                          ₹{value.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 flex justify-between gap-4 text-[var(--color-muted)]">
+                        <span>Share</span>
+                        <span className="font-medium tabular-nums text-[var(--color-accent)]">{pct}%</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
 
-          {/* Center Text */}
-          <text
-            x="50%"
-            y="50%"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className="fill-[var(--color-text-primary)] font-semibold text-xl"
-          >
-            ₹{total.toLocaleString('en-IN')}
-          </text>
-        </PieChart>
-      </ResponsiveContainer>
+            <text
+              x="50%"
+              y="46%"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="var(--color-muted)"
+              fontSize={12}
+              fontWeight={600}
+            >
+              Assets before liabilities
+            </text>
+            <text
+              x="50%"
+              y="56%"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="var(--color-ink)"
+              fontSize={26}
+              fontWeight={700}
+            >
+              {formatCurrency(total)}
+            </text>
+          </PieChart>
+        </ResponsiveContainer>
       </div>
 
-
-      {/* Legend Section */}
-      <div className="mt-2 sm:mt-4 sm:ml-2 flex flex-col justify-right gap-2 text-sm text-[var(--color-text-secondary)]">
-        {data.map(({ name, value }) => (
-          <div key={name} className="flex justify-between items-center min-w-[200px] gap-2"> {/* this one aligns the space between text and amount */}
-            <div className="flex items-center gap-2 min-w-[100px] text-left">  {/* this one aligns the dots with text and spacing */}
-              <span
-                className="inline-block w-3 h-3 rounded-full"
-                style={{ backgroundColor: colorMap[name] || '#ccc' }}
-              ></span>
-              {name}
+      <div className="grid w-full grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-4">
+        {data.map(({ name, value }) => {
+          const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+          return (
+            <div
+              key={name}
+              className="flex flex-col items-center gap-0.5 rounded-[8px] px-1 py-1.5 text-[12px] transition-colors duration-[var(--dur-micro)] hover:bg-[var(--color-well)]"
+            >
+              <span className="flex max-w-full items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: colorMap[name] || 'var(--color-muted)' }}
+                />
+                <span className="truncate font-medium text-[var(--color-ink-2)]">{name}</span>
+                <span className="text-[11px] text-[var(--color-muted)]">{pct}%</span>
+              </span>
+              <span className="font-semibold tabular-nums text-[var(--color-ink)]">
+                {formatCurrency(value)}
+              </span>
             </div>
-            <span className="text-[var(--color-accent)] font-semibold text-right min-w-[90px]">
-              ₹{value.toLocaleString('en-IN')}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
+      <p className="w-full text-center text-[length:var(--text-xs)] text-[var(--color-muted)]">
+        Land is carried at a manually recorded local value, not a live market price.
+      </p>
     </div>
   );
 }

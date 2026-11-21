@@ -13,7 +13,11 @@ from backend.routes import (
     user_routes,
     income_routes,
 )
-from backend.routes import transaction_import_routes, protected_instrument_routes
+from backend.routes import (
+    transaction_import_routes,
+    protected_instrument_routes,
+    liability_routes,
+)
 from backend.routes.analytics import score_routes
 from backend.routes.categories import category_routes
 from backend.routes.configurations import config_routes
@@ -179,6 +183,7 @@ api_router.include_router(category_routes.router)
 api_router.include_router(score_routes.router)
 api_router.include_router(transaction_import_routes.router)
 api_router.include_router(protected_instrument_routes.router)
+api_router.include_router(liability_routes.router)
 
 app.include_router(api_router)
 
