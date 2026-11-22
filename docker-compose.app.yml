@@ -24,6 +24,8 @@ services:
     networks:
       - personal_finance_network
       - intra_connect
+      # MySQL/Redis are isolated here; backend needs both nets.
+      - finance_db_net
 
   frontend:
     build:
@@ -46,6 +48,8 @@ services:
 
 networks:
   personal_finance_network:
+    external: true
+  finance_db_net:
     external: true
   intra_connect:
     name: intra_connect

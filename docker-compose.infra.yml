@@ -9,8 +9,7 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "3399:3306"
+    # Rule #4: no host port mappings. DB is reachable only via finance_db_net.
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backup_config/db_backups:/backups
@@ -28,19 +27,18 @@ services:
           cpus: "1.0"
           memory: 1G
     networks:
-      - personal_finance_network
+      - finance_db_net
 
   redis:
     image: redis:latest
     container_name: redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    # Rule #4: no host port mapping.
     volumes:
       - redis_data:/data
     command: [ "redis-server", "--appendonly", "yes", "--save", "60", "1" ]
     networks:
-      - personal_finance_network
+      - finance_db_net
 
   redis-cli:
     image: redis:latest
@@ -52,20 +50,23 @@ services:
     stdin_open: true
     tty: true
     networks:
-      - personal_finance_network
+      - finance_db_net
 
   scheduler:
     image: mcuadros/ofelia:latest
     container_name: scheduler
     command: daemon --config=/etc/ofelia/config.ini
+    environment:
+      # Rule #6: restricted Docker API instead of the raw socket.
+      - DOCKER_HOST=tcp://docker_socket_proxy_ofelia:2375
     volumes:
       - ./backup_config/config.ini:/etc/ofelia/config.ini
       - ./backup_config/config.ini:/etc/ofelia.conf
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./backup_config/backup.sh:/backup.sh
     restart: unless-stopped
     networks:
       - personal_finance_network
+      - ofelia_proxy_net
 
 volumes:
   mysql_data:
@@ -78,3 +79,7 @@ networks:
   personal_finance_network:
     name: personal_finance_network
     driver: bridge
+  finance_db_net:
+    external: true
+  ofelia_proxy_net:
+    external: true
