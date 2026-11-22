@@ -3,11 +3,13 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta
 from typing import Union, Any
 
+from pydantic import ValidationError
 from sqlalchemy import func, distinct
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import case
 
+from backend.models.dashboard import DashboardResponse
 from backend.models.earnings.income import Income
 from backend.models.investments.bullion import BullionInvestment
 from backend.models.investments.crypto import CryptoInvestment
@@ -349,7 +351,27 @@ class DashboardDataCalculator(BaseFetcher):
             cached_map = self.get_from_cache(self.cache_key_prefix, [self.summary])
             cached_info = cached_map.get(self.summary)
             if cached_info:
-                return cached_info
+                # The cache lives for 24h, so it can outlive a change to the
+                # response schema (e.g. new dashboard fields). Serving such a
+                # stale payload makes FastAPI raise a ResponseValidationError
+                # and return 500 from /api/dashboard. Validate the cached shape
+                # before trusting it and recompute on a mismatch.
+                try:
+                    DashboardResponse.model_validate(cached_info)
+                    return cached_info
+                except ValidationError as exc:
+                    cache_key = _build_cache_key(self.cache_key_prefix, self.summary)
+                    self.logger.warning(
+                        "Discarding stale dashboard cache entry %s: %s", cache_key, exc
+                    )
+                    try:
+                        self.redis_client.delete(cache_key)
+                    except Exception as delete_exc:
+                        self.logger.warning(
+                            "Could not delete stale dashboard cache key %s: %s",
+                            cache_key,
+                            delete_exc,
+                        )
 
         # Start from a clean transaction so every query sees committed data.
         self.db.rollback()
