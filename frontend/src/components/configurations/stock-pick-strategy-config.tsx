@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Save } from 'lucide-react';
 
@@ -8,7 +10,7 @@ export default function StockPickStrategyConfigPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/config/stock-picking-strategy-config")
+    apiFetch("/api/config/stock-picking-strategy-config")
       .then((res) => res.json())
       .then((data) => setConfig(data));
   }, []);
@@ -110,7 +112,7 @@ export default function StockPickStrategyConfigPage() {
   // Save and report the result
   const saveConfig = async () => {
     setSaving(true);
-    const res = await fetch("/api/config/stock-picking-strategy-config", {
+    const res = await apiFetch("/api/config/stock-picking-strategy-config", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config, null, 2),

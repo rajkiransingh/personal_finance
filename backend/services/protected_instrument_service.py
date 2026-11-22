@@ -1,27 +1,29 @@
 from sqlalchemy.orm import Session
 
 from backend.models.investments.protected_instrument import ProtectedInstrument
+from backend.services.scope import apply_scope, require_owner
 from backend.schemas.protected_instrument_schema import (
     ProtectedInstrumentCreate,
     ProtectedInstrumentUpdate,
 )
 
 
-def get_all_protected_instruments(db: Session):
-    return db.query(ProtectedInstrument).all()
+def get_all_protected_instruments(db: Session, scope=None):
+    return apply_scope(db.query(ProtectedInstrument), ProtectedInstrument, scope).all()
 
 
-def get_protected_instruments_by_user(db: Session, user_id: int):
+def get_protected_instruments_by_user(db: Session, user_id: int, scope=None):
+    require_owner(user_id, scope)
     return (
-        db.query(ProtectedInstrument)
+        apply_scope(db.query(ProtectedInstrument), ProtectedInstrument, scope)
         .filter(ProtectedInstrument.user_id == user_id)
         .all()
     )
 
 
-def get_protected_instrument(db: Session, instrument_id: int):
+def get_protected_instrument(db: Session, instrument_id: int, scope=None):
     return (
-        db.query(ProtectedInstrument)
+        apply_scope(db.query(ProtectedInstrument), ProtectedInstrument, scope)
         .filter(ProtectedInstrument.id == instrument_id)
         .first()
     )
@@ -48,9 +50,9 @@ def create_protected_instrument(db: Session, instrument: ProtectedInstrumentCrea
 
 
 def update_protected_instrument(
-        db: Session, instrument_id: int, instrument_update: ProtectedInstrumentUpdate
+        db: Session, instrument_id: int, instrument_update: ProtectedInstrumentUpdate, scope=None
 ):
-    db_instrument = get_protected_instrument(db, instrument_id)
+    db_instrument = get_protected_instrument(db, instrument_id, scope)
     if not db_instrument:
         return None
 
@@ -63,8 +65,8 @@ def update_protected_instrument(
     return db_instrument
 
 
-def delete_protected_instrument(db: Session, instrument_id: int):
-    db_instrument = get_protected_instrument(db, instrument_id)
+def delete_protected_instrument(db: Session, instrument_id: int, scope=None):
+    db_instrument = get_protected_instrument(db, instrument_id, scope)
     if not db_instrument:
         return None
 

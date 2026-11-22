@@ -1,9 +1,8 @@
 import "./globals.css";
-import Sidebar from "@/components/sidebar";
-import Topbar from "@/components/topbar";
-import Footer from "@/components/footer";
+import AppShell from "@/components/app-shell";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import Providers from "./providers";
+import { AuthProvider } from "@/lib/auth";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -44,16 +43,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-paper font-body text-ink antialiased">
         <Providers>
-          <div className="flex min-h-screen w-full bg-paper">
-            <Sidebar />
-            <div className="flex min-h-screen min-w-0 flex-1 flex-col bg-paper">
-              <Topbar />
-              <main className="flex-1 overflow-y-auto px-5 py-6 md:px-8 md:py-8">
-                <div className="mx-auto w-full max-w-[1440px]">{children}</div>
-              </main>
-              <Footer />
-            </div>
-          </div>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </Providers>
       </body>
     </html>

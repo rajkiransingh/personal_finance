@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.schemas.user_schema import UserCreate, UserUpdate, UserResponse
+from backend.services.auth import require_admin
 from backend.services.db_services import get_db
 from backend.services.user_services import (
     get_user,
@@ -13,7 +14,9 @@ from backend.services.user_services import (
 from utilities.common.app_config import config
 
 logger = config.setup_logger("api.routes.user")
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(
+    prefix="/users", tags=["Users"], dependencies=[Depends(require_admin)]
+)
 
 
 # Create a new user

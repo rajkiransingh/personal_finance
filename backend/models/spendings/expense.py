@@ -26,6 +26,9 @@ class Liabilities(Base):
     __tablename__ = "liabilities"
     liability_id = Column(Integer, primary_key=True, autoincrement=True)
     liability_type = Column(String(255), nullable=False)
+    # Owner of the loan. Added for per-user data isolation; existing rows are
+    # backfilled to the original account by the auth schema migration.
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
 
 
 class LiabilitySubCategory(Base):

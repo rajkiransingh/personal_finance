@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import React, { useState, useEffect } from "react";
 import { ChevronRight, Save } from "lucide-react";
 
@@ -51,7 +53,7 @@ export default function EnvironmentConfigPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/config/environment-config")
+    apiFetch("/api/config/environment-config")
       .then((res) => res.json())
       .then((data) => setEnvConfig(data));
   }, []);
@@ -65,7 +67,7 @@ export default function EnvironmentConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/config/environment-config', {
+      const res = await apiFetch('/api/config/environment-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(envConfig),

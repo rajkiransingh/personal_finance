@@ -183,7 +183,18 @@ Check MySQL Ready
     Should Be Equal As Integers    ${result.rc}    0
 
 Check If Latest Database Backup Exists
-    [Documentation]    Check if the database backup is available
+    [Documentation]    Restore the newest backup only when the database is empty.
+    ...    Restoring over a populated database silently rolls back passwords
+    ...    and any other writes made since the backup was taken.
+    ${count_result}=    Run Process    docker exec ${DB_CONTAINER} sh -c 'mysql -u root -p$MYSQL_ROOT_PASSWORD -N -s -e "SELECT COUNT(*) FROM ${DB_NAME}.users" 2>/dev/null || echo 0'    shell=True
+    ${raw_count}=    Set Variable    ${count_result.stdout.strip()}
+    ${user_count}=    Evaluate    int('${raw_count}') if '${raw_count}'.isdigit() else 0
+    Run Keyword If    ${user_count} > 0    Log To Console    Database already has ${user_count} users. Keeping current data; skipping restore.
+    ...    ELSE IF    ${user_count} == 0    Check Backup Files For Restore
+    ...    ELSE    Log To Console    Could not inspect the database. Skipping restore to avoid overwriting data.
+
+Check Backup Files For Restore
+    [Documentation]    List available backups and restore the latest one into an empty database.
     ${backups}=    Run Process    docker exec ${DB_CONTAINER} ls /backups/    shell=True
     Log To Console    Found files in /backups/: ${backups.stdout.strip()}
     ${backup_files}=    Split String    ${backups.stdout.strip()}    \n
@@ -250,38 +261,54 @@ Check Frontend
     ...    ELSE    Log To Console    Frontend is accessible at http://localhost:${frontend_port}
 
 
+Run Auth Schema Migration
+    [Documentation]    Apply the idempotent multi-user schema and seed the first admin.
+    ...    Safe to run on every start: it only adds missing columns/tables and
+    ...    never overwrites passwords, roles or household choices.
+    ${python}=    Set Variable    ${PROJECT_DIR}/.venv/bin/python
+    ${venv_ready}=    Run Keyword And Return Status    OperatingSystem.File Should Exist    ${python}
+    Run Keyword If    not ${venv_ready}    Fail    Missing .venv/bin/python. Create the virtual environment and install requirements.txt before starting the app.
+    ${result}=    Run Process    ${python} ${PROJECT_DIR}/scripts/migrate_auth_schema.py    shell=True    cwd=${PROJECT_DIR}
+    Log To Console    ${result.stdout.strip()}
+    Run Keyword If    ${result.rc} != 0    Fail    Auth schema migration failed: ${result.stderr}
+    Log To Console    Auth schema is up to date.
+
+
 *** Tasks ***
 Start Personal Finance Application
     [Documentation]    Start all the necessary components for the Personal Finance Application
     Log To Console    \n=== Starting Personal Finance Application ===\n
-    Log To Console    [1/10] Checking Docker installation...
+    Log To Console    [1/11] Checking Docker installation...
     Check Docker Installation
 
-    Log To Console    [2/10] Verifying Docker Compose files...
+    Log To Console    [2/11] Verifying Docker Compose files...
     Check Docker Compose Files
 
-    Log To Console    [3/10] Ensuring local directories and configurations...
+    Log To Console    [3/11] Ensuring local directories and configurations...
     Ensure Directories And Configurations
 
-    Log To Console    [4/10] Ensuring Docker volume exists...
+    Log To Console    [4/11] Ensuring Docker volume exists...
     Ensure Docker Volume
 
-    Log To Console    [5/10] Ensuring Docker networks exist...
+    Log To Console    [5/11] Ensuring Docker networks exist...
     Ensure Docker Networks
 
-    Log To Console    [6/10] Building Docker images if needed...
+    Log To Console    [6/11] Building Docker images if needed...
     Build Docker Image If Needed
 
-    Log To Console    [7/10] Starting Infrastructure...
+    Log To Console    [7/11] Starting Infrastructure...
     Start Infra Containers
 
-    Log To Console    [8/10] Waiting for database...
+    Log To Console    [8/11] Waiting for database...
     Wait For Database
 
-    Log To Console    [9/10] Restoring database sequencing...
+    Log To Console    [9/11] Restoring database sequencing (only when empty)...
     Check If Latest Database Backup Exists
 
-    Log To Console    [10/10] Starting Application...
+    Log To Console    [10/11] Applying auth schema migration...
+    Run Auth Schema Migration
+
+    Log To Console    [11/11] Starting Application...
     Start App Containers
 
     Log To Console    [FINAL] Verification...

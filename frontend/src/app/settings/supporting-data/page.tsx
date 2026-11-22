@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import React, { useEffect, useState } from "react";
 import { Plus, X, Pencil, Trash2 } from "lucide-react";
 
@@ -50,7 +52,7 @@ export default function SupportingData() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch("/api/categories/investment-category");
+      const res = await apiFetch("/api/categories/investment-category");
       if (!res.ok) throw new Error("Failed to fetch categories");
       const json = await res.json();
       setInvestmentCategories(json);
@@ -63,7 +65,7 @@ export default function SupportingData() {
 
 const fetchCurrencies = async () => {
   try {
-    const res = await fetch("/api/categories/currencies");
+    const res = await apiFetch("/api/categories/currencies");
     if (!res.ok) throw new Error("Failed to fetch currencies");
     const json = await res.json();
     setCurrencies(json);
@@ -76,7 +78,7 @@ const fetchCurrencies = async () => {
 
   const fetchData = async (section: string) => {
     try {
-      const res = await fetch(`/api${sections[section]}`);
+      const res = await apiFetch(`/api${sections[section]}`);
       if (!res.ok) throw new Error(`Failed to fetch ${section}`);
       let json: RowData[] = await res.json();
 
@@ -118,7 +120,7 @@ const fetchCurrencies = async () => {
     if (!confirm("Are you sure you want to delete this item?")) return;
 
     try {
-      const res = await fetch(`/api${sections[section]}/${id}`, {
+      const res = await apiFetch(`/api${sections[section]}/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {

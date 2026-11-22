@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -49,7 +51,7 @@ export default function DividendsPage() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/dividends/analytics')
+    apiFetch('/api/dividends/analytics')
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.json();

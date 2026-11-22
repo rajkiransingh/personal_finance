@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useRef, useState } from "react";
 import DatePicker from "react-datepicker";
 import { Plus, X, ArrowDownLeft, ArrowUpRight, Landmark, Pencil, Trash2 } from "lucide-react";
@@ -102,15 +104,15 @@ export default function TransactionsPage() {
           unitRes,
           liabilityTypesRes
         ] = await Promise.all([
-          fetch("/api/categories/users").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/income-sources").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/expense-category").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/investment-category").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/investment-subcategory").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/currencies").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/region").then(r => r.json()).catch(() => []),
-          fetch("/api/categories/units").then(r => r.json()).catch(() => []),
-          fetch("/api/liabilities/types").then(r => r.json()).catch(() => [])
+          apiFetch("/api/categories/users").then(r => r.json()).catch(() => []),
+          apiFetch("/api/categories/income-sources").then(r => r.json()).catch(() => []),
+          apiFetch("/api/categories/expense-category").then(r => r.json()).catch(() => []),
+          apiFetch("/api/categories/investment-category").then(r => r.json()).catch(() => []),
+          apiFetch("/api/categories/investment-subcategory").then(r => r.json()).catch(() => []),
+          apiFetch("/api/categories/currencies").then(r => r.json()).catch(() => []),
+          apiFetch("/api/categories/region").then(r => r.json()).catch(() => []),
+          apiFetch("/api/categories/units").then(r => r.json()).catch(() => []),
+          apiFetch("/api/liabilities/types").then(r => r.json()).catch(() => [])
         ]);
 
         setUsers(usersRes || []);
@@ -146,13 +148,13 @@ useEffect(() => {
   fetchRecent();
 
   if (activeTab === 'investment') {
-      fetch("/api/summary/mutual-funds")
+      apiFetch("/api/summary/mutual-funds")
         .then(res => res.json())
         .then(data => setMutualFundSummary(data))
         .catch(err => console.error("Failed to fetch mutual fund summary", err));
   }
     // Fetch Stock Summaries for Autocomplete
-    fetch("/api/summary/stocks")
+    apiFetch("/api/summary/stocks")
       .then(res => res.json())
       .then(data => setStockSummaries(data))
       .catch(err => console.error("Failed to fetch stock summaries", err));
@@ -163,7 +165,7 @@ async function fetchRecent() {
     let records: any[] = [];
 
     if (activeTab === "expense") {
-      const res = await fetch("/api/expenses");
+      const res = await apiFetch("/api/expenses");
       const data = await res.json();
       records = Array.isArray(data) ? data : data?.results || [];
     } else if (activeTab === "investment") {
@@ -180,21 +182,21 @@ async function fetchRecent() {
 
        records = allData.flatMap((d) => (Array.isArray(d) ? d : d?.results || []));
     } else if (activeTab === "dividend") {
-      const res = await fetch("/api/dividends");
+      const res = await apiFetch("/api/dividends");
       const data = await res.json();
       records = Array.isArray(data) ? data : data?.results || [];
     } else if (activeTab === "instruments") {
-         const res = await fetch("/api/protected-instruments");
+         const res = await apiFetch("/api/protected-instruments");
          const data = await res.json();
          records = Array.isArray(data) ? data : data?.results || [];
          setExistingInstruments(records);
     } else if (activeTab === "liability") {
-      const res = await fetch("/api/liabilities");
+      const res = await apiFetch("/api/liabilities");
       const data = await res.json();
       records = Array.isArray(data) ? data : data?.results || [];
     } else {
       // default = income
-      const res = await fetch("/api/income");
+      const res = await apiFetch("/api/income");
       const data = await res.json();
       records = Array.isArray(data) ? data : data?.results || [];
     }
@@ -260,7 +262,7 @@ async function fetchRecent() {
         currency: incomeForm.currency || (currencies[0]?.currency_code ?? "INR"),
         earned_date: new Date(incomeForm.earned_date).toISOString()
       };
-      const res = await fetch("/api/income", {
+      const res = await apiFetch("/api/income", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -288,7 +290,7 @@ async function fetchRecent() {
         currency: expenseForm.currency || (currencies[0]?.currency_code ?? "INR"),
         spent_date: new Date(expenseForm.spent_date).toISOString()
       };
-      const res = await fetch("/api/expenses", {
+      const res = await apiFetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -418,7 +420,7 @@ async function fetchRecent() {
         received_date: dividendForm.received_date ? new Date(dividendForm.received_date).toISOString() : new Date().toISOString()
       };
 
-      const res = await fetch("/api/dividends", {
+      const res = await apiFetch("/api/dividends", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -459,7 +461,7 @@ async function fetchRecent() {
         notes: instrumentForm.notes
       };
 
-      const res = await fetch("/api/protected-instruments", {
+      const res = await apiFetch("/api/protected-instruments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -525,7 +527,7 @@ async function fetchRecent() {
     if (!name) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/liabilities/types", {
+      const res = await apiFetch("/api/liabilities/types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ liability_type: name })
@@ -535,7 +537,7 @@ async function fetchRecent() {
         throw new Error(`Type POST failed: ${res.status} ${txt}`);
       }
       const created: LiabilityType = await res.json();
-      const refreshed: LiabilityType[] = await fetch("/api/liabilities/types").then(r => r.json()).catch(() => []);
+      const refreshed: LiabilityType[] = await apiFetch("/api/liabilities/types").then(r => r.json()).catch(() => []);
       setLiabilityTypes(refreshed);
       setLiabilityForm((prev: any) => ({ ...prev, liability_id: created.liability_id }));
       setNewLiabilityType("");
@@ -569,7 +571,7 @@ async function fetchRecent() {
     if (!confirm("Delete this liability entry?")) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/liabilities/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/liabilities/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
       if (editingLiabilityId === id) cancelLiabilityEdit();
       await fetchRecent();
@@ -655,7 +657,7 @@ function formatAmount(amount: any, currency?: string) {
             <button
               onClick={() => {
                   setShowImportModal(true);
-                  fetch("/api/import/banks")
+                  apiFetch("/api/import/banks")
                       .then(r => r.json())
                       .then(data => setAvailableBanks(data))
                       .catch(err => console.error("Failed to fetch banks", err));
@@ -1541,7 +1543,7 @@ function formatAmount(amount: any, currency?: string) {
                                       formData.append("file", importForm.file);
 
                                       try {
-                                          const res = await fetch("/api/import/preview", {
+                                          const res = await apiFetch("/api/import/preview", {
                                               method: "POST",
                                               body: formData
                                           });
@@ -1660,7 +1662,7 @@ function formatAmount(amount: any, currency?: string) {
                                               transactions: finalTransactions
                                           };
 
-                                          const res = await fetch("/api/import/confirm", {
+                                          const res = await apiFetch("/api/import/confirm", {
                                               method: "POST",
                                               headers: { "Content-Type": "application/json" },
                                               body: JSON.stringify(payload)

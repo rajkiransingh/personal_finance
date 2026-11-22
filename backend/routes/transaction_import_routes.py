@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.configurations.bank_config import BANK_MAPPINGS
 from backend.schemas.import_schema import ImportConfirmRequest
+from backend.services.auth import get_data_scope
 from backend.services.db_services import get_db
 from backend.services.transaction_import_service import (
     preview_csv_import,
@@ -41,8 +42,9 @@ async def preview_transactions(
 
 @router.post("/confirm")
 async def confirm_transactions(
-        data: ImportConfirmRequest, db: Session = Depends(get_db)
+        data: ImportConfirmRequest, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)
 ):
+    data.user_id = scope[0] if scope else data.user_id
     try:
         # data.transactions is List[TransactionPreview] (Pydantic models)
         # Convert to list of dicts for service

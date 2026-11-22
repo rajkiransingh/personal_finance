@@ -1,10 +1,13 @@
 import json
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, APIRouter
+from fastapi import Depends, FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from backend import config as auth_config
 from backend.raiden_integration import raiden_client
 from backend.routes import dashboard_routes, portfolio_routes
 from backend.routes import (
@@ -17,6 +20,8 @@ from backend.routes import (
     transaction_import_routes,
     protected_instrument_routes,
     liability_routes,
+    auth_routes,
+    admin_routes,
 )
 from backend.routes.analytics import score_routes
 from backend.routes.categories import category_routes
@@ -29,6 +34,7 @@ from backend.routes.investments import (
     crypto as crypto_route,
     dividend as dividend_route,
 )
+from backend.services.auth import get_current_user
 from backend.services.db_services import get_db
 from scripts.fetch_mutual_funds import mutual_funds_list
 from scripts.fetch_stocks import (
@@ -170,7 +176,31 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-api_router = APIRouter(prefix="/api")
+
+@app.middleware("http")
+async def csrf_protection(request: Request, call_next):
+    """Double-submit CSRF check for cookie-authenticated mutations."""
+    if (
+        request.url.path.startswith("/api/")
+        and request.method in ("POST", "PUT", "PATCH", "DELETE")
+        and request.cookies.get(auth_config.SESSION_COOKIE)
+    ):
+        cookie_token = request.cookies.get(auth_config.CSRF_COOKIE)
+        header_token = request.headers.get(auth_config.CSRF_HEADER)
+        if not cookie_token or not header_token or not secrets.compare_digest(
+            cookie_token, header_token
+        ):
+            return JSONResponse(
+                {"detail": "CSRF token missing or invalid"}, status_code=403
+            )
+    return await call_next(request)
+
+
+# Login, logout and SSO callbacks must stay reachable without a session.
+app.include_router(auth_routes.router, prefix="/api")
+
+api_router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
+api_router.include_router(admin_routes.router)
 api_router.include_router(user_routes.router)
 api_router.include_router(income_routes.router)
 api_router.include_router(expense_routes.router)
@@ -194,10 +224,10 @@ app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=auth_config.FRONTEND_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*", auth_config.CSRF_HEADER],
 )
 
 

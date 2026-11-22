@@ -1,6 +1,7 @@
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
+from backend.services.scope import apply_scope, owner_column
 from backend.models.investments.bullion import BullionSummary
 from backend.models.investments.crypto import CryptoSummary
 from backend.models.investments.mutual_fund import MutualFundSummary
@@ -8,16 +9,16 @@ from backend.models.investments.real_estate import RealEstateSummary
 from backend.models.investments.stock import StockSummary, DividendSummary
 
 
-def get_investments_symbols(db: Session):
+def get_investments_symbols(db: Session, scope=None):
     """Return categorized lists of investment symbols."""
-    stocks = db.query(StockSummary).all()
+    stocks = apply_scope(db.query(StockSummary), StockSummary, scope).all()
 
     return {
         "common_stocks": [s.stock_symbol for s in stocks if not s.dividend_paying],
         "stocks_with_dividends": [s.stock_symbol for s in stocks if s.dividend_paying],
-        "mutual_funds": [m.scheme_code for m in db.query(MutualFundSummary).all()],
-        "crypto": [c.coin_symbol for c in db.query(CryptoSummary).all()],
-        "bullion": sorted({b.metal_name for b in db.query(BullionSummary).all()}),
+        "mutual_funds": [m.scheme_code for m in apply_scope(db.query(MutualFundSummary), MutualFundSummary, scope).all()],
+        "crypto": [c.coin_symbol for c in apply_scope(db.query(CryptoSummary), CryptoSummary, scope).all()],
+        "bullion": sorted({b.metal_name for b in apply_scope(db.query(BullionSummary), BullionSummary, scope).all()}),
     }
 
 
@@ -33,10 +34,11 @@ def get_all_investments(db: Session):
     return {name: db.query(model).all() for name, model in models.items()}
 
 
-def get_portfolio_summary(db: Session):
+def get_portfolio_summary(db: Session, scope: list[int] | None = None):
     """
         Aggregate portfolio totals and weighted XIRR across all asset types.
-        Bullion is grouped per metal_name; others are summed.
+        Bullion is grouped per metal_name; others are summed. `scope` restricts
+        results to the given owners (None = all, used by global refresh jobs).
         """
 
     models = {
@@ -57,6 +59,8 @@ def get_portfolio_summary(db: Session):
                 func.sum(model.current_value).label('current_value'),
                 (func.sum(model.xirr * model.total_cost) / func.sum(model.total_cost)).label('xirr')
             ).group_by(model.metal_name)
+            if scope is not None:
+                query = query.where(owner_column(model).in_(scope))
 
             results = db.execute(query).all()
 
@@ -69,15 +73,16 @@ def get_portfolio_summary(db: Session):
                 }
 
         else:
-            result = db.execute(
-                select(
-                    func.sum(model.total_cost).label("total_cost"),
-                    func.sum(model.current_value).label("current_value"),
-                    (
-                            func.sum(model.xirr * model.total_cost) / func.nullif(func.sum(model.total_cost), 0)
-                    ).label("xirr"),
-                )
-            ).first()
+            query = select(
+                func.sum(model.total_cost).label("total_cost"),
+                func.sum(model.current_value).label("current_value"),
+                (
+                        func.sum(model.xirr * model.total_cost) / func.nullif(func.sum(model.total_cost), 0)
+                ).label("xirr"),
+            )
+            if scope is not None:
+                query = query.where(owner_column(model).in_(scope))
+            result = db.execute(query).first()
 
             summary[name] = {
                 "total_cost": float(result.total_cost or 0),

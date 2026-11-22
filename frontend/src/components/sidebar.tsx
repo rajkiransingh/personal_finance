@@ -17,7 +17,10 @@ import {
   FileText,
   Menu,
   X,
+  Users2,
+  ShieldCheck,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 interface NavChild {
   name: string;
@@ -25,6 +28,8 @@ interface NavChild {
   available?: boolean;
   icon?: React.ReactNode;
   children?: NavChild[];
+  adminOnly?: boolean;
+  userOnly?: boolean;
 }
 
 interface NavItem {
@@ -33,14 +38,26 @@ interface NavItem {
   available?: boolean;
   icon: React.ReactNode;
   children?: NavChild[];
+  adminOnly?: boolean;
+  userOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
-  { name: "Dashboard", path: "/", icon: <Home size={17} /> },
-  { name: "Transactions", path: "/transactions", icon: <FileText size={17} /> },
+  { name: "Dashboard", path: "/", icon: <Home size={17} />, userOnly: true },
+  { name: "Transactions", path: "/transactions", icon: <FileText size={17} />, userOnly: true },
+  {
+    name: "Strategies",
+    icon: <Target size={17} />,
+    userOnly: true,
+    children: [
+      { name: "Stock picking", path: "/strategies/stock-picking" },
+      { name: "Step-up Strategy", path: "/analytics/portfolio-rebalancing/step-up-strategy", available: false },
+    ],
+  },
   {
     name: "Analytics",
     icon: <BarChart3 size={17} />,
+    userOnly: true,
     children: [
       {
         name: "Portfolio Rebalancing",
@@ -48,7 +65,6 @@ const navItems: NavItem[] = [
         children: [
           { name: "Overview", path: "/analytics/portfolio-rebalancing/overview" },
           { name: "Sub Allocations", path: "/analytics/portfolio-rebalancing/sub-allocations", available: false },
-          { name: "Step-up Strategy", path: "/analytics/portfolio-rebalancing/step-up-strategy", available: false },
         ],
       },
       {
@@ -87,9 +103,12 @@ const navItems: NavItem[] = [
       },
     ],
   },
+
+  // Kept in code on purpose: the old routes still exist as aliases.
   {
     name: "Configurations",
     icon: <Settings size={17} />,
+    available: false,
     children: [
       { name: "Portfolio Config", path: "/configurations/portfolio-config" },
       { name: "Stock Strategy", path: "/configurations/stock-picking-strategy" },
@@ -99,24 +118,42 @@ const navItems: NavItem[] = [
   {
     name: "Settings",
     icon: <Settings size={17} />,
+    available: false,
+    children: [{ name: "Supporting Data", path: "/settings/supporting-data" }],
+  },
+
+  {
+    name: "Admin",
+    icon: <ShieldCheck size={17} />,
+    adminOnly: true,
     children: [
-      { name: "Supporting Data", path: "/settings/supporting-data" },
+      { name: "Overview", path: "/admin", icon: <Home size={15} /> },
+      { name: "Users", path: "/admin/users", icon: <Users2 size={15} /> },
+      { name: "Access & sharing", path: "/admin/access", icon: <Users2 size={15} /> },
+      { name: "Portfolio config", path: "/admin/configuration/portfolio", icon: <Wallet size={15} /> },
+      { name: "Environment", path: "/admin/configuration/environment", icon: <Settings size={15} /> },
+      { name: "Supporting data", path: "/admin/configuration/supporting-data", icon: <Coins size={15} /> },
+      { name: "Scoring defaults", path: "/admin/configuration/scoring", icon: <BarChart3 size={15} /> },
     ],
   },
 ];
 
 // Routes marked available: false stay in this file for later tasks but are
-// hidden in the sidebar. Flip the flag when the route becomes real.
-function isVisible(item: any): boolean {
+// hidden in the sidebar. Role flags hide whole areas from the wrong account.
+function isVisible(item: NavChild | NavItem, role: string): boolean {
   if (item.available === false) return false;
+  if (item.adminOnly && role !== "admin") return false;
+  if (item.userOnly && role === "admin") return false;
   if (Array.isArray(item.children) && item.children.length) {
-    return item.children.some(isVisible);
+    return item.children.some((child) => isVisible(child, role));
   }
   return true;
 }
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const role = user?.role || "user";
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ Analytics: true });
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -140,11 +177,15 @@ export default function Sidebar() {
   }, [pathname]);
 
   const toggleMenu = (menuName: string) => {
-    setOpenMenus((prev) => ({
-      ...prev,
-      [menuName]: !prev[menuName],
-    }));
+    setOpenMenus((prev) => ({ ...prev, [menuName]: !prev[menuName] }));
   };
+
+  const initials = (user?.name || "")
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
     <>
@@ -174,7 +215,7 @@ export default function Sidebar() {
         }`}
       >
         <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-[var(--color-rule)] px-5">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Mera Paisa, dashboard">
+          <Link href={role === "admin" ? "/admin" : "/"} className="flex items-center gap-2.5" aria-label="Mera Paisa, dashboard">
             <span className="brand-mark" aria-hidden="true">M</span>
             <span className="flex flex-col gap-0.5">
               <span className="wordmark text-[var(--color-sidebar-ink)]">Mera Paisa</span>
@@ -185,16 +226,13 @@ export default function Sidebar() {
           </Link>
         </div>
 
-        <nav
-          className="custom-scrollbar flex-1 space-y-0.5 overflow-y-auto px-3 py-4"
-          aria-label="Primary"
-        >
-          <div className="rail-cap">Your space</div>
-          {navItems.filter(isVisible).map((item) => (
+        <nav className="custom-scrollbar flex-1 space-y-0.5 overflow-y-auto px-3 py-4" aria-label="Primary">
+          <div className="rail-cap">{role === "admin" ? "Manage" : "Your space"}</div>
+          {navItems.filter((item) => isVisible(item, role)).map((item) => (
             <Fragment key={item.name}>
-              {item.name === "Configurations" && <div className="rail-cap">Manage</div>}
               <SidebarItem
                 item={item}
+                role={role}
                 depth={0}
                 pathname={pathname}
                 openMenus={openMenus}
@@ -207,14 +245,18 @@ export default function Sidebar() {
         <div className="shrink-0 border-t border-[var(--color-rule)] p-3">
           <div className="flex items-center gap-2.5 rounded-[var(--radius-panel)] bg-[var(--color-sidebar-2)] px-3 py-2.5">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--color-surface)] text-[11px] font-extrabold text-[var(--color-primary)] shadow-[var(--shadow-chip)]">
-              RS
+              {initials || "?"}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[12px] font-bold text-[var(--color-sidebar-ink)]">
-                Rajkiran
+                {user?.name || "Account"}
               </span>
               <span className="block truncate text-[11px] font-medium text-[var(--color-sidebar-muted)]">
-                Personal account
+                {role === "admin"
+                  ? "Administrator"
+                  : user?.view === "household"
+                    ? "Household view"
+                    : "Personal view"}
               </span>
             </span>
             <span className="rounded-full border border-[color-mix(in_oklab,var(--color-primary)_30%,transparent)] bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-primary)]">
@@ -229,12 +271,14 @@ export default function Sidebar() {
 
 function SidebarItem({
   item,
+  role,
   depth,
   pathname,
   openMenus,
   toggleMenu,
 }: {
-  item: any;
+  item: NavChild | NavItem;
+  role: string;
   depth: number;
   pathname: string;
   openMenus: Record<string, boolean>;
@@ -246,10 +290,10 @@ function SidebarItem({
 
   const isParentOfActive =
     hasChildren &&
-    item.children.some(
-      (child: any) =>
+    item.children!.some(
+      (child) =>
         child.path === pathname ||
-        (child.children && child.children.some((sub: any) => sub.path === pathname))
+        (child.children && child.children.some((sub) => sub.path === pathname))
     );
 
   const paddingLeft = depth === 0 ? 10 : depth * 10 + 10;
@@ -284,10 +328,11 @@ function SidebarItem({
 
         {isOpen && (
           <div className="mt-0.5 space-y-0.5 border-l border-[var(--color-rule)] pl-1.5 ml-3">
-            {item.children.filter(isVisible).map((child: any) => (
+            {item.children!.filter((child) => isVisible(child, role)).map((child) => (
               <SidebarItem
                 key={child.name}
                 item={child}
+                role={role}
                 depth={depth + 1}
                 pathname={pathname}
                 openMenus={openMenus}

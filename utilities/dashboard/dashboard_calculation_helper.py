@@ -1,5 +1,6 @@
 import json
 from collections import defaultdict
+from contextvars import ContextVar
 from datetime import datetime, date, timedelta
 from typing import Union, Any
 
@@ -16,8 +17,16 @@ from backend.models.investments.real_estate import RealEstateInvestment
 from backend.models.investments.stock import StockInvestment, Dividends
 from backend.models.spendings.expense import Expense, ExpenseCategory, Liabilities, LiabilityValue
 from backend.services.db_services import SessionLocal
+from backend.services.scope import apply_scope, owner_column
 from utilities.common.base_fetcher import BaseFetcher, _build_cache_key
 from utilities.fetch_overall_investment_data import get_portfolio_summary
+
+# The dashboard calculator is a singleton, so the visible owner ids for one
+# request are carried in a ContextVar rather than on the instance. Global
+# startup refreshes leave it unset and compute the unscoped cache entry.
+_dashboard_scope: ContextVar[list[int] | None] = ContextVar(
+    "dashboard_scope", default=None
+)
 
 
 def _db_dialect_name(db: Session) -> str:
@@ -47,7 +56,7 @@ def get_ytd_sum(db, model, converted_amount, date_field, year_start, today):
     """Get year-to-date sum with currency conversion."""
     col = _resolve_converted_column(model, converted_amount)
     total = (
-        db.query(func.sum(col))
+        apply_scope(db.query(func.sum(col)), model, _dashboard_scope.get())
         .filter(
             getattr(model, date_field) >= year_start,
             getattr(model, date_field) <= today,
@@ -63,7 +72,7 @@ def get_last_year_sum(
     """Get last year same period sum with currency conversion."""
     col = _resolve_converted_column(model, converted_amount)
     total = (
-        db.query(func.sum(col))
+        apply_scope(db.query(func.sum(col)), model, _dashboard_scope.get())
         .filter(
             getattr(model, date_field) >= last_year_start,
             getattr(model, date_field) <= last_year_today,
@@ -118,7 +127,11 @@ def get_monthly_totals(
         month_expr = func.strftime("%Y-%m", date_col)
 
     rows = (
-        db.query(month_expr.label("month"), func.sum(col).label("total"))
+        apply_scope(
+            db.query(month_expr.label("month"), func.sum(col).label("total")),
+            Model,
+            _dashboard_scope.get(),
+        )
         .group_by("month")
         .order_by("month")
         .all()
@@ -133,11 +146,15 @@ def get_dividend_history(db: Session, convert_to_inr):
     by_stock = defaultdict(float)
     id_to_code = {1: "INR", 2: "PLN", 3: "USD"}
     try:
-        rows = db.query(
-            Dividends.stock_symbol,
-            Dividends.amount,
-            Dividends.currency_id,
-            Dividends.received_date,
+        rows = apply_scope(
+            db.query(
+                Dividends.stock_symbol,
+                Dividends.amount,
+                Dividends.currency_id,
+                Dividends.received_date,
+            ),
+            Dividends,
+            _dashboard_scope.get(),
         ).all()
         for symbol, amount, currency_id, received in rows:
             inr = float(amount or 0) * convert_to_inr(
@@ -173,7 +190,7 @@ def get_distinct_months(db: Session, Model, date_field: str, start: date, end: d
         month_expr = func.strftime("%Y-%m", date_col)
 
     rows = (
-        db.query(distinct(month_expr))
+        apply_scope(db.query(distinct(month_expr)), Model, _dashboard_scope.get())
         .filter(date_col >= start, date_col <= end)
         .all()
     )
@@ -183,14 +200,18 @@ def get_distinct_months(db: Session, Model, date_field: str, start: date, end: d
 def get_liability_totals(db: Session, today: date, convert_to_inr):
     """Latest value per individual loan, converted to INR. One loan = type + comment."""
     try:
+        liability_query = db.query(
+            LiabilityValue.liability_id,
+            LiabilityValue.comment,
+            LiabilityValue.value,
+            LiabilityValue.currency,
+            LiabilityValue.date,
+        ).join(Liabilities, LiabilityValue.liability_id == Liabilities.liability_id)
+        scope = _dashboard_scope.get()
+        if scope is not None:
+            liability_query = liability_query.filter(Liabilities.user_id.in_(scope))
         rows = (
-            db.query(
-                LiabilityValue.liability_id,
-                LiabilityValue.comment,
-                LiabilityValue.value,
-                LiabilityValue.currency,
-                LiabilityValue.date,
-            )
+            liability_query
             .filter(LiabilityValue.date <= today)
             .order_by(
                 LiabilityValue.liability_id,
@@ -208,7 +229,7 @@ def get_liability_totals(db: Session, today: date, convert_to_inr):
 
         names = {
             row.liability_id: row.liability_type
-            for row in db.query(Liabilities).all()
+            for row in apply_scope(db.query(Liabilities), Liabilities, scope).all()
         }
         breakdown = []
         for (liability_id, comment), value in latest.items():
@@ -227,8 +248,12 @@ def get_spending_by_category(
 ):
     """Expense totals by category name, optionally limited to a date range."""
     col = _resolve_converted_column(ExpenseModel, converted_amount)
-    query = db.query(
-        ExpenseCategory.name.label("category"), func.sum(col).label("total")
+    query = apply_scope(
+        db.query(
+            ExpenseCategory.name.label("category"), func.sum(col).label("total")
+        ),
+        ExpenseModel,
+        _dashboard_scope.get(),
     ).join(
         ExpenseCategory,
         ExpenseModel.category_id == ExpenseCategory.expense_category_id,
@@ -315,21 +340,30 @@ class DashboardDataCalculator(BaseFetcher):
                 else_=getattr(model, amount_field),
             )
 
-    def get_investment_data(self, force_refresh: bool = False) -> dict:
+    def get_investment_data(
+        self, force_refresh: bool = False, scope: list[int] | None = None
+    ) -> dict:
         """Run the dashboard computation with a fresh, short-lived DB session.
 
-        Opens a new session per call and always closes it, so the connection
-        is returned to the pool (with pool_pre_ping active) instead of being
-        held open with an uncommitted transaction until MySQL kills it.
+        `scope` holds the owner ids visible to the caller. It is None only for
+        global jobs (startup refresh) and is included in the cache key so two
+        users can never read each other's cached dashboard.
         """
+        token = _dashboard_scope.set(scope)
         self.db = SessionLocal()
         try:
+            if scope is None:
+                self.summary = "summary"
+            else:
+                key = "u" + "_".join(str(owner_id) for owner_id in sorted(scope))
+                self.summary = f"summary::{key}"
             return self._compute_investment_data(force_refresh)
         except Exception:
             self.db.rollback()
             raise
         finally:
             self.db.close()
+            _dashboard_scope.reset(token)
 
     def _compute_investment_data(self, force_refresh: bool = False) -> dict:
         """
@@ -355,7 +389,7 @@ class DashboardDataCalculator(BaseFetcher):
         self.db.rollback()
 
         # ----- PORTFOLIO SUMMARY -----
-        summary = get_portfolio_summary(self.db)
+        summary = get_portfolio_summary(self.db, _dashboard_scope.get())
         total_cost = sum(v["total_cost"] for v in summary.values())
         total_current_value = sum(v["current_value"] for v in summary.values())
         total_returns = total_current_value - total_cost
@@ -611,7 +645,13 @@ class DashboardDataCalculator(BaseFetcher):
 
         try:
             active_sip_count = int(
-                self.db.query(func.count(distinct(MutualFundInvestment.scheme_code)))
+                apply_scope(
+                    self.db.query(
+                        func.count(distinct(MutualFundInvestment.scheme_code))
+                    ),
+                    MutualFundInvestment,
+                    _dashboard_scope.get(),
+                )
                 .filter(
                     MutualFundInvestment.investment_date >= year_start,
                     MutualFundInvestment.investment_date <= today,

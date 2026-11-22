@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 
@@ -8,7 +10,7 @@ export default function PortfolioConfigPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/config/portfolio-config")
+    apiFetch("/api/config/portfolio-config")
       .then((res) => res.json())
       .then((data) => setConfig(data));
   }, []);
@@ -98,7 +100,7 @@ export default function PortfolioConfigPage() {
   const saveConfig = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/config/portfolio-config", {
+      const res = await apiFetch("/api/config/portfolio-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config, null, 2),
