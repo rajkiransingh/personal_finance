@@ -14,7 +14,9 @@ from backend.summarizing.investment_summary_services import (
     get_bullion_by_user,
 )
 
+from backend.services.auth import get_data_scope
 from backend.services.db_services import get_db
+from backend.services.scope import require_owner
 from backend.schemas.summaries.investment_summary_schema import (
     StockSummaryResponse,
     MutualFundSummaryResponse,
@@ -27,17 +29,18 @@ router = APIRouter(prefix="/summary", tags=["Investment"])
 
 
 @router.get("/stocks", response_model=list[StockSummaryResponse])
-def read_stock_summary(db: Session = Depends(get_db)):
-    stock_summary = get_all_stocks_investment_summary(db)
+def read_stock_summary(db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    stock_summary = get_all_stocks_investment_summary(db, scope)
     return stock_summary
 
 
 @router.get("/stocks/user/{user_id}", response_model=list[StockSummaryResponse])
-def read_stocks_summary_by_user(user_id: int, db: Session = Depends(get_db)):
+def read_stocks_summary_by_user(user_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    require_owner(user_id, scope)
     user = get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    stocks_summary = get_stocks_by_user(db, user_id)
+    stocks_summary = get_stocks_by_user(db, user_id, scope)
     if not stocks_summary:
         raise HTTPException(
             status_code=404, detail="No investments found for this user"
@@ -46,19 +49,20 @@ def read_stocks_summary_by_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/mutual-funds", response_model=list[MutualFundSummaryResponse])
-def read_mutualfund_summary(db: Session = Depends(get_db)):
-    mutualfund_summary = get_all_mutualfunds_investment_summary(db)
+def read_mutualfund_summary(db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    mutualfund_summary = get_all_mutualfunds_investment_summary(db, scope)
     return mutualfund_summary
 
 
 @router.get(
     "/mutualfund/user/{user_id}", response_model=list[MutualFundSummaryResponse]
 )
-def read_mutualfund_summary_by_user(user_id: int, db: Session = Depends(get_db)):
+def read_mutualfund_summary_by_user(user_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    require_owner(user_id, scope)
     user = get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    mutualfund_summary = get_mutualfunds_by_user(db, user_id)
+    mutualfund_summary = get_mutualfunds_by_user(db, user_id, scope)
     if not mutualfund_summary:
         raise HTTPException(
             status_code=404, detail="No investments found for this user"
@@ -67,17 +71,18 @@ def read_mutualfund_summary_by_user(user_id: int, db: Session = Depends(get_db))
 
 
 @router.get("/crypto", response_model=list[CryptoSummaryResponse])
-def read_crypto_summary(db: Session = Depends(get_db)):
-    crypto_summary = get_all_crypto_investment_summary(db)
+def read_crypto_summary(db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    crypto_summary = get_all_crypto_investment_summary(db, scope)
     return crypto_summary
 
 
 @router.get("/crypto/user/{user_id}", response_model=list[CryptoSummaryResponse])
-def read_crypto_summary_by_user(user_id: int, db: Session = Depends(get_db)):
+def read_crypto_summary_by_user(user_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    require_owner(user_id, scope)
     user = get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    crypto_summary = get_crypto_by_user(db, user_id)
+    crypto_summary = get_crypto_by_user(db, user_id, scope)
     if not crypto_summary:
         raise HTTPException(
             status_code=404, detail="No investments found for this user"
@@ -86,19 +91,20 @@ def read_crypto_summary_by_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/real-estate", response_model=list[RealEstateSummaryResponse])
-def read_realestate_summary(db: Session = Depends(get_db)):
-    realestate_summary = get_all_realestate_investment_summary(db)
+def read_realestate_summary(db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    realestate_summary = get_all_realestate_investment_summary(db, scope)
     return realestate_summary
 
 
 @router.get(
     "/realestate/user/{user_id}", response_model=list[RealEstateSummaryResponse]
 )
-def read_realestate_summary_by_user(user_id: int, db: Session = Depends(get_db)):
+def read_realestate_summary_by_user(user_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    require_owner(user_id, scope)
     user = get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    realestate_summary = get_realestate_by_user(db, user_id)
+    realestate_summary = get_realestate_by_user(db, user_id, scope)
     if not realestate_summary:
         raise HTTPException(
             status_code=404, detail="No investments found for this user"
@@ -107,17 +113,18 @@ def read_realestate_summary_by_user(user_id: int, db: Session = Depends(get_db))
 
 
 @router.get("/bullion", response_model=list[BullionSummaryResponse])
-def read_bullion_summary(db: Session = Depends(get_db)):
-    bullion_summary = get_all_bullion_investment_summary(db)
+def read_bullion_summary(db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    bullion_summary = get_all_bullion_investment_summary(db, scope)
     return bullion_summary
 
 
 @router.get("/bullion/user/{user_id}", response_model=list[BullionSummaryResponse])
-def read_bullion_summary_by_user(user_id: int, db: Session = Depends(get_db)):
+def read_bullion_summary_by_user(user_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    require_owner(user_id, scope)
     user = get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    bullion_summary = get_bullion_by_user(db, user_id)
+    bullion_summary = get_bullion_by_user(db, user_id, scope)
     if not bullion_summary:
         raise HTTPException(
             status_code=404, detail="No investments found for this user"
@@ -126,7 +133,7 @@ def read_bullion_summary_by_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/portfolio")
-def read_portfolio_summary(db: Session = Depends(get_db)):
+def read_portfolio_summary(db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
     """
     Get aggregated portfolio summary by category.
     Returns:
@@ -139,4 +146,4 @@ def read_portfolio_summary(db: Session = Depends(get_db)):
     """
     from utilities.fetch_overall_investment_data import get_portfolio_summary
 
-    return get_portfolio_summary(db)
+    return get_portfolio_summary(db, scope)

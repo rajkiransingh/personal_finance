@@ -1,12 +1,17 @@
 import json
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from backend.services.auth import require_admin, require_admin_for_writes
 from utilities.common.app_config import config
 
 logger = config.setup_logger("api.routes.config")
-router = APIRouter(prefix="/config", tags=["config"])
+# Strategy defaults may be read by any signed-in user; only admins change them.
+# Environment secrets are restricted per-route below.
+router = APIRouter(
+    prefix="/config", tags=["config"], dependencies=[Depends(require_admin_for_writes)]
+)
 
 
 # Get all the data related to mera paisa dashboard
@@ -52,7 +57,7 @@ async def update_stock_strategy_config(request: dict):
 
 
 # Get all the environment data related to mera paisa dashboard
-@router.get("/environment-config")
+@router.get("/environment-config", dependencies=[Depends(require_admin)])
 async def get_environment_config():
     protected_keys = {"DATABASE_URL", "REDIS_HOST", "REDIS_PORT"}
     path = "./.env"
@@ -70,7 +75,7 @@ async def get_environment_config():
     return env_dict
 
 
-@router.post("/environment-config")
+@router.post("/environment-config", dependencies=[Depends(require_admin)])
 async def update_environment_config(request: dict):
     path = "./.env"
     protected_keys = ["DATABASE_URL", "REDIS_HOST", "REDIS_PORT"]

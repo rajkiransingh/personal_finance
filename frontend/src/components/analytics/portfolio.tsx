@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from 'react';
 import {
   ResponsiveContainer,
@@ -63,7 +65,7 @@ export default function PortfolioPage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch('/api/portfolio', { method: 'GET' });
+        const response = await apiFetch('/api/portfolio', { method: 'GET' });
 
         if (!response.ok) {
           const txt = await response.text().catch(() => '');

@@ -18,13 +18,15 @@
   - [4. Set Up Database Backup / Golden Image](#4-set-up-database-backup--golden-image)
   - [5. Validate Environment & Readiness](#5-validate-environment--readiness)
   - [6. Start the Application](#6-start-the-application)
-  - [7. Access the Application](#7-access-the-application)
-  - [8. Stopping the Application](#8-stopping-the-application)
+  - [7. First Sign-In & Accounts](#7-first-sign-in--accounts)
+  - [8. Access the Application](#8-access-the-application)
+  - [9. Stopping the Application](#9-stopping-the-application)
 - [Configuration](#configuration)
   - [Environment Variables](#environment-variables)
   - [Port Overrides](#port-overrides)
   - [Strategy Configuration Files](#strategy-configuration-files)
 - [Database Backups & Migration](#database-backups--migration)
+  - [Auth Schema Migration](#auth-schema-migration)
 - [Architecture](#architecture)
 - [Usage Guide](#usage-guide)
 - [Development (Running Locally Without Docker)](#development-running-locally-without-docker)
@@ -63,8 +65,14 @@ intelligent categorization, and powerful analytics.
 - Auto-categorization learning system
 - Recurring transaction support
 
+👥 **Multi-User Access & Admin Console**
+- Per-user logins with isolated financial data, plus an optional combined household view
+- Admin-only user management, roles and configuration; no self-registration
+- Per-user theme, filter and strategy preferences
+- SSO-ready identity provider (Authentik OIDC)
+
 🎨 **Modern UI/UX**
-- Multiple theme support (Bronze, Light Purple, Anime)
+- Light and dark themes, saved per account
 - Responsive design
 - Interactive charts and visualizations
 - Real-time data updates
@@ -177,10 +185,12 @@ The application database schema and initial master data are populated from datab
    cp /path/to/dbbackup_GOLDEN_*.sql.gz backup_config/db_backups/
    ```
 
-> [!TIP]
-> **How Automatic Backup Restore Works**:
-> - **Migration / Clean Clone**: If you only place a golden backup (e.g., `dbbackup_GOLDEN_20261010.sql.gz`), the startup script automatically detects and restores the golden image.
-> - **Regular Restarts**: If newer timestamped backups exist (e.g., `dbbackup_20261020_140000.sql.gz` created by the hourly backup scheduler), the script restores the latest timestamped backup so you never lose recent changes.
+> [!IMPORTANT]
+> **How backup restore works — read this before restarting**
+> - The MySQL data volume is persistent. Starting the app does **not** wipe it, so passwords, accounts and transactions survive restarts.
+> - `start_application.robot` restores the newest backup **only when the `users` table is empty**. On a normal restart with existing data it skips the restore, so it cannot roll back accounts you created or passwords you changed.
+> - For a clean clone, place a backup (`dbbackup_GOLDEN_*.sql.gz` or a timestamped `dbbackup_*.sql.gz`) in `backup_config/db_backups/`. A timestamped backup takes priority over the golden one.
+> - If no backup is found and the database is empty, MySQL starts with no application data. You can still create accounts from the admin console after running the auth schema migration.
 
 ### 5. Validate Environment & Readiness
 
@@ -215,9 +225,10 @@ The script will automatically:
 5. Build backend and frontend images if source files changed
 6. Launch database and Redis containers
 7. Wait for MySQL to become fully ready
-8. Restore the latest database backup (golden or timestamped)
-9. Launch FastAPI backend and Next.js frontend
-10. Health check the frontend and report accessibility URLs
+8. Restore the latest backup **only if the database is empty**
+9. Run the idempotent auth schema migration (see [Auth Schema Migration](#auth-schema-migration))
+10. Launch FastAPI backend and Next.js frontend
+11. Health check the frontend and report accessibility URLs
 
 #### Starting Manually via Docker Compose (Alternative)
 
@@ -235,21 +246,51 @@ docker compose -f docker-compose.infra.yml up -d
 # 2. Wait ~30 seconds for MySQL to be healthy
 docker exec -it database mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD}
 
-# 3. Restore your backup if initial setup
+# 3. Restore your backup ONLY on a fresh/empty database
 # (Replace with your actual backup filename)
 gunzip -c backup_config/db_backups/dbbackup_GOLDEN_*.sql.gz | docker exec -i database mysql -u root -p${MYSQL_ROOT_PASSWORD} personal_finance_db
 
-# 4. Start backend and frontend
+# 4. Apply the auth schema migration (safe to run every time)
+.venv/bin/python scripts/migrate_auth_schema.py
+
+# 5. Start backend and frontend
 docker compose -f docker-compose.app.yml up -d
 ```
 
-### 7. Access the Application
+On a fresh restore, step 4 prints a one-time bootstrap password. Save it: every seeded account must change it at first sign-in.
+
+### 7. First Sign-In & Accounts
+
+The app is multi-user. Nothing is reachable until you sign in; the first screen you see after login is a **forced password change**.
+
+**Seeded accounts** (created by `scripts/migrate_auth_schema.py`):
+
+| Name | Email | Role | Data it can see |
+|---|---|---|---|
+| Rajkiran Singh | `rajkiran@homeservermanagement101` | User | Own data, plus an optional combined household view |
+| Ashwini Singh | `ashwini@homeservermanagement101` | User | Own data only |
+| Financer | `financer@homeservermanagement101` | Admin | No personal financial data — manages users, households and configuration |
+
+They share the one-time bootstrap password printed by the migration script. Each account must replace it at first login; after that, use the **new** password — the bootstrap one is invalidated by design.
+
+**Where things live now**
+- **Admin console** (`/admin`): add users, change roles, reset passwords, link a couple, and edit portfolio/environment/supporting-data configuration. Only the admin can add users; there is no self-registration.
+- **Household view**: if an admin enables it for a user, the topbar shows a **Me / Household** switch. The combined view merges assets, liabilities, income, expenses and dividends; the other partner keeps a personal-only view. The switch is enforced server-side.
+- **Strategies** (`/strategies/stock-picking`): available to every user. The admin sets global defaults; each user saves their own selection and overrides.
+- **User settings**: theme and filters/strategies are saved per account via `/api/auth/preferences`. Theme is mirrored to `localStorage` so there is no flash before hydration.
+
+**SSO / Authentik**: login is provider-based. `AUTH_PROVIDER=local` uses built-in passwords today. Setting `AUTH_PROVIDER=oidc` with `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI` and optionally `OIDC_ADMIN_GROUP` switches to OIDC (Authorization Code + PKCE, JWKS validation). SSO users have no local password; no schema change is needed later.
+
+> [!WARNING]
+> Do not expose `.env` values through the frontend. `/api/config/environment-config` is admin-only; keep `SECRET_KEY` private and rotate it to sign everyone out.
+
+### 8. Access the Application
 
 - **Frontend**: http://localhost:3000 (or `http://<your-server-ip>:3000`)
 - **Backend API**: http://localhost:8000 (or `http://<your-server-ip>:8000`)
 - **Interactive API Docs (Swagger)**: http://localhost:8000/docs
 
-### 8. Stopping the Application
+### 9. Stopping the Application
 
 To cleanly stop all application and infrastructure containers:
 
@@ -287,6 +328,12 @@ The `.env` file contains all configuration. See `.env.example` for the complete 
 | `RAPID_API_KEY` | Bullion data API key | `rapid_key_here` | Yes ([RapidAPI](https://rapidapi.com/)) |
 | `COIN_MARKET_URL` | Crypto data API URL | `https://pro-api.coinmarketcap.com/v1/...` | Yes |
 | `COIN_MARKET_CAP_API_KEY` | Crypto data API key | `coinmarketcap_key` | Yes ([CoinMarketCap](https://coinmarketcap.com/api/)) |
+| `SECRET_KEY` | Signs session cookies; rotating signs everyone out | `python -c "import secrets; print(secrets.token_urlsafe(48))"` | Yes |
+| `AUTH_PROVIDER` | `local` passwords or `oidc` (Authentik) | `local` | Yes |
+| `FRONTEND_ORIGINS` | Comma-separated origins allowed to call the API with cookies | `http://localhost:3000,http://localhost:3001` | Yes |
+| `COOKIE_SECURE` | Set `true` when serving over HTTPS | `false` | No |
+| `SESSION_TTL_HOURS` | Session lifetime in hours | `12` | No |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `OIDC_ADMIN_GROUP` | SSO settings, only used when `AUTH_PROVIDER=oidc` | see `.env.example` | Only for SSO |
 
 ### Port Overrides
 
@@ -307,12 +354,12 @@ Defines scoring strategies for stock screening:
 - **Accelerators**: Growth performers
 - **Gem**: Small/mid-cap momentum stocks
 
-*Configurable via UI*: **Configurations > Stock Scoring Strategy**
+*Configurable via UI*: **Admin > Configuration > Scoring defaults** (admin), then **Strategies > Stock picking** for each user's choice and overrides.
 
 #### `frontend/portfolio-config.json`
 Defines target asset allocation, monthly SIP targets, and rebalancing thresholds.
 
-*Configurable via UI*: **Configurations > Portfolio Allocation**
+*Configurable via UI*: **Admin > Configuration > Portfolio config**
 
 #### `backend/configurations/bank_config.py`
 Defines bank statement CSV column mappings (date, description, amount) and automatic categorization rules. Auto-initialized from `backend/configurations/bank_config.py.example` on first run.
@@ -342,6 +389,23 @@ docker exec database /backup.sh
 LATEST=$(ls -t backup_config/db_backups/dbbackup_*.sql.gz | head -1)
 cp "$LATEST" "backup_config/db_backups/dbbackup_GOLDEN_$(date +%Y%m%d).sql.gz"
 ```
+
+### Auth Schema Migration
+
+Multi-user support adds `email`, `password_hash`, `role`, `is_active`, `auth_provider` and related columns to `users`, plus three new tables: `households`, `household_members` and `user_preferences`. It also adds `liabilities.user_id` so loans can be owned by a specific user.
+
+The migration is applied **automatically by `robot start_application.robot`** (step 9). You can also run it directly at any time:
+
+```bash
+source .venv/bin/activate
+.venv/bin/python scripts/migrate_auth_schema.py
+```
+
+Behaviour you should know:
+- It is **idempotent**: it only adds missing columns/tables and only seeds rows that do not exist. Re-running it does not reset passwords, roles, emails or household permissions you changed in the admin console.
+- When it creates accounts for the first time it prints a **one-time bootstrap password**. Save it — each user is forced to change it at first login.
+- It uses `localhost:3399` with `MYSQL_USER`/`MYSQL_PASSWORD` from `.env` when run on the host, and the `DATABASE_URL` host when run inside the backend container. Set `MIGRATION_DATABASE_URL` to override.
+- After a restore from an old backup that predates multi-user support, run this before starting the UI; otherwise nobody can sign in.
 
 ---
 
@@ -460,7 +524,8 @@ Frontend runs at `http://localhost:3000`.
   1. Check if your backup file exists in `backup_config/db_backups/`.
   2. Verify the filename ends with `.sql.gz` or `.sql` (e.g., `dbbackup_GOLDEN_20261010.sql.gz`).
   3. Run `python scripts/validate_env.py` to confirm the backup is recognized.
-  4. Run `robot start_application.robot`, which will restore the golden backup automatically.
+  4. Run `robot start_application.robot`. It restores the newest backup because the database is empty, then applies the auth schema migration automatically.
+  5. If you started Docker Compose manually instead, run `.venv/bin/python scripts/migrate_auth_schema.py` before opening the UI.
 
 ### 2. Port Collision ("port is already allocated" / "bind: address already in use")
 - **Cause**: Existing applications on your server (Plex companion tools, Audiobookshelf, Portainer, Grafana) are using port 3000 or 8000.

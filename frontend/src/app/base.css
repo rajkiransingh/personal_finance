@@ -1,5 +1,12 @@
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Plus Jakarta Sans draws a straight lowercase l by default, which reads as a
+   capital I in small labels ("EmaII"). Its Lingkar set gives l a right tail and
+   opens a/e slightly, without changing the family or disturbing tabular nums. */
+@font-feature-values "Plus Jakarta Sans" {
+  @stylistic { lingkar: 3; }
+}
+
 html, body { overflow-x: clip; }
 
 html {
@@ -13,6 +20,7 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-body);
+  font-variant-alternates: stylistic(lingkar);
   font-size: var(--text-base);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;

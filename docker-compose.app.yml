@@ -11,6 +11,15 @@ services:
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_DB=${REDIS_DB:-0}
+      - SECRET_KEY=${SECRET_KEY}
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-local}
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - SESSION_TTL_HOURS=${SESSION_TTL_HOURS:-12}
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_REDIRECT_URI=${OIDC_REDIRECT_URI:-}
       - PYTHONPATH=/app
       # All logs land in /app/logs (host: ./logs/) — absolute path prevents
       # log files scattering across sub-directories on different CWDs.

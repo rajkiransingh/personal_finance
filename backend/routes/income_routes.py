@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.schemas.income_schema import IncomeCreate, IncomeUpdate, IncomeResponse
+from backend.services.auth import get_data_scope
 from backend.services.db_services import get_db
+from backend.services.scope import require_owner
 from backend.services.income_services import (
     get_all_incomes,
     get_income,
@@ -19,48 +21,50 @@ router = APIRouter(prefix="/income", tags=["Income"])
 
 
 @router.get("", response_model=List[IncomeResponse])
-def read_all_incomes(db: Session = Depends(get_db)):
-    incomes = get_all_incomes(db)
+def read_all_incomes(db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    incomes = get_all_incomes(db, scope)
     return incomes
 
 
 @router.get("/user/{user_id}", response_model=List[IncomeResponse])
-def read_incomes_by_user(user_id: int, db: Session = Depends(get_db)):
+def read_incomes_by_user(user_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    require_owner(user_id, scope)
     user = get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    incomes = get_income_by_user(db, user_id)
+    incomes = get_income_by_user(db, user_id, scope)
     if not incomes:
         raise HTTPException(status_code=404, detail="No incomes found for this user")
     return incomes
 
 
 @router.get("/{income_id}", response_model=IncomeResponse)
-def read_income(income_id: int, db: Session = Depends(get_db)):
-    income = get_income(db, income_id)
+def read_income(income_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    income = get_income(db, income_id, scope)
     if not income:
         raise HTTPException(status_code=404, detail="Income not found")
     return income
 
 
 @router.post("", response_model=IncomeResponse)
-def add_income(income_data: IncomeCreate, db: Session = Depends(get_db)):
+def add_income(income_data: IncomeCreate, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    income_data.user_id = scope[0] if scope else income_data.user_id
     return create_income(db, income_data)
 
 
 @router.put("/{income_id}", response_model=IncomeResponse)
 def modify_income(
-    income_id: int, income_data: IncomeUpdate, db: Session = Depends(get_db)
+    income_id: int, income_data: IncomeUpdate, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)
 ):
-    updated_income = update_income(db, income_id, income_data)
+    updated_income = update_income(db, income_id, income_data, scope)
     if not updated_income:
         raise HTTPException(status_code=404, detail="Income not found")
     return updated_income
 
 
 @router.delete("/{income_id}")
-def remove_income(income_id: int, db: Session = Depends(get_db)):
-    deleted_income = delete_income(db, income_id)
+def remove_income(income_id: int, db: Session = Depends(get_db), scope: list[int] = Depends(get_data_scope)):
+    deleted_income = delete_income(db, income_id, scope)
     if not deleted_income:
         raise HTTPException(status_code=404, detail="Income not found")
     return {"message": "Income deleted successfully"}

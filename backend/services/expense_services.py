@@ -2,18 +2,24 @@ from sqlalchemy.orm import Session
 
 from backend.models.spendings.expense import Expense
 from backend.schemas.expense_schema import ExpenseCreate, ExpenseUpdate
+from backend.services.scope import apply_scope, require_owner
 
 
-def get_all_expenses(db: Session):
-    return db.query(Expense).all()
+def get_all_expenses(db: Session, scope=None):
+    return apply_scope(db.query(Expense), Expense, scope).all()
 
 
-def get_expenses_by_user(db: Session, user_id: int):
-    return db.query(Expense).filter(Expense.user_id == user_id).all()
+def get_expenses_by_user(db: Session, user_id: int, scope=None):
+    require_owner(user_id, scope)
+    return apply_scope(db.query(Expense), Expense, scope).filter(
+        Expense.user_id == user_id
+    ).all()
 
 
-def get_expense(db: Session, expense_id: int):
-    return db.query(Expense).filter(Expense.expense_id == expense_id).first()
+def get_expense(db: Session, expense_id: int, scope=None):
+    return apply_scope(db.query(Expense), Expense, scope).filter(
+        Expense.expense_id == expense_id
+    ).first()
 
 
 def create_expense(db: Session, expense: ExpenseCreate):
@@ -24,18 +30,19 @@ def create_expense(db: Session, expense: ExpenseCreate):
     return new_expense
 
 
-def update_expense(db: Session, expense_id: int, expense: ExpenseUpdate):
-    db_expense = db.query(Expense).filter(Expense.expense_id == expense_id).first()
+def update_expense(db: Session, expense_id: int, expense: ExpenseUpdate, scope=None):
+    db_expense = get_expense(db, expense_id, scope)
     if db_expense:
         for key, value in expense.dict(exclude_unset=True).items():
-            setattr(db_expense, key, value)
+            if key != "user_id":
+                setattr(db_expense, key, value)
         db.commit()
         db.refresh(db_expense)
     return db_expense
 
 
-def delete_expense(db: Session, expense_id: int):
-    db_expense = db.query(Expense).filter(Expense.expense_id == expense_id).first()
+def delete_expense(db: Session, expense_id: int, scope=None):
+    db_expense = get_expense(db, expense_id, scope)
     if db_expense:
         db.delete(db_expense)
         db.commit()

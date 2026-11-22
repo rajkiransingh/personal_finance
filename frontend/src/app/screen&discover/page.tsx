@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useRef, useEffect } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -151,7 +153,7 @@ export default function ScreenNDiscover() {
   useEffect(() => {
     async function fetchFilters() {
       try {
-        const res = await fetch('/api/analytics/filters');
+        const res = await apiFetch('/api/analytics/filters');
         if (res.ok) {
           const data = await res.json();
           setFilters(data);
@@ -167,7 +169,7 @@ export default function ScreenNDiscover() {
   useEffect(() => {
       if (activeTab === 'Invested') {
           setInvestedLoading(true);
-          fetch('/api/analytics/invested_scores')
+          apiFetch('/api/analytics/invested_scores')
              .then(res => res.json())
              .then(data => {
                  setInvestedStocks(data);
@@ -213,7 +215,7 @@ export default function ScreenNDiscover() {
       if (subSector !== 'All') params.append('sub_sector', subSector);
       if (filterType !== 'All') params.append('filter_type', filterType);
 
-      const res = await fetch(`/api/analytics/score?${params.toString()}`);
+      const res = await apiFetch(`/api/analytics/score?${params.toString()}`);
       if (!res.ok) throw new Error('Network response was not ok');
       return res.json();
     },

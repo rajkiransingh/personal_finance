@@ -380,6 +380,10 @@ body {
 .field:focus-visible { outline-color: var(--color-primary); border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 14%, transparent); }
 .field:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* Sign-in fields sit on a white card, so their edge needs more contrast. */
+.auth-field { border-color: var(--color-muted); }
+.auth-submit { background: var(--color-primary); }
+
 /* Utilities that must win over the base field recipe */
 .field-auto { width: auto; }
 .field-search { padding-left: var(--space-xl); }

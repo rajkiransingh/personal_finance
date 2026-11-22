@@ -7,11 +7,16 @@ from backend.models.investments.common import InvestmentCategory, InvestmentSubC
 from backend.models.spendings.expense import ExpenseCategory
 from backend.models.unit import Unit
 from backend.models.user import User
+from backend.services.auth import require_admin_for_writes
 from backend.services.db_services import get_db
 from utilities.common.app_config import config
 
 logger = config.setup_logger("api.routes.categories")
-router = APIRouter(prefix="/categories", tags=["categories"])
+router = APIRouter(
+    prefix="/categories",
+    tags=["categories"],
+    dependencies=[Depends(require_admin_for_writes)],
+)
 
 
 # Get all the data related to mera paisa dashboard

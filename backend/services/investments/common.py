@@ -7,49 +7,55 @@ from backend.models.investments.mutual_fund import MutualFundInvestment
 from backend.models.investments.real_estate import RealEstateInvestment
 from backend.models.investments.stock import StockInvestment
 from backend.schemas.investments.common import InvestmentUpdate
+from backend.services.scope import apply_scope, require_owner
 
 
-def get_all_investments(investment_type: str, db: Session):
+def _scoped(model, db, scope):
+    return apply_scope(db.query(model), model, scope)
+
+
+def get_all_investments(investment_type: str, db: Session, scope=None):
     if investment_type == "stocks":
-        return db.query(StockInvestment).all()
+        return _scoped(StockInvestment, db, scope).all()
     elif investment_type == "mutual fund":
-        return db.query(MutualFundInvestment).all()
+        return _scoped(MutualFundInvestment, db, scope).all()
     elif investment_type == "bullion":
-        return db.query(BullionInvestment).all()
+        return _scoped(BullionInvestment, db, scope).all()
     elif investment_type == "real estate":
-        return db.query(RealEstateInvestment).all()
+        return _scoped(RealEstateInvestment, db, scope).all()
     elif investment_type == "crypto":
-        return db.query(CryptoInvestment).all()
+        return _scoped(CryptoInvestment, db, scope).all()
     else:
         raise HTTPException(status_code=400, detail="Invalid investment type")
 
 
-def get_investment_by_user(investment_type: str, db: Session, user_id: int):
+def get_investment_by_user(investment_type: str, db: Session, user_id: int, scope=None):
+    require_owner(user_id, scope)
     if investment_type == "stock":
         return (
-            db.query(StockInvestment).filter(StockInvestment.investor == user_id).all()
+            _scoped(StockInvestment, db, scope).filter(StockInvestment.investor == user_id).all()
         )
     elif investment_type == "mutual fund":
         return (
-            db.query(MutualFundInvestment)
+            _scoped(MutualFundInvestment, db, scope)
             .filter(MutualFundInvestment.investor == user_id)
             .all()
         )
     elif investment_type == "bullion":
         return (
-            db.query(BullionInvestment)
+            _scoped(BullionInvestment, db, scope)
             .filter(BullionInvestment.investor == user_id)
             .all()
         )
     elif investment_type == "real estate":
         return (
-            db.query(RealEstateInvestment)
+            _scoped(RealEstateInvestment, db, scope)
             .filter(RealEstateInvestment.investor == user_id)
             .all()
         )
     elif investment_type == "crypto":
         return (
-            db.query(CryptoInvestment)
+            _scoped(CryptoInvestment, db, scope)
             .filter(CryptoInvestment.investor == user_id)
             .all()
         )
@@ -57,34 +63,34 @@ def get_investment_by_user(investment_type: str, db: Session, user_id: int):
         raise HTTPException(status_code=400, detail="Invalid investment type")
 
 
-def get_investment_by_id(investment_type: str, db: Session, investment_id: int):
+def get_investment_by_id(investment_type: str, db: Session, investment_id: int, scope=None):
     if investment_type == "stock":
         return (
-            db.query(StockInvestment)
+            _scoped(StockInvestment, db, scope)
             .filter(StockInvestment.id == investment_id)
             .first()
         )
     elif investment_type == "mutual fund":
         return (
-            db.query(MutualFundInvestment)
+            _scoped(MutualFundInvestment, db, scope)
             .filter(MutualFundInvestment.id == investment_id)
             .first()
         )
     elif investment_type == "bullion":
         return (
-            db.query(BullionInvestment)
+            _scoped(BullionInvestment, db, scope)
             .filter(BullionInvestment.id == investment_id)
             .first()
         )
     elif investment_type == "real estate":
         return (
-            db.query(RealEstateInvestment)
+            _scoped(RealEstateInvestment, db, scope)
             .filter(RealEstateInvestment.id == investment_id)
             .first()
         )
     elif investment_type == "crypto":
         return (
-            db.query(CryptoInvestment)
+            _scoped(CryptoInvestment, db, scope)
             .filter(CryptoInvestment.id == investment_id)
             .first()
         )
@@ -93,14 +99,14 @@ def get_investment_by_id(investment_type: str, db: Session, investment_id: int):
 
 
 def update_investment(
-    investment_type: str, investment_id: int, update_data: InvestmentUpdate, db: Session
+    investment_type: str, investment_id: int, update_data: InvestmentUpdate, db: Session, scope=None
 ):
     """
     Updates only the provided fields for the investment transaction while keeping other values unchanged.
     """
     if investment_type == "stock":
         investment = (
-            db.query(StockInvestment)
+            _scoped(StockInvestment, db, scope)
             .filter(StockInvestment.id == investment_id)
             .first()
         )
@@ -108,7 +114,7 @@ def update_investment(
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "mutual fund":
         investment = (
-            db.query(MutualFundInvestment)
+            _scoped(MutualFundInvestment, db, scope)
             .filter(MutualFundInvestment.id == investment_id)
             .first()
         )
@@ -116,7 +122,7 @@ def update_investment(
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "bullion":
         investment = (
-            db.query(BullionInvestment)
+            _scoped(BullionInvestment, db, scope)
             .filter(BullionInvestment.id == investment_id)
             .first()
         )
@@ -124,7 +130,7 @@ def update_investment(
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "real estate":
         investment = (
-            db.query(RealEstateInvestment)
+            _scoped(RealEstateInvestment, db, scope)
             .filter(RealEstateInvestment.id == investment_id)
             .first()
         )
@@ -132,7 +138,7 @@ def update_investment(
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "crypto":
         investment = (
-            db.query(CryptoInvestment)
+            _scoped(CryptoInvestment, db, scope)
             .filter(CryptoInvestment.id == investment_id)
             .first()
         )
@@ -151,10 +157,10 @@ def update_investment(
     return investment
 
 
-def delete_investment(investment_type: str, investment_id: int, db: Session):
+def delete_investment(investment_type: str, investment_id: int, db: Session, scope=None):
     if investment_type == "stock":
         investment = (
-            db.query(StockInvestment)
+            _scoped(StockInvestment, db, scope)
             .filter(StockInvestment.id == investment_id)
             .first()
         )
@@ -162,7 +168,7 @@ def delete_investment(investment_type: str, investment_id: int, db: Session):
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "mutual fund":
         investment = (
-            db.query(MutualFundInvestment)
+            _scoped(MutualFundInvestment, db, scope)
             .filter(MutualFundInvestment.id == investment_id)
             .first()
         )
@@ -170,7 +176,7 @@ def delete_investment(investment_type: str, investment_id: int, db: Session):
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "bullion":
         investment = (
-            db.query(BullionInvestment)
+            _scoped(BullionInvestment, db, scope)
             .filter(BullionInvestment.id == investment_id)
             .first()
         )
@@ -178,7 +184,7 @@ def delete_investment(investment_type: str, investment_id: int, db: Session):
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "real estate":
         investment = (
-            db.query(RealEstateInvestment)
+            _scoped(RealEstateInvestment, db, scope)
             .filter(RealEstateInvestment.id == investment_id)
             .first()
         )
@@ -186,7 +192,7 @@ def delete_investment(investment_type: str, investment_id: int, db: Session):
             raise HTTPException(status_code=404, detail="Investment not found")
     elif investment_type == "crypto":
         investment = (
-            db.query(CryptoInvestment)
+            _scoped(CryptoInvestment, db, scope)
             .filter(CryptoInvestment.id == investment_id)
             .first()
         )

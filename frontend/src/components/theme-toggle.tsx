@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 type Mode = "light" | "dark";
 
 export default function ThemeToggle() {
+  const { user, savePreferences } = useAuth();
   const [mode, setMode] = useState<Mode>("light");
 
   useEffect(() => {
@@ -22,6 +24,7 @@ export default function ThemeToggle() {
     } catch {
       // storage can be unavailable in private contexts; the mode still applies for this session
     }
+    if (user) void savePreferences({ theme: next });
   };
 
   return (

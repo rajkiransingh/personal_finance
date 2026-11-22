@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from utilities.common.app_config import config
 
+from backend.services.auth import get_data_scope
 from backend.services.db_services import get_db
 from sqlalchemy.orm import Session
 from utilities.analytics.stock_analyzer import get_stock_score
@@ -132,7 +133,7 @@ async def get_filter_options():
 
 # Get scores for currently invested stocks
 @router.get("/invested_scores")
-async def get_invested_stock_scores():
+async def get_invested_stock_scores(scope: list[int] = Depends(get_data_scope)):
     """
     Get scores for stocks currently in the portfolio.
     If an invested stock is not found in the top 500 candidates (cached scores),
@@ -141,7 +142,7 @@ async def get_invested_stock_scores():
     db: Session = next(get_db())
 
     # Get invested symbols
-    investment_data = get_investments_symbols(db)
+    investment_data = get_investments_symbols(db, scope)
     invested_symbols = set(
         investment_data.get("common_stocks", [])
         + investment_data.get("stocks_with_dividends", [])

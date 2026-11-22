@@ -26,3 +26,5 @@ numpy-financial
 rapidfuzz
 python-dotenv==1.0.0
 python-multipart==0.0.21
+PyJWT==2.15.1
+bcrypt==5.0.0

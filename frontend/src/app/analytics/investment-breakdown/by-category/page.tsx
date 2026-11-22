@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+
 import { useEffect, useState } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -43,7 +45,7 @@ export default function InvestmentBreakdown() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch('/api/summary/portfolio');
+        const res = await apiFetch('/api/summary/portfolio');
         if (!res.ok) throw new Error('Failed to fetch data');
         const json = await res.json();
         setData(json);

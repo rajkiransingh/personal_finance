@@ -1,5 +1,8 @@
 'use client';
 
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -37,6 +40,7 @@ const signedPercent = (value: number) =>
   `${value > 0 ? '+' : value < 0 ? '-' : ''}${Math.abs(value).toFixed(2)}%`;
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +49,7 @@ export default function DashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     try {
       setRefreshing(true);
-      const response = await fetch('/api/dashboard', { method: 'GET' });
+      const response = await apiFetch('/api/dashboard', { method: 'GET' });
 
       if (!response.ok) throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
       const dashboardData: DashboardData = await response.json();
@@ -150,7 +154,7 @@ export default function DashboardPage() {
     <div className="space-y-6 pb-8">
       <div className="page-head">
         <div>
-          <p className="greeting">Welcome back, Rajkiran 👋</p>
+          <p className="greeting">Welcome back, {user?.name?.split(" ")[0] || "there"} 👋</p>
           <h1 className="page-title">Financial dashboard</h1>
           <p className="page-sub">
             Here’s how your money is doing today, straight from the live ledger.
